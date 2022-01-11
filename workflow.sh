@@ -29,7 +29,7 @@ while read col1 col2
 do
   singularity exec "${dockerdir}/snippy_latest.sif" snippy \
     --cpus 10 \
-    --outdir "./output/${jobname}/$col1" \
+    --outdir "./output/${jobname}/snippy/$col1" \
     --ref "./input/${jobname}/reference_genome/${reffile}" \
     --R1 "./input/${jobname}/raw_reads/$col1" \
     --R2 "./input/${jobname}/raw_reads/$col2" \
