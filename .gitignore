@@ -3,3 +3,6 @@
 analysis/*
 input/*
 output/*
+
+.Rproj.user
+prophyl.Rproj
