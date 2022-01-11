@@ -2,6 +2,7 @@
 ## UNZIP REFERENCE FILE - MANUAL
 
 jobname="test"
+threads=10
 gubbins_iterations=100
 
 # uncomment to run workflow locally, set full path to your docker directory
@@ -44,14 +45,14 @@ singularity exec "${dockerdir}/r-packages_latest.sif" \
 # GUBBINS
 
 # pull docker image
-(cd $dockerdir && singularity pull docker://sangerpathogens/gubbins)
+(cd $dockerdir && singularity pull docker://nanozoo/gubbins)
 
 # create output directory
 [ ! -d "./output/${jobname}/gubbins" ] && mkdir -p "./output/${jobname}/gubbins"
 
 singularity exec "${dockerdir}/gubbins_latest.sif" run_gubbins.py \
-  --tree-builder fasttree \
-  --threads 10 \
+  --tree_builder fasttree \
+  --threads $threads \
   --iterations $gubbins_iterations \
   -d \
   "./output/${jobname}/snippy/consensus.subs.fasta"
