@@ -56,3 +56,6 @@ singularity exec "${dockerdir}/gubbins_latest.sif" run_gubbins.py \
   --iterations $gubbins_iterations \
   -d \
   "./output/${jobname}/snippy/consensus.subs.fasta"
+  
+singularity exec "${dockerdir}/r-packages_latest.sif" \
+  Rscript ./scripts/move_gubbins_results.R $jobname
