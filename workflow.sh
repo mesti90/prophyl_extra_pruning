@@ -59,3 +59,9 @@ singularity exec "${dockerdir}/gubbins_latest.sif" run_gubbins.py \
   
 singularity exec "${dockerdir}/r-packages_latest.sif" \
   Rscript ./scripts/move_gubbins_results.R $jobname
+  
+# TREEDATER
+
+singularity exec "${dockerdir}/r-packages_latest.sif" \
+  Rscript ./scripts/run_treedater.R $jobname 0.2
+
