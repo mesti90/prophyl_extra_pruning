@@ -3,7 +3,7 @@ rm(list=ls())
 args <- commandArgs(trailingOnly = TRUE)
 
 jobname <- args[1] # name of the directory inside the input directory
-p_cores <- args[2] # proportion of cores to use for the analysis
+p_cores <- as.numeric(args[2]) # proportion of cores to use for the analysis
 
 library(dplyr)
 library(treedater)
@@ -17,12 +17,15 @@ gdir <- paste0("./output/",jobname,"/gubbins")
 tree <- ape::read.tree(
   file = paste0(gdir, "/consensus.subs.node_labelled.final_tree.tre"))
 
+# may not be generalised enough!!
+tree$tip.label <-  gsub(".R1.fastq.gz", "", tree$tip.label)
+
 # unroot tree, if rooted
 if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
 
 # read data set with dates, requires full dates
 
-dates <- read.csv("./input/", jobname,"/dates.tsv", sep = '\t')
+dates <- read.table(paste0("./input/", jobname,"/dates.tsv"), sep = '\t', header = TRUE)
 dates$date <- as.Date(dates$date)
 
 # rename tips to include dates
@@ -50,11 +53,17 @@ dtr <- dater(tree,
 
 fit.lm <- rootToTipRegressionPlot(dtr)
 
+try(dev.off(), silent = TRUE)
+try(dev.off(), silent = TRUE)
+
 pdf(file = paste0(tdir, "/treedater_root_to_tip.pdf"), height = 8, width = 15)
 fit.lm
 dev.off()
 
-png(file = paste0(tdir, "/treedater_root_to_tip.ng"))
+try(dev.off(), silent = TRUE)
+try(dev.off(), silent = TRUE)
+
+png(file = paste0(tdir, "/treedater_root_to_tip.png"))
 fit.lm
 dev.off()
 
