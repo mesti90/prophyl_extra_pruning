@@ -51,20 +51,18 @@ dtr <- dater(tree,
              clock = 'strict', 
              ncpu =  max(round(p_cores*parallel::detectCores(),0),1))
 
-fit.lm <- rootToTipRegressionPlot(dtr)
-
 try(dev.off(), silent = TRUE)
 try(dev.off(), silent = TRUE)
 
-pdf(file = paste0(tdir, "/treedater_root_to_tip.pdf"), height = 8, width = 15)
-fit.lm
+pdf(file = paste0(tdir, "/treedater_root_to_tip.pdf"))
+rootToTipRegressionPlot(dtr)
 dev.off()
 
 try(dev.off(), silent = TRUE)
 try(dev.off(), silent = TRUE)
 
 png(file = paste0(tdir, "/treedater_root_to_tip.png"))
-fit.lm
+rootToTipRegressionPlot(dtr)
 dev.off()
 
 ape::write.tree(dtr,
