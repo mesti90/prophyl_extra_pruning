@@ -18,6 +18,9 @@ dockerdir="/home/tamas/Programs/docker"
 [ ! -d "$dockerdir/nanozoo" ] && mkdir -p "$dockerdir/nanozoo"
 (cd $dockerdir/nanozoo && singularity pull docker://nanozoo/gubbins)
 
+[ ! -d "$dockerdir/evolbioinfo" ] && mkdir -p "$dockerdir/evolbioinfo"
+(cd $dockerdir/evolbioinfo && singularity pull docker://evolbioinfo/treetime:v0.7.4)
+
 [ ! -d "$dockerdir/stitam" ] && mkdir -p "$dockerdir/stitam"
 (cd $dockerdir/stitam && singularity pull docker://stitam/r-packages)
 
@@ -71,7 +74,7 @@ singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
   
 # TREETIME
 
-treetime \
+singularity exec "${dockerdir}/evolbioinfo/treetime_v0.7.4.sif" treetime \
   --tree "./jobs/${jobname}/output/gubbins/consensus.subs.node_labelled.final_tree.tre" \
   --aln "./jobs/${jobname}/output/gubbins/consensus.subs.filtered_polymorphic_sites.fasta" \
   --dates "./jobs/${jobname}/dates.tsv" \
