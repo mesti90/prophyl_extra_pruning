@@ -9,13 +9,13 @@ library(dplyr)
 library(treedater)
 
 # create output directory
-tdir <- paste0("./output/",jobname,"/treedater")
+tdir <- paste0("./jobs/",jobname,"/output/treedater/")
 if (!dir.exists(tdir)) dir.create(tdir, recursive = TRUE)
 
 # read tree from gubbins directory
-gdir <- paste0("./output/",jobname,"/gubbins")
+gdir <- paste0("./jobs/",jobname,"/output/gubbins/")
 tree <- ape::read.tree(
-  file = paste0(gdir, "/consensus.subs.node_labelled.final_tree.tre"))
+  file = paste0(gdir, "consensus.subs.node_labelled.final_tree.tre"))
 
 # may not be generalised enough!!
 tree$tip.label <-  gsub(".R1.fastq.gz", "", tree$tip.label)
@@ -25,7 +25,9 @@ if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
 
 # read data set with dates, requires full dates
 
-dates <- read.table(paste0("./input/", jobname,"/dates.tsv"), sep = '\t', header = TRUE)
+dates <- read.table(paste0("./jobs/", jobname,"/dates.tsv"),
+                    sep = '\t',
+                    header = TRUE)
 dates$date <- as.Date(dates$date)
 
 # rename tips to include dates
@@ -40,9 +42,9 @@ tree$tip.label <- sapply(tree$tip.label, function(x) {
 sts <- sampleYearsFromLabels(tree$tip.label, delimiter = "|")
 
 f <- seqinr::read.fasta(
-  file = paste0(gdir, "/consensus.subs.filtered_polymorphic_sites.fasta"))
+  file = paste0(gdir, "consensus.subs.filtered_polymorphic_sites.fasta"))
 
-con <- file(paste0(tdir, "/treedater_log.txt"))
+con <- file(paste0(tdir, "treedater_log.txt"))
 sink(con, split = TRUE)
 
 dtr <- dater(tree,
@@ -54,19 +56,19 @@ dtr <- dater(tree,
 try(dev.off(), silent = TRUE)
 try(dev.off(), silent = TRUE)
 
-pdf(file = paste0(tdir, "/treedater_root_to_tip.pdf"))
+pdf(file = paste0(tdir, "treedater_root_to_tip.pdf"))
 rootToTipRegressionPlot(dtr)
 dev.off()
 
 try(dev.off(), silent = TRUE)
 try(dev.off(), silent = TRUE)
 
-png(file = paste0(tdir, "/treedater_root_to_tip.png"))
+png(file = paste0(tdir, "treedater_root_to_tip.png"))
 rootToTipRegressionPlot(dtr)
 dev.off()
 
 ape::write.tree(dtr,
-                file = paste0(tdir, "/treedater_tree_with_time.nwk"))
+                file = paste0(tdir, "treedater_tree_with_time.nwk"))
 
 sink()
 close.connection(con)

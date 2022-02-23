@@ -1,8 +1,9 @@
 rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
+jobname <- args[1]
 
-files <- dir(paste0("./input/", args[1], "/raw_reads/"))
+files <- dir(paste0("./jobs/", jobname, "/raw_reads/"))
 
 index <- grep("R1", files)
 
@@ -11,11 +12,11 @@ pairs <- data.frame(
   "R2" = sort(files[-index])
 )
 
-outdir <- paste0("./output/", args[1])
-if (!dir.exists(outdir)) dir.create(outdir)
+output_dir <- paste0("./jobs/", jobname, "/output/")
+if (!dir.exists(output_dir)) dir.create(output_dir)
 
 write.table(pairs,
-            file = paste0(outdir, "/read_pairs.tsv"),
+            file = paste0(output_dir, "read_pairs.tsv"),
             col.names = FALSE,
             row.names = FALSE,
             quote = FALSE,

@@ -1,14 +1,15 @@
 rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
+jobname <- args[1]
 
-outdir <- paste0("./output/", args[1], "/snippy")
-genomenames <- list.dirs(outdir, full.names= FALSE, recursive = FALSE)
+output_dir <- paste0("./jobs/", jobname, "/output/snippy/")
+genomenames <- list.dirs(output_dir, full.names= FALSE, recursive = FALSE)
 
 genomes <- list()
 for (i in genomenames) {
   f <- seqinr::read.fasta(
-    file = paste0(outdir, "/", i, "/snps.consensus.subs.fa"),
+    file = paste0(output_dir, i, "/snps.consensus.subs.fa"),
     forceDNAtolower = FALSE)
   newname <- strsplit(i, "_")[[1]][1]
   
@@ -19,5 +20,5 @@ for (i in genomenames) {
 seqinr::write.fasta(
   sequences = genomes,
   names = names(genomes),
-  file.out = paste0("./output/", args[1], "/snippy/consensus.subs.fasta")
+  file.out = paste0(output_dir, "consensus.subs.fasta")
   )

@@ -6,7 +6,7 @@ threads=10
 gubbins_iterations=100
 
 # uncomment to run workflow locally, set full path to your docker directory
-#dockerdir="/home/tamas/Programs/docker"
+dockerdir="/home/tamas/Programs/docker"
 
 # uncomment to run workflow on hpc, set full path to your own hpc docker directory (optional)
 #dockerdir="/node8_R10/stamas/docker"
@@ -22,20 +22,20 @@ singularity exec "${dockerdir}/r-packages_latest.sif" \
 (cd $dockerdir && singularity pull docker://staphb/snippy)
 
 # create output directory
-[ ! -d "./output/${jobname}/snippy" ] && mkdir -p "./output/${jobname}/snippy"
+[ ! -d "./jobs/${jobname}/output/snippy" ] && mkdir -p "./jobs/${jobname}/output/snippy"
 
 #
-reffile=$(cd "./input/${jobname}/reference_genome" && dir)
+reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
 while read col1 col2
 do
   singularity exec "${dockerdir}/snippy_latest.sif" snippy \
     --cpus 10 \
-    --outdir "./output/${jobname}/snippy/$col1" \
-    --ref "./input/${jobname}/reference_genome/${reffile}" \
-    --R1 "./input/${jobname}/raw_reads/$col1" \
-    --R2 "./input/${jobname}/raw_reads/$col2" \
+    --outdir "./jobs/${jobname}/output/snippy/$col1" \
+    --ref "./jobs/${jobname}/reference_genome/${reffile}" \
+    --R1 "./jobs/${jobname}/raw_reads/$col1" \
+    --R2 "./jobs/${jobname}/raw_reads/$col2" \
     --force
-done < "./output/${jobname}/read_pairs.tsv"
+done < "./jobs/${jobname}/output/read_pairs.tsv"
 
 ## MERGE GENOMES
 
@@ -48,14 +48,14 @@ singularity exec "${dockerdir}/r-packages_latest.sif" \
 (cd $dockerdir && singularity pull docker://nanozoo/gubbins)
 
 # create output directory
-[ ! -d "./output/${jobname}/gubbins" ] && mkdir -p "./output/${jobname}/gubbins"
+[ ! -d "./jobs/${jobname}/output/gubbins" ] && mkdir -p "./jobs/${jobname}/output/gubbins"
 
 singularity exec "${dockerdir}/gubbins_latest.sif" run_gubbins.py \
   --tree_builder fasttree \
   --threads $threads \
   --iterations $gubbins_iterations \
   -d \
-  "./output/${jobname}/snippy/consensus.subs.fasta"
+  "./jobs/${jobname}/output/snippy/consensus.subs.fasta"
   
 singularity exec "${dockerdir}/r-packages_latest.sif" \
   Rscript ./scripts/move_gubbins_results.R $jobname
@@ -64,4 +64,15 @@ singularity exec "${dockerdir}/r-packages_latest.sif" \
 
 singularity exec "${dockerdir}/r-packages_latest.sif" \
   Rscript ./scripts/run_treedater.R $jobname 0.2
+  
+# TREETIME
+
+treetime \
+  --tree "./jobs/${jobname}/output/gubbins/consensus.subs.node_labelled.final_tree.tre" \
+  --aln "./jobs/${jobname}/output/gubbins/consensus.subs.filtered_polymorphic_sites.fasta" \
+  --dates "./jobs/${jobname}/dates.tsv" \
+  --name-column name \
+  --outdir "./jobs/${jobname}/output/treetime"
+
+
 
