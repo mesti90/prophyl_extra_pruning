@@ -1,6 +1,7 @@
 # Ignore local directories
 
 analysis/*
+jobs/*
 input/*
 output/*
 
