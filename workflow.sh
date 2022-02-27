@@ -47,6 +47,21 @@ do
     --force
 done < "./jobs/${jobname}/output/read_pairs.tsv"
 
+# run snippy for single end reads
+
+reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
+files=$(cd "./jobs/${jobname}/raw_reads"; dir)
+for i in $files
+do
+  singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
+    --cpus 10 \
+    --outdir "./jobs/${jobname}/output/snippy/$col1" \
+    --ref "./jobs/${jobname}/reference_genome/${reffile}" \
+    --se "./jobs/${jobname}/raw_reads/$i" \
+    --force
+done
+
+
 ## MERGE GENOMES
 
 singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
