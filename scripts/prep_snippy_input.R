@@ -59,7 +59,7 @@ for (i in 1:nrow(df)) {
     assembly_dir <- paste0(source_dir, "/", df$jobname[i], "/assembled_genomes/")
     if (dir.exists(assembly_dir)) {
       message("Assembly directory found. ", appendLF = FALSE)
-      hit <- grep(df$assembly[i], list.files(assembly_dir))
+      hit <- list.files(assembly_dir)grep(df$assembly[i], list.files(assembly_dir))
       if (length(hit) == 0) message(" Assembly not found. Skipping.")
       if (length(hit) == 1) {
         message(" Assembly found.")
@@ -70,7 +70,7 @@ for (i in 1:nrow(df)) {
         contigs <- rbind(contigs, new_row)
       }
       if (length(hit) > 1) {
-        d <- stringdist::stringdist(list.files(assembly_dir)[hit], df$assembly[i])
+        d <- stringdist::stringdist(hit, df$assembly[i])
         index <- which(d == min(d))
         if (length(index) == 1) {
           message(" Assembly found.")
