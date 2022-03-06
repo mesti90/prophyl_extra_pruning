@@ -5,11 +5,13 @@ jobname="test"
 threads=10
 gubbins_iterations=100
 
-# uncomment to run workflow locally, set full path to your docker directory
+# uncomment to run workflow locally, set full paths
 dockerdir="/home/tamas/Programs/docker"
+sourcedir="/home/tamas/BRC/aci"
 
-# uncomment to run workflow on hpc, set full path to your own hpc docker directory (optional)
+# uncomment to run workflow on hpc, set full paths
 #dockerdir="/node8_R10/stamas/docker"
+#sourcedir="/node8_R10/kintses_lab/aci"
 
 # pull docker images
 [ ! -d "$dockerdir/staphb" ] && mkdir -p "$dockerdir/staphb"
@@ -27,39 +29,54 @@ dockerdir="/home/tamas/Programs/docker"
 # CREATE GENOME LIST
 
 singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
-  Rscript ./scripts/create_read_pairs.R $jobname
+  Rscript ./scripts/prep_snippy_input.R $jobname
 
 ## SNIPPY
 
-# create output directory
+# create output directories
 [ ! -d "./jobs/${jobname}/output/snippy" ] && mkdir -p "./jobs/${jobname}/output/snippy"
+[ ! -d "./jobs/${jobname}/output/snippy/paired" ] && mkdir -p "./jobs/${jobname}/output/snippy/paired"
+[ ! -d "./jobs/${jobname}/output/snippy/single" ] && mkdir -p "./jobs/${jobname}/output/snippy/single"
+[ ! -d "./jobs/${jobname}/output/snippy/contig" ] && mkdir -p "./jobs/${jobname}/output/snippy/contig"
 
-# run snippy
 reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
+
+# run snippy for paired reads
 while read col1 col2
 do
   singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus 10 \
-    --outdir "./jobs/${jobname}/output/snippy/$col1" \
+    --outdir "./jobs/${jobname}/output/snippy/paired/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
-    --R1 "./jobs/${jobname}/raw_reads/$col1" \
-    --R2 "./jobs/${jobname}/raw_reads/$col2" \
+    --R1 $col2 \
+    --R2 $col3 \
     --force
-done < "./jobs/${jobname}/output/read_pairs.tsv"
+done < "./jobs/${jobname}/output/paired_reads.tsv"
 
 # run snippy for single end reads
 
-reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
-files=$(cd "./jobs/${jobname}/raw_reads"; dir)
+
 for i in $files
 do
   singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus 10 \
-    --outdir "./jobs/${jobname}/output/snippy/$col1" \
+    --outdir "./jobs/${jobname}/output/snippy/single/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
-    --se "./jobs/${jobname}/raw_reads/$i" \
+    --se $col2 \
     --force
-done
+done < "./jobs/${jobname}/output/single_reads.tsv"
+
+# run snippy for contigs
+
+for i in $files
+do
+  singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
+    --cpus 10 \
+    --outdir "./jobs/${jobname}/output/snippy/contig/$col1" \
+    --ref "./jobs/${jobname}/reference_genome/${reffile}" \
+    --ctgs $col2 \
+    --force
+done < "./jobs/${jobname}/output/contigs.tsv"
 
 
 ## MERGE GENOMES
