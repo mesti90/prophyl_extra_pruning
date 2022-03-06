@@ -1,4 +1,7 @@
 rm(list=ls())
+con <- file(paste0(
+  "./jobs/", jobname, "/output/","log_", format(Sys.time(), "%Y%m%d"), ".txt"))
+sink(con, append = TRUE, split = TRUE)
 
 args <- commandArgs(trailingOnly = TRUE)
 jobname <- args[1]
@@ -59,7 +62,7 @@ for (i in 1:nrow(df)) {
     assembly_dir <- paste0(source_dir, "/", df$jobname[i], "/assembled_genomes/")
     if (dir.exists(assembly_dir)) {
       message("Assembly directory found. ", appendLF = FALSE)
-      hit <- list.files(assembly_dir)grep(df$assembly[i], list.files(assembly_dir))
+      hit <- list.files(assembly_dir)[grep(df$assembly[i], list.files(assembly_dir))]
       if (length(hit) == 0) message(" Assembly not found. Skipping.")
       if (length(hit) == 1) {
         message(" Assembly found.")
@@ -110,3 +113,6 @@ write.table(contigs,
             row.names = FALSE,
             quote = FALSE,
             sep = "\t")
+
+sink()
+close.connection(con)
