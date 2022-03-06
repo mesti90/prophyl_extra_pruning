@@ -2,16 +2,16 @@
 ## UNZIP REFERENCE FILE - MANUAL
 
 jobname="test"
-threads=10
+threads=30
 gubbins_iterations=100
 
 # uncomment to run workflow locally, set full paths
-dockerdir="/home/tamas/Programs/docker"
-sourcedir="/home/tamas/BRC/aci"
+#dockerdir="/home/tamas/Programs/docker"
+#sourcedir="/home/tamas/BRC/aci"
 
 # uncomment to run workflow on hpc, set full paths
-#dockerdir="/node8_R10/stamas/docker"
-#sourcedir="/node8_R10/kintses_lab/aci"
+dockerdir="/node8_R10/stamas/docker"
+sourcedir="/node8_R10/kintses_lab/aci"
 
 # pull docker images
 [ ! -d "$dockerdir/staphb" ] && mkdir -p "$dockerdir/staphb"
@@ -44,8 +44,8 @@ reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
 # run snippy for paired reads
 while read col1 col2
 do
-  singularity exec --bind $sourcedir exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
-    --cpus 10 \
+  singularity exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
+    --cpus $threads \
     --outdir "./jobs/${jobname}/output/snippy/paired/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
     --R1 $col2 \
@@ -58,8 +58,8 @@ done < "./jobs/${jobname}/output/paired_reads.tsv"
 
 for i in $files
 do
-  singularity exec exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
-    --cpus 10 \
+  singularity exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
+    --cpus $threads \
     --outdir "./jobs/${jobname}/output/snippy/single/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
     --se $col2 \
@@ -70,8 +70,8 @@ done < "./jobs/${jobname}/output/single_reads.tsv"
 
 for i in $files
 do
-  singularity exec exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
-    --cpus 10 \
+  singularity exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
+    --cpus $threads \
     --outdir "./jobs/${jobname}/output/snippy/contig/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
     --ctgs $col2 \
