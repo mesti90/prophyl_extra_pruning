@@ -29,7 +29,7 @@ sourcedir="/home/tamas/BRC/aci"
 # CREATE GENOME LIST
 
 singularity exec --bind $sourcedir "${dockerdir}/stitam/r-packages_latest.sif" \
-  Rscript ./scripts/prep_snippy_input.R $jobname
+  Rscript ./scripts/prep_snippy_input.R $jobname $sourcedir
 
 ## SNIPPY
 
