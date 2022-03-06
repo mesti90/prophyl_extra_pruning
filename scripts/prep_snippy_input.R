@@ -67,6 +67,7 @@ for (i in 1:nrow(df)) {
           assembly = df$assembly[i],
           path = paste0(assembly_dir, hit)
         )
+        contigs <- rbind(contigs, new_row)
       }
       if (length(hit) > 1) {
         d <- stringdist::stringdist(list.files(assembly_dir)[hit], df$assembly[i])
@@ -77,6 +78,7 @@ for (i in 1:nrow(df)) {
             assembly = df$assembly[i],
             path = paste0(assembly_dir, hit[index])
           ) 
+          contigs <- rbind(contigs, new_row)
         } else {
           message(paste0(" More than 1 files found. Skipping."))
         }
