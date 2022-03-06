@@ -1,11 +1,12 @@
 rm(list=ls())
-con <- file(paste0(
-  "./jobs/", jobname, "/output/","log_", format(Sys.time(), "%Y%m%d"), ".txt"))
-sink(con, append = TRUE, split = TRUE)
 
 args <- commandArgs(trailingOnly = TRUE)
 jobname <- args[1]
 source_dir <- args[2]
+
+con <- file(paste0(
+  "./jobs/", jobname, "/output/","log_", format(Sys.time(), "%Y%m%d"), ".txt"))
+sink(con, append = TRUE, split = TRUE)
 
 output_dir <- paste0("./jobs/", jobname, "/output/")
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
