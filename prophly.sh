@@ -44,7 +44,7 @@ reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
 # run snippy for paired reads
 while read col1 col2
 do
-  singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
+  singularity exec --bind $sourcedir exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus 10 \
     --outdir "./jobs/${jobname}/output/snippy/paired/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
@@ -58,7 +58,7 @@ done < "./jobs/${jobname}/output/paired_reads.tsv"
 
 for i in $files
 do
-  singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
+  singularity exec exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus 10 \
     --outdir "./jobs/${jobname}/output/snippy/single/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
@@ -70,7 +70,7 @@ done < "./jobs/${jobname}/output/single_reads.tsv"
 
 for i in $files
 do
-  singularity exec "${dockerdir}/staphb/snippy_latest.sif" snippy \
+  singularity exec exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus 10 \
     --outdir "./jobs/${jobname}/output/snippy/contig/$col1" \
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
