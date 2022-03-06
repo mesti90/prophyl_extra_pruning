@@ -5,8 +5,9 @@ jobname <- args[1]
 source_dir <- args[2]
 
 con <- file(paste0(
-  "./jobs/", jobname, "/output/","log_", format(Sys.time(), "%Y%m%d"), ".txt"))
-sink(con, append = TRUE, split = TRUE)
+  "./jobs/", jobname, "/output/","log_", format(Sys.time(), "%Y%m%d"), ".txt"),
+  open = "wt")
+sink(con, type = "message")
 
 output_dir <- paste0("./jobs/", jobname, "/output/")
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
@@ -115,5 +116,4 @@ write.table(contigs,
             quote = FALSE,
             sep = "\t")
 
-sink()
-close.connection(con)
+sink(con)
