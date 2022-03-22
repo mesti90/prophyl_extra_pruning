@@ -4,6 +4,7 @@
 jobname="test"
 threads=30
 gubbins_iterations=100
+bootstrap_replicates=1000
 
 # uncomment to run workflow locally, set full paths
 #dockerdir="/home/tamas/Programs/docker"
@@ -99,16 +100,25 @@ singularity exec "${dockerdir}/nanozoo/gubbins_latest.sif" run_gubbins.py \
 singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
   Rscript ./scripts/move_gubbins_results.R $jobname
   
-# TREEDATER
+# IQTREE BOOTSTRAP
+[ ! -d "./jobs/${jobname}/output/iqtree" ] && mkdir -p "./jobs/${jobname}/output/iqtree"
 
-singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
-  Rscript ./scripts/run_treedater.R $jobname 0.2
+singularity exec "${dockerdir}/staphb/iqtree_latest.sif" iqtree \
+  -t "./jobs/${jobname}/output/gubbins/consensus.subs.node_labelled.final_tree.tre" \
+  -s "./jobs/${jobname}/output/gubbins/consensus.subs.filtered_polymorphic_sites.fasta" \
+  -nt $threads \
+  -bb $bootstrap_replicates
   
-# TREETIME
+## TREEDATER
 
-singularity exec "${dockerdir}/evolbioinfo/treetime_v0.7.4.sif" treetime \
-  --tree "./jobs/${jobname}/output/gubbins/consensus.subs.node_labelled.final_tree.tre" \
-  --aln "./jobs/${jobname}/output/gubbins/consensus.subs.filtered_polymorphic_sites.fasta" \
-  --dates "./jobs/${jobname}/dates.tsv" \
-  --name-column name \
-  --outdir "./jobs/${jobname}/output/treetime"
+#singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
+  #Rscript ./scripts/run_treedater.R $jobname 0.2
+  
+## TREETIME
+
+#singularity exec "${dockerdir}/evolbioinfo/treetime_v0.7.4.sif" treetime \
+  #--tree "./jobs/${jobname}/output/gubbins/consensus.subs.node_labelled.final_tree.tre" \
+  #--aln "./jobs/${jobname}/output/gubbins/consensus.subs.filtered_polymorphic_sites.fasta" \
+  #--dates "./jobs/${jobname}/dates.tsv" \
+  #--name-column name \
+  #--outdir "./jobs/${jobname}/output/treetime"
