@@ -17,9 +17,6 @@ gdir <- paste0("./jobs/",jobname,"/output/gubbins/")
 tree <- ape::read.tree(
   file = paste0(gdir, "consensus.subs.node_labelled.final_tree.tre"))
 
-# may not be generalised enough!!
-tree$tip.label <-  gsub(".R1.fastq.gz", "", tree$tip.label)
-
 # unroot tree, if rooted
 if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
 
@@ -70,5 +67,4 @@ dev.off()
 ape::write.tree(dtr,
                 file = paste0(tdir, "treedater_tree_with_time.nwk"))
 
-sink()
-close.connection(con)
+sink(con)
