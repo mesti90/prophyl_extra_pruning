@@ -32,7 +32,7 @@ sourcedir="/node8_R10/kintses_lab/aci"
 singularity exec --bind $sourcedir "${dockerdir}/stitam/r-packages_latest.sif" \
   Rscript ./scripts/prep_snippy_input.R $jobname $sourcedir
 
-## SNIPPY
+# SNIPPY
 
 # create output directories
 [ ! -d "./jobs/${jobname}/output/snippy" ] && mkdir -p "./jobs/${jobname}/output/snippy"
@@ -43,7 +43,7 @@ singularity exec --bind $sourcedir "${dockerdir}/stitam/r-packages_latest.sif" \
 reffile=$(cd "./jobs/${jobname}/reference_genome" && dir)
 
 # run snippy for paired reads
-while read col1 col2
+while read col1 col2 col3
 do
   singularity exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus $threads \
@@ -52,12 +52,10 @@ do
     --R1 $col2 \
     --R2 $col3 \
     --force
-done < "./jobs/${jobname}/output/paired_reads.tsv"
+done < "./jobs/${jobname}/output/snippy/paired_reads.tsv"
 
 # run snippy for single end reads
-
-
-for i in $files
+while read col1 col2
 do
   singularity exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus $threads \
@@ -65,11 +63,10 @@ do
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
     --se $col2 \
     --force
-done < "./jobs/${jobname}/output/single_reads.tsv"
+done < "./jobs/${jobname}/output/snippy/single_reads.tsv"
 
 # run snippy for contigs
-
-for i in $files
+while read col1 col2
 do
   singularity exec --bind $sourcedir "${dockerdir}/staphb/snippy_latest.sif" snippy \
     --cpus $threads \
@@ -77,18 +74,12 @@ do
     --ref "./jobs/${jobname}/reference_genome/${reffile}" \
     --ctgs $col2 \
     --force
-done < "./jobs/${jobname}/output/contigs.tsv"
-
-
-## MERGE GENOMES
+done < "./jobs/${jobname}/output/snippy/contigs.tsv"
 
 singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
-  Rscript ./scripts/merge_genomes.R $jobname
+  Rscript ./scripts/merge_snippy_output.R $jobname
 
 # GUBBINS
-
-# create output directory
-[ ! -d "./jobs/${jobname}/output/gubbins" ] && mkdir -p "./jobs/${jobname}/output/gubbins"
 
 singularity exec "${dockerdir}/nanozoo/gubbins_latest.sif" run_gubbins.py \
   --tree_builder fasttree \
@@ -96,22 +87,21 @@ singularity exec "${dockerdir}/nanozoo/gubbins_latest.sif" run_gubbins.py \
   --iterations $gubbins_iterations \
   -d \
   "./jobs/${jobname}/output/snippy/consensus.subs.fasta"
-  
+
 singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
-  Rscript ./scripts/move_gubbins_results.R $jobname
+  Rscript ./scripts/move_gubbins_output.R $jobname
   
 # IQTREE BOOTSTRAP
-[ ! -d "./jobs/${jobname}/output/iqtree" ] && mkdir -p "./jobs/${jobname}/output/iqtree"
+
+singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
+  Rscript ./scripts/prep_iqtree_input.R $jobname
 
 singularity exec "${dockerdir}/staphb/iqtree_latest.sif" iqtree \
-  -t "./jobs/${jobname}/output/gubbins/consensus.subs.node_labelled.final_tree.tre" \
-  -s "./jobs/${jobname}/output/gubbins/consensus.subs.filtered_polymorphic_sites.fasta" \
+  -t "./jobs/${jobname}/output/iqtree/consensus.subs.node_labelled.final_tree.tre" \
+  -s "./jobs/${jobname}/output/iqtree/consensus.subs.filtered_polymorphic_sites.fasta" \
   -nt $threads \
   -bb $bootstrap_replicates
-  
-singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
-  Rscript ./scripts/move_iqtree_results.R $jobname
-  
+ 
 ## TREEDATER
 
 #singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \

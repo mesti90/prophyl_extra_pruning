@@ -4,16 +4,14 @@ args <- commandArgs(trailingOnly = TRUE)
 jobname <- args[1]
 source_dir <- args[2]
 
-con <- file(paste0(
-  "./jobs/", jobname, "/output/","log_", format(Sys.time(), "%Y%m%d"), ".txt"),
-  open = "wt")
-sink(con, type = "message")
-
-output_dir <- paste0("./jobs/", jobname, "/output/")
+output_dir <- paste0("./jobs/", jobname, "/output/snippy/")
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
-df <- read.csv(paste0("./jobs/", jobname, "/assemblies.tsv"),
-               sep = "\t")
+con <- file(paste0(output_dir,"log_", format(Sys.time(), "%Y%m%d"), ".txt"), 
+            open = "wt")
+sink(con, type = "message")
+
+df <- read.csv(paste0("./jobs/", jobname, "/assemblies.tsv"), sep = "\t")
 
 paired_reads <- data.frame()
 single_reads <- data.frame()

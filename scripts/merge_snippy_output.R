@@ -3,7 +3,8 @@ rm(list=ls())
 args <- commandArgs(trailingOnly = TRUE)
 jobname <- args[1]
 
-output_dir <- paste0("./jobs/", jobname, "/output/snippy")
+output_dir <- paste0("./jobs/", jobname, "/output/gubbins")
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 genomes <- list()
 d1 <- list.dirs(output_dir, recursive = FALSE)
