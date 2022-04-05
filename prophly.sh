@@ -100,7 +100,8 @@ singularity exec "${dockerdir}/staphb/iqtree_latest.sif" iqtree \
   -t "./jobs/${jobname}/output/iqtree/consensus.subs.node_labelled.final_tree.tre" \
   -s "./jobs/${jobname}/output/iqtree/consensus.subs.filtered_polymorphic_sites.fasta" \
   -nt $threads \
-  -bb $bootstrap_replicates
+  -bb $bootstrap_replicates \
+  -wbtl
  
 ## TREEDATER
 
