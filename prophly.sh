@@ -109,6 +109,9 @@ singularity exec "${dockerdir}/staphb/iqtree_latest.sif" iqtree \
   -nt $threads \
   -bb $bootstrap_replicates
   
+singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
+  Rscript ./scripts/move_iqtree_results.R $jobname
+  
 ## TREEDATER
 
 #singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
