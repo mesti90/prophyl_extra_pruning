@@ -64,6 +64,10 @@ png(file = paste0(tdir, "treedater_root_to_tip.png"))
 rootToTipRegressionPlot(dtr)
 dev.off()
 
+dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
+  strsplit(x, "\\|")[[1]][1]
+}))
+
 ape::write.tree(dtr,
                 file = paste0(tdir, "treedater_tree_with_time.nwk"))
 
