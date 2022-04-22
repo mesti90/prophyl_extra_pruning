@@ -6,6 +6,7 @@ jobname <- args[1] # name of the directory inside the input directory
 p_cores <- as.numeric(args[2]) # proportion of cores to use for the analysis
 
 library(dplyr)
+library(magrittr)
 library(treedater)
 
 # create output directory
@@ -67,6 +68,8 @@ dev.off()
 dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
   strsplit(x, "\\|")[[1]][1]
 }))
+
+dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
 
 ape::write.tree(dtr,
                 file = paste0(tdir, "treedater_tree_with_time.nwk"))
