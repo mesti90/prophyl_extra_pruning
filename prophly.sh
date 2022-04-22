@@ -103,10 +103,10 @@ singularity exec "${dockerdir}/staphb/iqtree_latest.sif" iqtree \
   -bb $bootstrap_replicates \
   -wbtl
  
-## TREEDATER
+# TREEDATER
 
-#singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
-  #Rscript ./scripts/run_treedater.R $jobname 0.2
+singularity exec "${dockerdir}/stitam/r-packages_latest.sif" \
+  Rscript ./scripts/run_treedater.R $jobname 0.2
   
 ## TREETIME
 
@@ -116,3 +116,13 @@ singularity exec "${dockerdir}/staphb/iqtree_latest.sif" iqtree \
   #--dates "./jobs/${jobname}/dates.tsv" \
   #--name-column name \
   #--outdir "./jobs/${jobname}/output/treetime"
+  
+# PASTML
+
+singularity exec "${dockerdir}/evolbioinfo/pastml_latest.sif pastml" \
+  -t "./jobs/${jobname}/output/treedater/treedater_tree_with_time.nwk" \
+  -d "./jobs/${jobname}/treemeta.tsv" \
+  -c "country" \
+  -o "./jobs/${jobname}/output/pastml" \
+  --work_dir "./jobs/${jobname}/output/pastml" \
+  --offline  \
