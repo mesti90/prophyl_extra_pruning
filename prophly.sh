@@ -123,6 +123,5 @@ singularity exec "${dockerdir}/evolbioinfo/pastml_latest.sif" pastml \
   -t "./jobs/${jobname}/output/treedater/treedater_tree_with_time.nwk" \
   -d "./jobs/${jobname}/treemeta.tsv" \
   -c "country" \
-  -o "./jobs/${jobname}/output/pastml" \
   --work_dir "./jobs/${jobname}/output/pastml" \
   --offline  \
