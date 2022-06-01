@@ -1,10 +1,8 @@
 #!/usr/bin/env nextflow
 
-params.genomedir="/home/tamas/Server/hpc/node8_R10/kintses_lab/aci"
-
 nextflow.enable.dsl=2
 
-assembly_ch = Channel.fromPath("$launchDir/assemblies.tsv", checkIfExists: true)
+pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
 
 process create_genome_list {
     container "stitam/r-packages"
@@ -43,15 +41,22 @@ process snippy_paired {
     """
 }
 
-workflow {
-    create_genome_list(assembly_ch)
-    create_genome_list.out[1].splitCsv().view()
-//    format_mlst(predict_mlst(assembly_tuple_ch))
-//    predict_k_serotype(assembly_tuple_ch)
-//    predict_o_serotype(assembly_tuple_ch) 
-//    format_kaptive(predict_k_serotype.out.join(predict_o_serotype.out))
-//    format_resgenes(predict_resgenes(predict_orfs(assembly_tuple_ch)))  
-//    bind_predictions(format_mlst.out.join(format_kaptive.out.join(format_resgenes.out)))
+process simplify_marginals {
+    container "stitam/r-packages"
+    storeDir "$launchDir"
 
-//    bind_predictions.out.collectFile(name: "sample.tsv", newLine: false, keepHeader: true, storeDir: "$launchDir")
-   }
+    input:
+    path combined
+
+    output:
+    path "simplified_marginals.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/simplify_marginals.R $combined
+    """
+}
+
+workflow {
+    pastml_ch | simplify_marginals
+}
