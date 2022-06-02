@@ -3,6 +3,8 @@
 nextflow.enable.dsl=2
 
 pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
+tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
+meta_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
 
 process create_genome_list {
     container "stitam/r-packages"
@@ -57,6 +59,25 @@ process simplify_marginals {
     """
 }
 
+process plot_tree {
+    container "stitam/r-packages"
+
+    input:
+    path tree
+    path treemeta
+    path marginals
+
+    output:
+    path "dated_tree.pdf"
+    path "dated_tree.png"
+    
+    script:
+    """
+    Rscript $projectDir/bin/plot_tree.R $tree $treemeta $marginals
+    """
+}
+
 workflow {
     pastml_ch | simplify_marginals
+    plot_tree(tree_ch, meta_ch, simplify_marginals.out)
 }
