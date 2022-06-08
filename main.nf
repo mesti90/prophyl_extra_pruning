@@ -4,7 +4,8 @@ nextflow.enable.dsl=2
 
 pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
 tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
-meta_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
+meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
+meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 process create_genome_list {
     container "stitam/r-packages"
@@ -43,23 +44,79 @@ process snippy_paired {
     """
 }
 
-process simplify_marginals {
+process predict_country {
+    container "evolbioinfo/pastml"
+    
+    input:
+    path dated_tree
+    path treemeta
+
+    output:
+    path "*"
+
+    script:
+    """
+    pastml \
+    -t $dated_tree \
+    -d $treemeta \
+    -c "country" \
+    --threads ${task.cpus} \
+    --offline  \
+    """
+}
+
+process simplify_country {
     container "stitam/r-packages"
-    storeDir "$launchDir"
 
     input:
     path combined
 
     output:
-    path "simplified_marginals.rds"
+    path "country_marginals.rds"
 
     script:
     """
-    Rscript $projectDir/bin/simplify_marginals.R $combined
+    Rscript $projectDir/bin/simplify_marginals.R $combined "country"
     """
 }
 
-process plot_tree {
+process predict_k_serotype {
+    container "evolbioinfo/pastml"
+    
+    input:
+    path dated_tree
+    path treemeta
+
+    output:
+    path "*"
+
+    script:
+    """
+    pastml \
+    -t $dated_tree \
+    -d $treemeta \
+    -c "k_serotype" \
+    --threads ${task.cpus} \
+    --offline  \
+    """
+}
+
+process simplify_k_serotype {
+    container "stitam/r-packages"
+
+    input:
+    path combined
+
+    output:
+    path "k_serotype_marginals.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/simplify_marginals.R $combined "k_serotype"
+    """
+}
+
+process prep_tree_tbl {
     container "stitam/r-packages"
 
     input:
@@ -68,16 +125,34 @@ process plot_tree {
     path marginals
 
     output:
+    path "tree_tbl.rds"
+    
+    script:
+    """
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $treemeta $marginals
+    """
+}
+
+process plot_tree {
+    container "stitam/rplots:1.0"
+
+    input:
+    path tree_tbl
+
+    output:
     path "dated_tree.pdf"
     path "dated_tree.png"
     
     script:
     """
-    Rscript $projectDir/bin/plot_tree.R $tree $treemeta $marginals
+    Rscript $projectDir/bin/plot_tree.R $tree_tbl
     """
 }
 
 workflow {
-    pastml_ch | simplify_marginals
-    plot_tree(tree_ch, meta_ch, simplify_marginals.out)
+    predict_country(tree_ch, meta_tsv_ch)
+    predict_country.out | simplify_country
+    predict_k_serotype(tree_ch, meta_tsv_ch)
+    predict_k_serotype.out | simplify_k_serotype
+    // prep_tree_tbl(tree_ch, meta_ch, simplify_marginals.out) | plot_tree
 }

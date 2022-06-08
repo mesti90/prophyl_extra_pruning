@@ -3,12 +3,16 @@ library(dplyr)
 library(tidyr)
 
 args <- commandArgs(trailingOnly = TRUE)
+combined_file <- paste0(args[1], "/combined_ancestral_states.tab")
+value <- args[2]
 
-combined <- read.csv(args[1], sep = "\t")
+combined <- read.csv(combined_file, sep = "\t")
+index <- which(names(combined) == value)
+names(combined)[index] <- "target"
 combined$count <- 1
 
-tidy <- combined %>% complete(node, country, fill = list(count = 0))
-tidy <- reshape2::dcast(tidy,node~country, value.var = "count")
+tidy <- combined %>% complete(node, target, fill = list(count = 0))
+tidy <- reshape2::dcast(tidy,node~target, value.var = "count")
 
 tnames <- names(tidy)
 tidy <- cbind(
@@ -17,4 +21,4 @@ tidy <- cbind(
 )
 names(tidy) <- tnames
 
-saveRDS(tidy, "simplified_marginals.rds")
+saveRDS(tidy, paste0(value, "_marginals.rds"))
