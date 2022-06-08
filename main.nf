@@ -2,6 +2,7 @@
 
 nextflow.enable.dsl=2
 
+as_targets = Channel.of("country", "k_serotype")
 pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
 tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
 meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
@@ -44,75 +45,38 @@ process snippy_paired {
     """
 }
 
-process predict_country {
+process predict_ancestral_states {
     container "evolbioinfo/pastml"
     
     input:
-    path dated_tree
-    path treemeta
+    tuple path(dated_tree), path(treemeta), val(target)
 
     output:
-    path "*"
+    tuple val(target), path("*")
 
     script:
     """
     pastml \
     -t $dated_tree \
     -d $treemeta \
-    -c "country" \
+    -c $target \
     --threads ${task.cpus} \
     --offline  \
     """
 }
 
-process simplify_country {
+process simplify_ancestral_states {
     container "stitam/r-packages"
 
     input:
-    path combined
+    tuple val(target), path(combined)
 
     output:
-    path "country_marginals.rds"
+    path "marginals.rds"
 
     script:
     """
-    Rscript $projectDir/bin/simplify_marginals.R $combined "country"
-    """
-}
-
-process predict_k_serotype {
-    container "evolbioinfo/pastml"
-    
-    input:
-    path dated_tree
-    path treemeta
-
-    output:
-    path "*"
-
-    script:
-    """
-    pastml \
-    -t $dated_tree \
-    -d $treemeta \
-    -c "k_serotype" \
-    --threads ${task.cpus} \
-    --offline  \
-    """
-}
-
-process simplify_k_serotype {
-    container "stitam/r-packages"
-
-    input:
-    path combined
-
-    output:
-    path "k_serotype_marginals.rds"
-
-    script:
-    """
-    Rscript $projectDir/bin/simplify_marginals.R $combined "k_serotype"
+    Rscript $projectDir/bin/simplify_marginals.R $combined $target
     """
 }
 
@@ -150,9 +114,6 @@ process plot_tree {
 }
 
 workflow {
-    predict_country(tree_ch, meta_tsv_ch)
-    predict_country.out | simplify_country
-    predict_k_serotype(tree_ch, meta_tsv_ch)
-    predict_k_serotype.out | simplify_k_serotype
+    tree_ch.combine(meta_tsv_ch).combine(as_targets) | predict_ancestral_states | simplify_ancestral_states
     // prep_tree_tbl(tree_ch, meta_ch, simplify_marginals.out) | plot_tree
 }

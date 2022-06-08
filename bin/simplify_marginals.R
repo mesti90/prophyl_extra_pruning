@@ -21,4 +21,6 @@ tidy <- cbind(
 )
 names(tidy) <- tnames
 
-saveRDS(tidy, paste0(value, "_marginals.rds"))
+#saveRDS(tidy, paste0(value, "_marginals.rds"))
+
+saveRDS(tidy, "marginals.rds")
