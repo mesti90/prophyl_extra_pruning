@@ -4,6 +4,7 @@ analysis/*
 jobs/*
 input/*
 output/*
+test/*
 
 .Rproj.user
 prophyl.Rproj
