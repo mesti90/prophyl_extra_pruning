@@ -1,12 +1,12 @@
 rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
-source_dir <- args[1]
 
 con <- file("log.txt", open = "wt")
 sink(con, type = "message")
 
-df <- read.csv("assemblies.tsv", sep = "\t")
+df <- read.csv(args[1], sep = "\t")
+source_dir <- args[2]
 
 paired_reads <- data.frame()
 single_reads <- data.frame()
@@ -87,11 +87,14 @@ for (i in 1:nrow(df)) {
   }
 }
 
-write.csv(paired_reads, file = "paired_reads.csv", row.names = FALSE)
+write.csv(
+  paired_reads, file = "paired_reads.csv", row.names = FALSE, quote = FALSE)
 
-write.csv(single_reads, file = "single_reads.csv", row.names = FALSE)
+write.csv(
+  single_reads, file = "single_reads.csv", row.names = FALSE, quote = FALSE)
 
-write.csv(contigs, file = "contigs.csv", row.names = FALSE)
+write.csv(
+  contigs, file = "contigs.csv", row.names = FALSE, quote = FALSE)
 
 sink(con)
 

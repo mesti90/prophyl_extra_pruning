@@ -2,17 +2,16 @@
 
 nextflow.enable.dsl=2
 
-as_targets = Channel.of("country", "k_serotype")
-pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
-tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
-meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
-meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
+// assemblies_ch = Channel.fromPath("$launchDir/assemblies.tsv")
+
+ans_targets = Channel.of("country", "k_serotype")
+// pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
+// tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
+// meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
+// meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 process create_genome_list {
     container "stitam/r-packages"
-    
-    input:
-    file "assemblies.tsv"
 
     output:
     file "log.txt"
@@ -22,7 +21,7 @@ process create_genome_list {
 
     script:
     """
-    Rscript $projectDir/bin/prep_snippy_input.R $params.genomedir
+    Rscript $projectDir/bin/prep_snippy_input.R $params.assemblies $params.sourcedir
     """
 }
 
@@ -33,15 +32,109 @@ process snippy_paired {
     tuple val(assembly_id), val(R1), val(R2)
 
     output:
+    tuple val(assembly_id), path("*")
     
     script:
     """
     snippy \
-    --outdir "./jobs/${jobname}/output/snippy/paired/$R1" \
-    --ref "./jobs/${jobname}/reference_genome/${reffile}" \
+    --outdir $assembly_id \
+    --ref $params.reffile \
     --R1 $R1 \
     --R2 $R2 \
     --force
+    """
+}
+
+process snippy_single {
+    container "staphb/snippy"
+
+    input:
+    tuple val(assembly_id), val(reads)
+
+    output:
+    tuple val(assembly_id), path("*")
+    
+    script:
+    """
+    snippy \
+    --outdir $assembly_id \
+    --ref $params.reffile \
+    --se $reads \
+    --force
+    """
+}
+
+process snippy_contig {
+    container "staphb/snippy"
+
+    input:
+    tuple val(assembly_id), val(contigs)
+
+    output:
+    tuple val(assembly_id), path("*")
+    
+    script:
+    """
+    snippy \
+    --outdir $assembly_id \
+    --ref $params.reffile \
+    --ctgs $contigs \
+    --force
+    """
+}
+
+process keep_chromosome {
+    container "stitam/r-packages"
+
+    input:
+    tuple val(assembly_id), path(assembly_dir)
+
+    output:
+    path "${assembly_id}_wgs.fasta"
+
+    script:
+    """
+    Rscript $projectDir/bin/keep_chromosome.R $assembly_id $assembly_dir
+    """
+}
+
+process build_tree {
+    container "nanozoo/gubbins"
+
+    input:
+    file chromosomes
+
+    output:
+    path ("*")
+
+    script:
+    """
+    run_gubbins.py \
+    --tree_builder fasttree \
+    --threads ${task.cpus}  \
+    --iterations $params.gubbins_iterations \
+    -d \
+    $chromosomes
+    """
+}
+
+
+
+process bootstrap_tree {
+    container "staphb/iqtree"
+
+    input:
+
+    output:
+
+    script:
+    """
+    iqtree \
+  -t "./jobs/${jobname}/output/iqtree/consensus.subs.node_labelled.final_tree.tre" \
+  -s "./jobs/${jobname}/output/iqtree/consensus.subs.filtered_polymorphic_sites.fasta" \
+  -nt $threads \
+  -bb $bootstrap_replicates \
+  -wbtl
     """
 }
 
@@ -65,18 +158,18 @@ process predict_ancestral_states {
     """
 }
 
-process simplify_ancestral_states {
+process tidy_ancestral_states {
     container "stitam/r-packages"
 
     input:
     tuple val(target), path(combined)
 
     output:
-    path "marginals.rds"
+    path "ancestral_states.tsv"
 
     script:
     """
-    Rscript $projectDir/bin/simplify_marginals.R $combined $target
+    Rscript $projectDir/bin/tidy_ancestral_states.R $combined $target
     """
 }
 
@@ -86,14 +179,14 @@ process prep_tree_tbl {
     input:
     path tree
     path treemeta
-    path marginals
+    path ancestral_states
 
     output:
     path "tree_tbl.rds"
     
     script:
     """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $treemeta $marginals
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $treemeta $ancestral_states
     """
 }
 
@@ -114,6 +207,24 @@ process plot_tree {
 }
 
 workflow {
-    tree_ch.combine(meta_tsv_ch).combine(as_targets) | predict_ancestral_states | simplify_ancestral_states
-    // prep_tree_tbl(tree_ch, meta_ch, simplify_marginals.out) | plot_tree
+    // TODO: what if there are no singles or contigs or paired? will the script break? test
+    create_genome_list()
+    create_genome_list.out[1].splitCsv(header: true) | snippy_paired
+    create_genome_list.out[2].splitCsv(header: true) | snippy_single
+    create_genome_list.out[3].splitCsv(header: true) | snippy_contig
+    snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
+    keep_chromosome.out.collectFile(name: "chromosomes.fasta")
+
+
+
+
+
+
+    // create_genome_list.out[1].splitCsv(header: true).view()  | snippy_paired
+
+    // predict ancestral states for each variable defined in the ans_targets channel
+    // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
+    // prepare tree_tbl which contains predicted ancestral states for internal nodes
+    // prep_tree_tbl(tree_ch, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+    // tree_ch.combine(meta_tsv_ch).combine(tidy_ancestral_states.out) | prep_tree_tbl
 }

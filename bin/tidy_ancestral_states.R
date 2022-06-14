@@ -21,6 +21,22 @@ tidy <- cbind(
 )
 names(tidy) <- tnames
 
-#saveRDS(tidy, paste0(value, "_marginals.rds"))
+tidy <- dplyr::rename(tidy, label = node)
 
-saveRDS(tidy, "marginals.rds")
+ancestral_states <- data.frame(
+  label = tidy$label,
+  group = value,
+  value = apply(tidy[,-1], 1, function(x) {
+    paste(names(tidy)[which(x > 0)+1], collapse = "|")
+  })
+)
+
+write.table(
+  ancestral_states,
+  file = "ancestral_states.tsv",
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
+)
+
+#saveRDS(ancestral_states, "ancestral_states.rds")
