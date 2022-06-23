@@ -1,7 +1,11 @@
 rm(list=ls())
-library(ggtree) # required for tibble to convert tree to tibble
 
 args <- commandArgs(trailingOnly = TRUE)
+
+.libPaths(new = args[4])
+
+library(ggtree) # required for tibble to convert tree to tibble
+
 tree_file <- args[1]
 treemeta_file <- args[2]
 ans_file <- args[3]
@@ -18,7 +22,7 @@ meta <- meta[which(meta$label %in% tree$tip.label),]
 
 # load ancestral states
 ans <- read.csv(ans_file, sep = "\t")
-ans <- reshape2::dcast(ans, label ~ group)
+ans <- tidyr::pivot_wider(ans, names_from = group, values_from = value)
 
 # join tree and metadata
 tree_tbl <- tibble::as_tibble(tree)
@@ -61,51 +65,41 @@ for (i in names(ans)[-1]){
   )
   names(scp_df) <- c(paste0(i, "_from"), paste0(i, "_sc_prob"))
   index <- which(names(tree_tbl) == i)
-  tree_tbl <- cbind(
-    tree_tbl[,1:index],
-    scp_df,
-    tree_tbl[,(index+1):ncol(tree_tbl)]
-  )
-  
+  tf <- index < ncol(tree_tbl)
+  if (tf) {
+    tree_tbl <- cbind(
+      tree_tbl[,1:index],
+      scp_df,
+      tree_tbl[,(index+1):ncol(tree_tbl)]
+    )
+  } else {
+    tree_tbl <- cbind(tree_tbl, scp_df)
+  }
 }
 
+tree_tbl$collection_day <- as.Date(tree_tbl$collection_day)
+
+tree_tbl$collection_day <- ape::estimate.dates(
+  tree, 
+  node.dates = lubridate::decimal_date(tree_tbl$collection_day),
+  mu = 1
+)
+
+tree_tbl$collection_day <- as.Date(
+  lubridate::date_decimal(tree_tbl$collection_day), format = "%Y-%m-%d")
+
+tree_tbl$collection_year <- as.numeric(
+  substr(as.character(tree_tbl$collection_date), 1, 4))
 
 tree_tbl <- tibble::as_tibble(tree_tbl)
 class(tree_tbl) <- c("tbl_tree", "tbl_df", "tbl", "data.frame")
 
-
-
-
-index_transmission_nodes <- vector()
-for (i in 1:nrow(tree_tbl)) {
-  country_child <- tree_tbl$country[i]
-  country_parent <- tree_tbl$country[which(tree_tbl$node == tree_tbl$parent[i])]
-  if (country_child == country_parent) next() else {
-    index_transmission_nodes <- c(index_transmission_nodes, i)
-  }
-}
-
-#tree_tbl$country_parent <- NA
-#for (i in 1:nrow(tree_tbl)) {
-#  index <- which(tree_tbl$node == tree_tbl$parent[i])
-#  tree_tbl$country_parent[i] <- tree_tbl$country[index]
-#}
-
-tree_tbl$import <- FALSE
-tree_tbl$import[index_transmission_nodes] <- TRUE
-
-
-tree_tbl$collection_day_d <- lubridate::decimal_date(tree_tbl$collection_day)
-
-mu <- ape::estimate.mu(tree, tree_tbl$collection_day_d)
-dates <- ape::estimate.dates(tree, tree_tbl$collection_day_d, mu = mu)
-
-tree_tbl$collection_day_pred <- as.Date(
-  lubridate::date_decimal(dates),
-  format = "%Y-%m-%d",
-  origin = "1970-01-01"
+write.table(
+  tree_tbl,
+  file = "tree_tbl.tsv",
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
 )
-
-tree_tbl$collection_year_pred <- lubridate::year(tree_tbl$collection_day_pred)
 
 saveRDS(tree_tbl, file = "tree_tbl.rds")

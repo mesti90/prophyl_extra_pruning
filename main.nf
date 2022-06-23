@@ -4,14 +4,15 @@ nextflow.enable.dsl=2
 
 // assemblies_ch = Channel.fromPath("$launchDir/assemblies.tsv")
 
-ans_targets = Channel.of("country", "k_serotype")
-// pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
+ans_targets = Channel.of("country", "continent", "k_serotype")
+
 // tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
+// pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
 // meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
-// meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
+meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 process create_genome_list {
-    container "stitam/r-packages"
+    container "stitam/r-packages:1.8"
 
     output:
     file "log.txt"
@@ -84,7 +85,7 @@ process snippy_contig {
 }
 
 process keep_chromosome {
-    container "stitam/r-packages"
+    container "stitam/r-packages:1.8"
 
     input:
     tuple val(assembly_id), path(assembly_dir)
@@ -102,10 +103,11 @@ process build_tree {
     container "nanozoo/gubbins"
 
     input:
-    file chromosomes
+    path chromosomes
 
     output:
-    path ("*")
+    path "chromosomes.node_labelled.final_tree.tre"
+    path "chromosomes.filtered_polymorphic_sites.fasta"
 
     script:
     """
@@ -118,23 +120,56 @@ process build_tree {
     """
 }
 
-
-
 process bootstrap_tree {
     container "staphb/iqtree"
 
     input:
+    path tree
+    path snps
 
     output:
+    path "chromosomes.filtered_polymorphic_sites.fasta.contree"
 
     script:
     """
     iqtree \
-  -t "./jobs/${jobname}/output/iqtree/consensus.subs.node_labelled.final_tree.tre" \
-  -s "./jobs/${jobname}/output/iqtree/consensus.subs.filtered_polymorphic_sites.fasta" \
-  -nt $threads \
-  -bb $bootstrap_replicates \
-  -wbtl
+    -t $tree \
+    -s $snps \
+    -nt ${task.cpus} \
+    -mem "${task.memory.toGiga()}G" \
+    -bb $params.bootstrap_replicates \
+    -wbtl
+    """
+}
+
+process tidy_bootstrap_tree {
+    container "stitam/r-bio:1.0"
+
+    input: 
+    path contree
+
+    output:
+    path "tree_tbl.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/tidy_bootstrap_tree.R $contree $params.Rdir
+    """
+} 
+
+process date_tree {
+    container "stitam/r-packages:1.8"
+
+    input:
+    path tree
+    path snps
+
+    output:
+    path "treedater_tree_with_time.nwk"
+
+    script:
+    """
+    Rscript $projectDir/bin/date_tree.R $tree $snps $params.dates ${task.cpus}
     """
 }
 
@@ -159,7 +194,7 @@ process predict_ancestral_states {
 }
 
 process tidy_ancestral_states {
-    container "stitam/r-packages"
+    container "stitam/r-packages:1.8"
 
     input:
     tuple val(target), path(combined)
@@ -174,7 +209,7 @@ process tidy_ancestral_states {
 }
 
 process prep_tree_tbl {
-    container "stitam/r-packages"
+    container "stitam/r-bio:1.0"
 
     input:
     path tree
@@ -186,7 +221,7 @@ process prep_tree_tbl {
     
     script:
     """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $treemeta $ancestral_states
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $treemeta $ancestral_states $params.Rdir
     """
 }
 
@@ -208,23 +243,26 @@ process plot_tree {
 
 workflow {
     // TODO: what if there are no singles or contigs or paired? will the script break? test
+    // TODO: export bootstrap values to data frame
+
+    // Prepare pseudo-whole genomes
     create_genome_list()
     create_genome_list.out[1].splitCsv(header: true) | snippy_paired
     create_genome_list.out[2].splitCsv(header: true) | snippy_single
     create_genome_list.out[3].splitCsv(header: true) | snippy_contig
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
-    keep_chromosome.out.collectFile(name: "chromosomes.fasta")
-
-
-
-
-
-
-    // create_genome_list.out[1].splitCsv(header: true).view()  | snippy_paired
-
+    // Mask recombination, build tree, bootstrap
+    keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
+    // Date tree with treedater
+    build_tree.out | date_tree
     // predict ancestral states for each variable defined in the ans_targets channel
-    // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
+    date_tree.out.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
+    prep_tree_tbl(date_tree.out, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+
+    // // predict ancestral states for each variable defined in the ans_targets channel
+    // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
+    // // prepare tree_tbl which contains predicted ancestral states for internal nodes
     // prep_tree_tbl(tree_ch, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
-    // tree_ch.combine(meta_tsv_ch).combine(tidy_ancestral_states.out) | prep_tree_tbl
+    // // tree_ch.combine(meta_tsv_ch).combine(tidy_ancestral_states.out) | prep_tree_tbl
 }
