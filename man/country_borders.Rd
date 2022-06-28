@@ -10,14 +10,28 @@ A data frame with 728 rows and 2 columns:
   \item{iso2c1}{ISO country code for country 1, two characters}
   \item{iso2c2}{ISO country code for country 1, two characters}
 }
+
+A data frame with 728 rows and 2 columns:
+\describe{
+  \item{iso2c1}{ISO country code for country 1, two characters}
+  \item{iso2c2}{ISO country code for country 1, two characters}
+  \item{action}{Whether the row should be added to or removed from database}
+}
 }
 \source{
 \url{https://github.com/geodatasource/country-borders}
 }
 \usage{
 country_borders
+
+country_borders
 }
 \description{
 A data frame of country borders. Each row is a border between two countries.
+
+A data frame of custom country borders. Each row is a border between two
+countries. This data frame includes borders of countries that are not
+included in the original source e.g. because they are not universally
+recognised. These rows are then used to modify the original database.
 }
 \keyword{datasets}
