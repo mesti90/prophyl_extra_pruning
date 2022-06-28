@@ -1,0 +1,13 @@
+Package: prophyl
+Type: Package
+Title: What the package does (short line)
+Version: 1.0
+Date: 2022-06-14
+Author: Who wrote it
+Maintainer: Who to complain to <yourfault@somewhere.net>
+Description: More about what it does (maybe more than one line)
+License: What license is it under?
+Imports:
+    ggmap
+RoxygenNote: 7.2.0
+Encoding: UTF-8
