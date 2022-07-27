@@ -13,6 +13,7 @@ meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 process create_genome_list {
     container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/create_genome_list"
 
     output:
     file "log.txt"
@@ -28,6 +29,7 @@ process create_genome_list {
 
 process snippy_paired {
     container "staphb/snippy"
+    storeDir "$launchDir/results/snippy_paired"
 
     input:
     tuple val(assembly_id), val(R1), val(R2)
@@ -48,6 +50,7 @@ process snippy_paired {
 
 process snippy_single {
     container "staphb/snippy"
+    storeDir "$launchDir/results/snippy_single"
 
     input:
     tuple val(assembly_id), val(reads)
@@ -67,6 +70,7 @@ process snippy_single {
 
 process snippy_contig {
     container "staphb/snippy"
+    storeDir "$launchDir/results/snippy_contig"
 
     input:
     tuple val(assembly_id), val(contigs)
@@ -86,6 +90,7 @@ process snippy_contig {
 
 process keep_chromosome {
     container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/keep_chromosome"
 
     input:
     tuple val(assembly_id), path(assembly_dir)
@@ -101,6 +106,7 @@ process keep_chromosome {
 
 process build_tree {
     container "nanozoo/gubbins"
+    storeDir "$launchDir/results/build_tree"
 
     input:
     path chromosomes
@@ -122,6 +128,7 @@ process build_tree {
 
 process bootstrap_tree {
     container "staphb/iqtree"
+    storeDir "$launchDir/results/bootstrap_tree"
 
     input:
     path tree
@@ -144,6 +151,7 @@ process bootstrap_tree {
 
 process tidy_bootstrap_tree {
     container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/tidy_bootstrap_tree"
 
     input: 
     path contree
@@ -159,6 +167,7 @@ process tidy_bootstrap_tree {
 
 process date_tree {
     container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/date_tree"
 
     input:
     path tree
@@ -175,6 +184,7 @@ process date_tree {
 
 process predict_ancestral_states {
     container "evolbioinfo/pastml"
+    storeDir "$launchDir/results/predict_ancestral_states"
     
     input:
     tuple path(dated_tree), path(treemeta), val(target)
@@ -195,6 +205,7 @@ process predict_ancestral_states {
 
 process tidy_ancestral_states {
     container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/tidy_ancestral_states"
 
     input:
     tuple val(target), path(combined)
@@ -210,6 +221,7 @@ process tidy_ancestral_states {
 
 process prep_tree_tbl {
     container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/prep_tree_tbl"
 
     input:
     path tree
@@ -227,6 +239,7 @@ process prep_tree_tbl {
 
 process plot_tree {
     container "stitam/rplots:1.0"
+    storeDir "$launchDir/results/plot_tree"
 
     input:
     path tree_tbl
