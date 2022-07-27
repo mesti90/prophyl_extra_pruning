@@ -57,6 +57,8 @@ dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
 
 dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
 
+saveRDS(dtr, file = "dated_tree.rds")
+
 ape::write.tree(dtr, file = "treedater_tree_with_time.nwk")
 
 sink(con)
