@@ -96,7 +96,7 @@ process keep_chromosome {
     path assembly_dir
 
     output:
-    path "*.fasta"
+    path "${assembly_dir}.fasta"
 
     script:
     """
@@ -265,9 +265,9 @@ workflow {
     create_genome_list.out[3].splitCsv(header: true) | snippy_contig
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
     // Mask recombination, build tree, bootstrap
-    // keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
+    keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
     // Date tree with treedater
-    // build_tree.out | date_tree
+    build_tree.out | date_tree
     // predict ancestral states for each variable defined in the ans_targets channel
     // date_tree.out.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes

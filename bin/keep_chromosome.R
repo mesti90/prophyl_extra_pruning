@@ -1,19 +1,15 @@
 rm(list=ls())
+library(seqinr)
 
 args <- commandArgs(trailingOnly = TRUE)
-assembly_dir <- args[1]
 
-assembly_name <- basename(assembly_dir)
-
-genomes <- list()
 f <- seqinr::read.fasta(
-  file = paste0(assembly_dir, "/snps.consensus.subs.fa"),
-  forceDNAtolower = FALSE)
-newname <- basename(assembly_name)
-genomes[[newname]] <- f[[1]]
+  file = paste0(args[1], "/snps.consensus.subs.fa"),
+  forceDNAtolower = FALSE
+)
 
 seqinr::write.fasta(
-  sequences = genomes,
-  names = names(genomes),
-  file.out = paste0(assembly_name, ".fasta")
+  sequences = f[[1]],
+  names = basename(args[1]),
+  file.out = paste0(basename(args[1]), ".fasta")
 )
