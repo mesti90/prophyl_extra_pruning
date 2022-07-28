@@ -175,10 +175,14 @@ process date_tree {
 
     output:
     path "treedater_tree_with_time.nwk"
+    path "treedater_log.txt"
+    path "treedater_root_to_tip.pdf"
+    path "treedater_root_to_tip.png"
+    path "dated_tree.rds"
 
     script:
     """
-    Rscript $projectDir/bin/date_tree.R $tree $snps $params.dates ${task.cpus}
+    Rscript $projectDir/bin/date_tree.R $tree $snps $params.assemblies ${task.cpus}
     """
 }
 

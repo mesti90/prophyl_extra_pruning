@@ -1,15 +1,20 @@
 rm(list=ls())
+library(dplyr)
+library(magrittr)
+library(treedater)
 
 args <- commandArgs(trailingOnly = TRUE)
 
 tree <- ape::read.tree(file = args[1])
 f <- seqinr::read.fasta(file = args[2])
-dates <- read.table(args[3], sep = "\t", header = TRUE)
-ncpu <- as.numeric(args[4]) # proportion of cores to use for the analysis
+assemblies <- read.table(args[3], sep = "\t", header = TRUE)
+ncpu <- as.numeric(args[4])
 
-library(dplyr)
-library(magrittr)
-library(treedater)
+dates <- assemblies[,which(names(assemblies) %in% c(
+  "assembly", "collection_day"
+))]
+dates <- dplyr::rename(dates, name = assembly)
+dates <- dplyr::rename(dates, date = collection_day)
 
 # unroot tree, if rooted
 if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
