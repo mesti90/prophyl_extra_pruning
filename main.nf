@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 // assemblies_ch = Channel.fromPath("$launchDir/assemblies.tsv")
 
-ans_targets = Channel.of("country", "continent", "k_serotype")
+ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 
 // tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
 // pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
@@ -191,19 +191,20 @@ process predict_ancestral_states {
     storeDir "$launchDir/results/predict_ancestral_states"
     
     input:
-    tuple path(dated_tree), path(treemeta), val(target)
+    tuple path(dated_tree), val(target)
 
     output:
-    tuple val(target), path("*")
+    tuple val(target), path(target)
 
     script:
     """
     pastml \
     -t $dated_tree \
-    -d $treemeta \
+    -d $params.assemblies \
     -c $target \
     --threads ${task.cpus} \
-    --offline  \
+    --work_dir $target \
+    --offline
     """
 }
 
@@ -215,7 +216,7 @@ process tidy_ancestral_states {
     tuple val(target), path(combined)
 
     output:
-    path "ancestral_states.tsv"
+    path "${target}.tsv"
 
     script:
     """
@@ -229,7 +230,6 @@ process prep_tree_tbl {
 
     input:
     path tree
-    path treemeta
     path ancestral_states
 
     output:
@@ -237,7 +237,7 @@ process prep_tree_tbl {
     
     script:
     """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $treemeta $ancestral_states $params.Rdir
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
     """
 }
 
@@ -273,9 +273,9 @@ workflow {
     // Date tree with treedater
     build_tree.out | date_tree
     // predict ancestral states for each variable defined in the ans_targets channel
-    // date_tree.out.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
+    date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
-    // prep_tree_tbl(date_tree.out, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+    prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
 
     // // predict ancestral states for each variable defined in the ans_targets channel
     // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
