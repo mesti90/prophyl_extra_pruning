@@ -1,8 +1,9 @@
 rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
-assembly_name <- args[1]
-assembly_dir <- args[2]
+assembly_dir <- args[1]
+
+assembly_name <- basename(assembly_dir)
 
 genomes <- list()
 f <- seqinr::read.fasta(
@@ -14,5 +15,5 @@ genomes[[newname]] <- f[[1]]
 seqinr::write.fasta(
   sequences = genomes,
   names = names(genomes),
-  file.out = paste0(assembly_name, "_wgs.fasta")
+  file.out = paste0(assembly_name, ".fasta")
 )

@@ -9,7 +9,7 @@ ans_targets = Channel.of("country", "continent", "k_serotype")
 // tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
 // pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
 // meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
-meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
+// meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 process create_genome_list {
     container "stitam/r-packages:1.8"
@@ -35,7 +35,7 @@ process snippy_paired {
     tuple val(assembly_id), val(R1), val(R2)
 
     output:
-    tuple val(assembly_id), path("*")
+    path assembly_id
     
     script:
     """
@@ -56,7 +56,7 @@ process snippy_single {
     tuple val(assembly_id), val(reads)
 
     output:
-    tuple val(assembly_id), path("*")
+    path assembly_id
     
     script:
     """
@@ -76,7 +76,7 @@ process snippy_contig {
     tuple val(assembly_id), val(contigs)
 
     output:
-    tuple val(assembly_id), path("*")
+    path assembly_id
     
     script:
     """
@@ -93,14 +93,14 @@ process keep_chromosome {
     storeDir "$launchDir/results/keep_chromosome"
 
     input:
-    tuple val(assembly_id), path(assembly_dir)
+    path assembly_dir
 
     output:
-    path "${assembly_id}_wgs.fasta"
+    path "*.fasta"
 
     script:
     """
-    Rscript $projectDir/bin/keep_chromosome.R $assembly_id $assembly_dir
+    Rscript $projectDir/bin/keep_chromosome.R $assembly_dir
     """
 }
 
@@ -265,13 +265,13 @@ workflow {
     create_genome_list.out[3].splitCsv(header: true) | snippy_contig
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
     // Mask recombination, build tree, bootstrap
-    keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
+    // keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
     // Date tree with treedater
-    build_tree.out | date_tree
+    // build_tree.out | date_tree
     // predict ancestral states for each variable defined in the ans_targets channel
-    date_tree.out.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
+    // date_tree.out.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
-    prep_tree_tbl(date_tree.out, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+    // prep_tree_tbl(date_tree.out, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
 
     // // predict ancestral states for each variable defined in the ans_targets channel
     // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
