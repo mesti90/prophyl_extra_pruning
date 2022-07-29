@@ -135,7 +135,7 @@ process bootstrap_tree {
     path snps
 
     output:
-    path "chromosomes.filtered_polymorphic_sites.fasta.contree"
+    path "chromosomes.filtered_polymorphic_sites.fasta.treefile"
 
     script:
     """
@@ -154,14 +154,14 @@ process tidy_bootstrap_tree {
     storeDir "$launchDir/results/tidy_bootstrap_tree"
 
     input: 
-    path contree
+    path bstree
 
     output:
     path "tree_tbl.rds"
 
     script:
     """
-    Rscript $projectDir/bin/tidy_bootstrap_tree.R $contree $params.Rdir
+    Rscript $projectDir/bin/tidy_bootstrap_tree.R $bstree $params.Rdir
     """
 } 
 
