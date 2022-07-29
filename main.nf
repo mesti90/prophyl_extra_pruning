@@ -118,7 +118,8 @@ process build_tree {
     script:
     """
     run_gubbins.py \
-    --model-fitter fasttree \
+    --model-fitter raxml \
+    --tree-builder fasttree \
     --threads ${task.cpus} \
     --iterations $params.gubbins_iterations\
     $chromosomes
