@@ -7,10 +7,10 @@ args <- commandArgs(trailingOnly = TRUE)
 
 tree <- ape::read.tree(file = args[1])
 f <- seqinr::read.fasta(file = args[2])
-assemblies <- read.table(args[3], sep = "\t", header = TRUE)
+assemblies <- read.csv(args[3], sep = "\t", header = TRUE)
 ncpu <- as.numeric(args[4])
 
-dates <- assemblies[,which(names(assemblies) %in% c(
+dates <- assemblies[, which(names(assemblies) %in% c(
   "assembly", "collection_day"
 ))]
 dates <- dplyr::rename(dates, name = assembly)
