@@ -105,7 +105,7 @@ process keep_chromosome {
 }
 
 process build_tree {
-    container "nanozoo/gubbins"
+    container "mesti90/gubbins:latest"
     storeDir "$launchDir/results/build_tree"
 
     input:
@@ -118,10 +118,9 @@ process build_tree {
     script:
     """
     run_gubbins.py \
-    --tree_builder fasttree \
-    --threads ${task.cpus}  \
-    --iterations $params.gubbins_iterations \
-    -d \
+    --model-fitter fasttree \
+    --threads ${task.cpus} \
+    --iterations $params.gubbins_iterations\
     $chromosomes
     """
 }
