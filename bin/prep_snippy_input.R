@@ -87,14 +87,44 @@ for (i in 1:nrow(df)) {
   }
 }
 
-write.csv(
-  paired_reads, file = "paired_reads.csv", row.names = FALSE, quote = FALSE)
+if (nrow(paired_reads) == 0) {
+  paired_reads <-  paste("assembly", "R1", "R2", sep = "\t")
+  write.table(
+    paired_reads,
+    file = "paired_reads.csv",
+    row.names = FALSE,
+    quote = FALSE,
+    col.names = FALSE)
+} else {
+  write.csv(
+    paired_reads, file = "paired_reads.csv", row.names = FALSE, quote = FALSE)
+}
 
-write.csv(
-  single_reads, file = "single_reads.csv", row.names = FALSE, quote = FALSE)
+if (nrow(single_reads) == 0) {
+  single_reads <-  paste("assembly", "reads", sep = "\t")
+  write.table(
+    single_reads,
+    file = "single_reads.csv",
+    row.names = FALSE,
+    quote = FALSE,
+    col.names = FALSE)
+} else {
+  write.csv(
+    single_reads, file = "single_reads.csv", row.names = FALSE, quote = FALSE)
+}
 
-write.csv(
-  contigs, file = "contigs.csv", row.names = FALSE, quote = FALSE)
+if (nrow(contigs) == 0) {
+  contigs <- paste("assembly", "path", spe = "\t")
+  write.table(
+    contigs,
+    file = "contigs.csv",
+    row.names = FALSE,
+    quote = FALSE,
+    col.names = FALSE)
+} else {
+  write.csv(
+    contigs, file = "contigs.csv", row.names = FALSE, quote = FALSE)
+}
 
 sink(con)
 
