@@ -2,14 +2,15 @@ rm(list=ls())
 library(devtools)
 library(dplyr)
 library(geosphere)
+library(lubridate)
 load_all()
 
 args <- commandArgs(trailingOnly = TRUE)
 
-assemblies <- read.csv(args[2], sep = "\t")
+assemblies <- read.csv(args[1], sep = "\t")
 assemblies <- assemblies[order(assemblies$assembly),]
 
-#same country
+# geographic distance - same country
 
 same_country <- matrix(0, nrow(assemblies), nrow(assemblies))
 if ("country" %in% names(assemblies)) {
@@ -21,7 +22,7 @@ if ("country" %in% names(assemblies)) {
 }
 saveRDS(same_country, file = "same_country.rds")
 
-# neighbors
+# geographic distance - neighbors
 
 neighbors <- matrix(0, nrow(assemblies), nrow(assemblies))
 if ("iso2c" %in% names(assemblies)) {
@@ -39,7 +40,7 @@ if ("iso2c" %in% names(assemblies)) {
 }
 saveRDS(neighbors, file = "neighbors.rds")
 
-# same continent
+# geographic distance - same continent
 
 same_continent <- matrix(0, nrow(assemblies), nrow(assemblies))
 if ("continent" %in% names(assemblies)) {
@@ -51,7 +52,7 @@ if ("continent" %in% names(assemblies)) {
 }
 saveRDS(same_continent, file = "same_continent.rds")
 
-# distances in km
+# geographic distance - distances in km
 
 geodist <- matrix(NA, nrow(assemblies), nrow(assemblies))
 if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
@@ -84,3 +85,10 @@ if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
   diag(geodist) = NA
 }
 saveRDS(geodist, file = "geodist.rds")
+
+# temporal distance - time difference between collections dates
+
+dates <- unname(lubridate::decimal_date(date_middle(assemblies$collection_date)))
+colldist = round(abs(outer(dates, dates, "-")),2)
+saveRDS(colldist, file = "colldist.rds")
+

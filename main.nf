@@ -274,18 +274,17 @@ process plot_tree {
     """
 }
 
-process calculate_geodist {
+process calculate_sampledist {
     container "stitam/r-bio:1.0"
-    storeDir "$launchDir/results/calculate_geodist"
+    storeDir "$launchDir/results/calculate_sampledist"
 
     output:
-    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds")
+    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds")
 
     script:
     """
-    Rscript $projectDir/bin/calculate_geodist.R $params.Rdir $params.assemblies
+    Rscript $projectDir/bin/calculate_sampledist.R $params.assemblies
     """
-
 }
 
 workflow {
@@ -309,7 +308,7 @@ workflow {
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
     prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
     // calculate matrices of geographic distances between samples
-    calculate_geodist()
+    calculate_sampledist()
 
     // // predict ancestral states for each variable defined in the ans_targets channel
     // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
