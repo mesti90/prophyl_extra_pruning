@@ -186,6 +186,22 @@ process date_tree {
     """
 }
 
+process simulate_trees {
+    container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/simulate_trees"
+
+    input:
+    path tree_rds
+
+    output:
+    path "simulated_trees.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/simulate_trees.R $tree_rds $params.nsim ${task.cpus}
+    """
+}
+
 process predict_ancestral_states {
     container "evolbioinfo/pastml"
     storeDir "$launchDir/results/predict_ancestral_states"
@@ -272,6 +288,8 @@ workflow {
     keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
     // Date tree with treedater
     build_tree.out | date_tree
+    // Simulate new trees using the dated tree
+    date_tree.out[4] | simulate_trees
     // predict ancestral states for each variable defined in the ans_targets channel
     date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes

@@ -56,13 +56,13 @@ png(file = "treedater_root_to_tip.png")
 rootToTipRegressionPlot(dtr)
 dev.off()
 
-dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
-  strsplit(x, "\\|")[[1]][1]
-}))
-
 dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
 
 saveRDS(dtr, file = "dated_tree.rds")
+
+dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
+  strsplit(x, "\\|")[[1]][1]
+}))
 
 ape::write.tree(dtr, file = "treedater_tree_with_time.nwk")
 
