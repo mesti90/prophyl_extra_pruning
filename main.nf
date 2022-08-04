@@ -194,7 +194,7 @@ process simulate_trees {
     path tree_rds
 
     output:
-    path "simulated_trees.rds"
+    path "simtrees.rds"
 
     script:
     """
@@ -274,16 +274,64 @@ process plot_tree {
     """
 }
 
-process calculate_sampledist {
+process calculate_colldist {
     container "stitam/r-bio:1.0"
-    storeDir "$launchDir/results/calculate_sampledist"
+    storeDir "$launchDir/results/calculate_colldist"
 
     output:
-    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds")
+    path "colldist.rds"
 
     script:
     """
-    Rscript $projectDir/bin/calculate_sampledist.R $params.assemblies
+    Rscript $projectDir/bin/calculate_colldist.R $params.assemblies $params.Rdir
+    """
+}
+
+process calculate_phylodist {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/calculate_phylodist"
+
+    input:
+    path simtrees
+    path colldist
+
+    output:
+    path "phylodist_array.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/calculate_phylodist.R $simtrees $colldist
+    """
+}
+
+process calculate_geodist {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/calculate_geodist"
+
+    output:
+    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds")
+
+    script:
+    """
+    Rscript $projectDir/bin/calculate_geodist.R $params.assemblies
+    """
+}
+
+process calculate_risk_ratios {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/calculate_risk_ratios"
+
+    input:
+    tuple path(same_country), path(neighbors), path(same_continent), path(geodist)
+    path colldist
+    path phylodist
+
+    output:
+    path "risk_ratios.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/calculate_risk_ratios.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist
     """
 }
 
@@ -303,16 +351,12 @@ workflow {
     build_tree.out | date_tree
     // Simulate new trees using the dated tree
     date_tree.out[4] | simulate_trees
+    // Calculate phylogenetic distances for tips pairs in each simulated dated tree
+    calculate_phylodist(simulate_trees.out, calculate_colldist())
     // predict ancestral states for each variable defined in the ans_targets channel
     date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
     prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
     // calculate matrices of geographic distances between samples
-    calculate_sampledist()
-
-    // // predict ancestral states for each variable defined in the ans_targets channel
-    // tree_ch.combine(meta_tsv_ch).combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
-    // // prepare tree_tbl which contains predicted ancestral states for internal nodes
-    // prep_tree_tbl(tree_ch, meta_tsv_ch, tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
-    // // tree_ch.combine(meta_tsv_ch).combine(tidy_ancestral_states.out) | prep_tree_tbl
+    calculate_risk_ratios(calculate_geodist(), calculate_colldist.out, calculate_phylodist.out)
 }

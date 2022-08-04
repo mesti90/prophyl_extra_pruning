@@ -2,7 +2,6 @@ rm(list=ls())
 library(devtools)
 library(dplyr)
 library(geosphere)
-library(lubridate)
 load_all()
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -85,10 +84,3 @@ if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
   diag(geodist) = NA
 }
 saveRDS(geodist, file = "geodist.rds")
-
-# temporal distance - time difference between collections dates
-
-dates <- unname(lubridate::decimal_date(date_middle(assemblies$collection_date)))
-colldist = round(abs(outer(dates, dates, "-")),2)
-saveRDS(colldist, file = "colldist.rds")
-
