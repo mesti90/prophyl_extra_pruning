@@ -1,13 +1,17 @@
 rm(list=ls())
+
+args <- commandArgs(trailingOnly = TRUE)
+.libPaths(new = args[1])
+
 library(devtools)
 library(dplyr)
 library(geosphere)
+library(lubridate)
 load_all()
 
-args <- commandArgs(trailingOnly = TRUE)
-
-assemblies <- read.csv(args[1], sep = "\t")
+assemblies <- read.csv(args[2], sep = "\t")
 assemblies <- assemblies[order(assemblies$assembly),]
+simtrees <- readRDS(args[3])
 
 # geographic distance - same country
 
@@ -84,3 +88,27 @@ if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
   diag(geodist) = NA
 }
 saveRDS(geodist, file = "geodist.rds")
+
+# temporal distance - time difference between collections dates
+
+dates <- unname(lubridate::decimal_date(date_middle(assemblies$collection_date)))
+colldist = round(abs(outer(dates, dates, "-")),2)
+diag(colldist) <- NA
+saveRDS(colldist, file = "colldist.rds")
+
+# temporal distance - cophenetic (patristic) distance between isolates
+
+nsim <- length(simtrees$trees)
+ntips <- length(simtrees$trees[[1]]$tip.label)
+phylodist_array <- array(NaN, c(ntips, ntips, nsim))
+
+for (i in 1:nsim) {
+  phylodist <- ape::cophenetic.phylo(simtrees$trees[[i]])
+  index <- order(colnames(phylodist))
+  phylodist <- phylodist[index, index]
+  diag(phylodist) <- NA
+  mrca = (phylodist - colldist)/2
+  mrca[which(mrca < 0)] = 0
+  phylodist_array[, , i] <- mrca
+}
+saveRDS(phylodist_array, file = "phylodist_array.rds")
