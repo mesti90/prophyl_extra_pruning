@@ -7,11 +7,11 @@ library(devtools)
 library(dplyr)
 library(geosphere)
 library(lubridate)
-load_all()
+load_all(args[2])
 
-assemblies <- read.csv(args[2], sep = "\t")
+assemblies <- read.csv(args[3], sep = "\t")
 assemblies <- assemblies[order(assemblies$assembly),]
-simtrees <- readRDS(args[3])
+simtrees <- readRDS(args[4])
 
 # geographic distance - same country
 

@@ -286,7 +286,7 @@ process calculate_distances {
 
     script:
     """
-    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $params.assemblies $simtrees
+    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtrees
     """
 }
 
