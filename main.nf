@@ -106,7 +106,7 @@ process create_genome_list {
 
     script:
     """
-    Rscript $projectDir/bin/prep_snippy_input.R $params.assemblies $params.sourcedir
+    Rscript $projectDir/bin/prep_snippy_input.R $params.assemblies "$launchDir/genomes"
     """
 }
 
