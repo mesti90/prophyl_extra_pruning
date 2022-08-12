@@ -16,8 +16,7 @@ process bootstrap_tree {
     storeDir "$launchDir/results/bootstrap_tree"
 
     input:
-    path tree
-    path snps
+    tuple path(tree), path(snps), path(rec_embl), path(rec_gff), path(branch_bases), path(snp_dist), path(stats), path(snps_phylip), path(log) 
 
     output:
     path "chromosomes.filtered_polymorphic_sites.fasta.treefile"
@@ -42,8 +41,15 @@ process build_tree {
     path chromosomes
 
     output:
-    path "chromosomes.node_labelled.final_tree.tre"
-    path "chromosomes.filtered_polymorphic_sites.fasta"
+    tuple path("chromosomes.node_labelled.final_tree.tre"), \
+          path("chromosomes.filtered_polymorphic_sites.fasta"), \
+          path("chromosomes.recombination_predictions.embl"), \
+          path("chromosomes.recombination_predictions.gff"), \
+          path("chromosomes.branch_base_reconstruction.embl"), \
+          path("chromosomes.summary_of_snp_distribution.vcf"), \
+          path("chromosomes.per_branch_statistics.csv"), \
+          path("chromosomes.filtered_polymorphic_sites.phylip"), \
+          path("chromosomes.log")
 
     script:
     """
@@ -109,8 +115,7 @@ process date_tree {
     storeDir "$launchDir/results/date_tree"
 
     input:
-    path tree
-    path snps
+    tuple path(tree), path(snps), path(rec_embl), path(rec_gff), path(branch_bases), path(snp_dist), path(stats), path(snps_phylip), path(log) 
 
     output:
     path "treedater_tree_with_time.nwk"
