@@ -11,6 +11,83 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 // meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
 // meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
+process bootstrap_tree {
+    container "staphb/iqtree"
+    storeDir "$launchDir/results/bootstrap_tree"
+
+    input:
+    path tree
+    path snps
+
+    output:
+    path "chromosomes.filtered_polymorphic_sites.fasta.treefile"
+
+    script:
+    """
+    iqtree \
+    -t $tree \
+    -s $snps \
+    -nt ${task.cpus} \
+    -mem "${task.memory.toGiga()}G" \
+    -bb $params.bootstrap_replicates \
+    -wbtl
+    """
+}
+
+process build_tree {
+    container "mesti90/gubbins:latest"
+    storeDir "$launchDir/results/build_tree"
+
+    input:
+    path chromosomes
+
+    output:
+    path "chromosomes.node_labelled.final_tree.tre"
+    path "chromosomes.filtered_polymorphic_sites.fasta"
+
+    script:
+    """
+    run_gubbins.py \
+    --model-fitter raxml \
+    --tree-builder fasttree \
+    --threads ${task.cpus} \
+    --iterations $params.gubbins_iterations\
+    $chromosomes
+    """
+}
+
+process calculate_distances {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/calculate_distances"
+
+    input:
+    path simtrees
+
+    output:
+    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds"), path("phylodist_array.rds")
+
+    script:
+    """
+    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtrees
+    """
+}
+
+process calculate_risk_ratios {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/calculate_risk_ratios"
+
+    input:
+    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_array)
+
+    output:
+    path "risk_ratios.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/calculate_risk_ratios.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_array
+    """
+}
+
 process create_genome_list {
     container "stitam/r-packages:1.8"
     storeDir "$launchDir/results/create_genome_list"
@@ -24,6 +101,136 @@ process create_genome_list {
     script:
     """
     Rscript $projectDir/bin/prep_snippy_input.R $params.assemblies $params.sourcedir
+    """
+}
+
+process date_tree {
+    container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/date_tree"
+
+    input:
+    path tree
+    path snps
+
+    output:
+    path "treedater_tree_with_time.nwk"
+    path "treedater_log.txt"
+    path "treedater_root_to_tip.pdf"
+    path "treedater_root_to_tip.png"
+    path "dated_tree.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/date_tree.R $tree $snps $params.assemblies ${task.cpus}
+    """
+}
+
+process keep_chromosome {
+    container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/keep_chromosome"
+
+    input:
+    path assembly_dir
+
+    output:
+    path "${assembly_dir}.fasta"
+
+    script:
+    """
+    Rscript $projectDir/bin/keep_chromosome.R $assembly_dir
+    """
+}
+
+process plot_tree {
+    container "stitam/rplots:1.0"
+    storeDir "$launchDir/results/plot_tree"
+
+    input:
+    path tree_tbl
+
+    output:
+    path "dated_tree.pdf"
+    path "dated_tree.png"
+    
+    script:
+    """
+    Rscript $projectDir/bin/plot_tree.R $tree_tbl
+    """
+}
+
+
+process predict_ancestral_states {
+    container "evolbioinfo/pastml"
+    storeDir "$launchDir/results/predict_ancestral_states"
+    
+    input:
+    tuple path(dated_tree), val(target)
+
+    output:
+    tuple val(target), path(target)
+
+    script:
+    """
+    pastml \
+    -t $dated_tree \
+    -d $params.assemblies \
+    -c $target \
+    --threads ${task.cpus} \
+    --work_dir $target \
+    --offline
+    """
+}
+
+process prep_tree_tbl {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/prep_tree_tbl"
+
+    input:
+    path tree
+    path ancestral_states
+
+    output:
+    path "tree_tbl.rds"
+    
+    script:
+    """
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
+    """
+}
+
+process simulate_trees {
+    container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/simulate_trees"
+
+    input:
+    path tree_rds
+
+    output:
+    path "simtrees.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/simulate_trees.R $tree_rds $params.nsim ${task.cpus}
+    """
+}
+
+process snippy_contig {
+    container "staphb/snippy"
+    storeDir "$launchDir/results/snippy_contig"
+
+    input:
+    tuple val(assembly_id), val(contigs)
+
+    output:
+    path assembly_id
+    
+    script:
+    """
+    snippy \
+    --outdir $assembly_id \
+    --ref $params.reffile \
+    --ctgs $contigs \
+    --force
     """
 }
 
@@ -68,84 +275,19 @@ process snippy_single {
     """
 }
 
-process snippy_contig {
-    container "staphb/snippy"
-    storeDir "$launchDir/results/snippy_contig"
-
-    input:
-    tuple val(assembly_id), val(contigs)
-
-    output:
-    path assembly_id
-    
-    script:
-    """
-    snippy \
-    --outdir $assembly_id \
-    --ref $params.reffile \
-    --ctgs $contigs \
-    --force
-    """
-}
-
-process keep_chromosome {
+process tidy_ancestral_states {
     container "stitam/r-packages:1.8"
-    storeDir "$launchDir/results/keep_chromosome"
+    storeDir "$launchDir/results/tidy_ancestral_states"
 
     input:
-    path assembly_dir
+    tuple val(target), path(combined)
 
     output:
-    path "${assembly_dir}.fasta"
+    path "${target}.tsv"
 
     script:
     """
-    Rscript $projectDir/bin/keep_chromosome.R $assembly_dir
-    """
-}
-
-process build_tree {
-    container "mesti90/gubbins:latest"
-    storeDir "$launchDir/results/build_tree"
-
-    input:
-    path chromosomes
-
-    output:
-    path "chromosomes.node_labelled.final_tree.tre"
-    path "chromosomes.filtered_polymorphic_sites.fasta"
-
-    script:
-    """
-    run_gubbins.py \
-    --model-fitter raxml \
-    --tree-builder fasttree \
-    --threads ${task.cpus} \
-    --iterations $params.gubbins_iterations\
-    $chromosomes
-    """
-}
-
-process bootstrap_tree {
-    container "staphb/iqtree"
-    storeDir "$launchDir/results/bootstrap_tree"
-
-    input:
-    path tree
-    path snps
-
-    output:
-    path "chromosomes.filtered_polymorphic_sites.fasta.treefile"
-
-    script:
-    """
-    iqtree \
-    -t $tree \
-    -s $snps \
-    -nt ${task.cpus} \
-    -mem "${task.memory.toGiga()}G" \
-    -bb $params.bootstrap_replicates \
-    -wbtl
+    Rscript $projectDir/bin/tidy_ancestral_states.R $combined $target
     """
 }
 
@@ -164,147 +306,6 @@ process tidy_bootstrap_tree {
     Rscript $projectDir/bin/tidy_bootstrap_tree.R $bstree $params.Rdir
     """
 } 
-
-process date_tree {
-    container "stitam/r-packages:1.8"
-    storeDir "$launchDir/results/date_tree"
-
-    input:
-    path tree
-    path snps
-
-    output:
-    path "treedater_tree_with_time.nwk"
-    path "treedater_log.txt"
-    path "treedater_root_to_tip.pdf"
-    path "treedater_root_to_tip.png"
-    path "dated_tree.rds"
-
-    script:
-    """
-    Rscript $projectDir/bin/date_tree.R $tree $snps $params.assemblies ${task.cpus}
-    """
-}
-
-process simulate_trees {
-    container "stitam/r-packages:1.8"
-    storeDir "$launchDir/results/simulate_trees"
-
-    input:
-    path tree_rds
-
-    output:
-    path "simtrees.rds"
-
-    script:
-    """
-    Rscript $projectDir/bin/simulate_trees.R $tree_rds $params.nsim ${task.cpus}
-    """
-}
-
-process predict_ancestral_states {
-    container "evolbioinfo/pastml"
-    storeDir "$launchDir/results/predict_ancestral_states"
-    
-    input:
-    tuple path(dated_tree), val(target)
-
-    output:
-    tuple val(target), path(target)
-
-    script:
-    """
-    pastml \
-    -t $dated_tree \
-    -d $params.assemblies \
-    -c $target \
-    --threads ${task.cpus} \
-    --work_dir $target \
-    --offline
-    """
-}
-
-process tidy_ancestral_states {
-    container "stitam/r-packages:1.8"
-    storeDir "$launchDir/results/tidy_ancestral_states"
-
-    input:
-    tuple val(target), path(combined)
-
-    output:
-    path "${target}.tsv"
-
-    script:
-    """
-    Rscript $projectDir/bin/tidy_ancestral_states.R $combined $target
-    """
-}
-
-process prep_tree_tbl {
-    container "stitam/r-bio:1.0"
-    storeDir "$launchDir/results/prep_tree_tbl"
-
-    input:
-    path tree
-    path ancestral_states
-
-    output:
-    path "tree_tbl.rds"
-    
-    script:
-    """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
-    """
-}
-
-process plot_tree {
-    container "stitam/rplots:1.0"
-    storeDir "$launchDir/results/plot_tree"
-
-    input:
-    path tree_tbl
-
-    output:
-    path "dated_tree.pdf"
-    path "dated_tree.png"
-    
-    script:
-    """
-    Rscript $projectDir/bin/plot_tree.R $tree_tbl
-    """
-}
-
-process calculate_distances {
-    container "stitam/r-bio:1.0"
-    storeDir "$launchDir/results/calculate_distances"
-
-    input:
-    path simtrees
-
-    output:
-    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds"), path("phylodist_array.rds")
-
-    script:
-    """
-    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtrees
-    """
-}
-
-process calculate_risk_ratios {
-    container "stitam/r-bio:1.0"
-    storeDir "$launchDir/results/calculate_risk_ratios"
-
-    input:
-    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_array)
-
-    output:
-    path "risk_ratios.rds"
-
-    script:
-    """
-    Rscript $projectDir/bin/calculate_risk_ratios.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_array
-    """
-}
 
 workflow {
     // TODO: what if there are no singles or contigs or paired? will the script break? test
