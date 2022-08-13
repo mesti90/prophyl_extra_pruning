@@ -4,6 +4,7 @@ nextflow.enable.dsl=2
 
 // assemblies_ch = Channel.fromPath("$launchDir/assemblies.tsv")
 
+// ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 
 // tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
@@ -41,15 +42,15 @@ process build_tree {
     path chromosomes
 
     output:
-    tuple path("chromosomes.node_labelled.final_tree.tre"), \
+    tuple path("chromosomes.log"), \
+          path("chromosomes.branch_base_reconstruction.embl"), \
           path("chromosomes.filtered_polymorphic_sites.fasta"), \
+          path("chromosomes.filtered_polymorphic_sites.phylip"), \
+          path("chromosomes.node_labelled.final_tree.tre"), \
+          path("chromosomes.per_branch_statistics.csv"), \
           path("chromosomes.recombination_predictions.embl"), \
           path("chromosomes.recombination_predictions.gff"), \
-          path("chromosomes.branch_base_reconstruction.embl"), \
-          path("chromosomes.summary_of_snp_distribution.vcf"), \
-          path("chromosomes.per_branch_statistics.csv"), \
-          path("chromosomes.filtered_polymorphic_sites.phylip"), \
-          path("chromosomes.log")
+          path("chromosomes.summary_of_snp_distribution.vcf")          
 
     script:
     """
@@ -115,14 +116,15 @@ process date_tree {
     storeDir "$launchDir/results/date_tree"
 
     input:
-    tuple path(tree), path(snps), path(rec_embl), path(rec_gff), path(branch_bases), path(snp_dist), path(stats), path(snps_phylip), path(log) 
+    tuple path(A), path(B), path(snps), path(D), path(tree), path(F), path(G), path(H), path(I) 
 
     output:
     path "treedater_tree_with_time.nwk"
-    path "treedater_log.txt"
-    path "treedater_root_to_tip.pdf"
-    path "treedater_root_to_tip.png"
-    path "dated_tree.rds"
+    tuple path("dated_tree.rds"), \
+          path("treedater_log.txt"), \
+          path("treedater_root_to_tip.pdf"), \
+          path("treedater_root_to_tip.png"), \
+          path("treedater_tree_with_time.nwk") 
 
     script:
     """
@@ -208,7 +210,7 @@ process simulate_trees {
     storeDir "$launchDir/results/simulate_trees"
 
     input:
-    path tree_rds
+    tuple path(tree_rds), path(B), path(C), path(D), path(E)
 
     output:
     path "simtrees.rds"
@@ -327,7 +329,7 @@ workflow {
     // Date tree with treedater
     build_tree.out | date_tree
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate risk ratios
-    date_tree.out[4] | simulate_trees | calculate_distances | calculate_risk_ratios
+    date_tree.out[1] | simulate_trees | calculate_distances | calculate_risk_ratios
     // predict ancestral states for each variable defined in the ans_targets channel
     date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
