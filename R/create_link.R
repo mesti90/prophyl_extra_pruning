@@ -19,17 +19,23 @@
 #' \dontrun{
 #' # original directory contains raw_reads
 #' create_link(
-#'   from = "path_before_project_name/project_name/genome_dir/",
+#'   from = "path_before_project_name/project_name/genome_dir",
 #'   type = "raw_reads")
 #' # original directory contains assembled genomes
 #' create_link(
-#'   from = "path_before_project_name/project_name/genome_dir/",
+#'   from = "path_before_project_name/project_name/genome_dir",
 #'   type = "assembled_genomes") 
 #' }
 create_link <- function(from, type, fsep = "/") {
-  type <- match.arg(type, c("raw_reads", "assembled_genomes"))
-  path <- strsplit(from, split = fsep)[[1]]
-  to <- paste0(getwd(), "/genomes/", path[length(path)-1], "/", type, "/")
-  if (!dir.exists(to)) dir.create(to, recursive = TRUE)
-  system(paste0("ln --symbolic ", from, "*", " --target ", to))
+  foo <- function(x, y) {
+    y <- match.arg(y, c("raw_reads", "assembled_genomes"))
+    path <- strsplit(x, split = fsep)[[1]]
+    to <- paste0(getwd(), "/genomes/", path[length(path)-1], "/", y, "/")
+    if (!dir.exists(to)) {
+      dir.create(to, recursive = TRUE)
+      if (grepl("/$", x) == FALSE) x <- paste0(x, "/")
+      system(paste0("ln -s ", x, "*", " --target ", to))
+    }
+  }
+  out <- mapply(foo, from, type)
 }
