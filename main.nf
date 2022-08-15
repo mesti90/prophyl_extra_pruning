@@ -4,7 +4,6 @@ nextflow.enable.dsl=2
 
 // assemblies_ch = Channel.fromPath("$launchDir/assemblies.tsv")
 
-// ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 
 // tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
@@ -17,7 +16,7 @@ process bootstrap_tree {
     storeDir "$launchDir/results/bootstrap_tree"
 
     input:
-    tuple path(tree), path(snps), path(rec_embl), path(rec_gff), path(branch_bases), path(snp_dist), path(stats), path(snps_phylip), path(log) 
+    tuple path(A), path(B), path(snps), path(D), path(tree), path(F), path(G), path(H), path(I) 
 
     output:
     path "chromosomes.filtered_polymorphic_sites.fasta.treefile"
@@ -99,6 +98,9 @@ process create_genome_list {
     container "stitam/r-packages:1.8"
     storeDir "$launchDir/results/create_genome_list"
 
+    input:
+    path assemblies
+
     output:
     file "log.txt"
     file "paired_reads.csv"
@@ -107,7 +109,7 @@ process create_genome_list {
 
     script:
     """
-    Rscript $projectDir/bin/prep_snippy_input.R $params.assemblies "$launchDir/genomes"
+    Rscript $projectDir/bin/prep_snippy_input.R $assemblies "$launchDir/genomes"
     """
 }
 
@@ -314,12 +316,22 @@ process tidy_bootstrap_tree {
     """
 } 
 
-workflow {
-    // TODO: what if there are no singles or contigs or paired? will the script break? test
-    // TODO: export bootstrap values to data frame
+process validate_input {
+    container "stitam/r-bio:1.1" 
+    storeDir "$launchDir/results/validate_input"
 
+    output:
+    path "assemblies.tsv"
+
+    script:
+    """
+    Rscript $projectDir/bin/validate_input.R $params.assemblies
+    """
+}
+
+workflow {
     // Prepare pseudo-whole genomes
-    create_genome_list()
+    validate_input() | create_genome_list
     create_genome_list.out[1].splitCsv(header: true) | snippy_paired
     create_genome_list.out[2].splitCsv(header: true) | snippy_single
     create_genome_list.out[3].splitCsv(header: true) | snippy_contig
