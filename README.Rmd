@@ -1,0 +1,35 @@
+---
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r echo=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE, 
+  message = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%",
+  cache = TRUE
+)
+```
+
+# Prophyl
+
+Prophyl is a bioinformatics pipeline for creating bacterial phylogenetic trees with dates and predicting ancestral states for a number of character variables.
+
+The pipeline is written in two programming languages, R and Nextflow:
+* R is used to facilitate preparing input data and working with the results.
+The tool contains a number of R functions which may be loaded as any other R package.
+* Nextflow is used to run the pipeline itself.
+
+## Software Dependencies
+
+* R: \url{https://www.r-project.org/}
+* Singularity: \url{https://docs.sylabs.io/guides/2.6/user-guide/index.html}
+* Nextflow: \url{https://www.nextflow.io/docs/latest/index.html}
+
+## 
