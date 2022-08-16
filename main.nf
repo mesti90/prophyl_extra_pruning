@@ -62,6 +62,22 @@ process build_tree {
     """
 }
 
+process build_subset_tree {
+    container "staphb/fasttree:latest"
+    storeDir "$launchDir/results/build_subset_tree"
+
+    input:
+    tuple val(subset_id), path(subset_snps)
+
+    output:
+    tuple val(subset_id), path(subset_snps), path("${subset_id}.nwk")         
+
+    script:
+    """
+    FastTree -nt $subset_snps > "${subset_id}.nwk"
+    """
+}
+
 process calculate_distances {
     container "stitam/r-bio:1.0"
     storeDir "$launchDir/results/calculate_distances"
@@ -131,6 +147,27 @@ process date_tree {
     script:
     """
     Rscript $projectDir/bin/date_tree.R $tree $snps $params.assemblies ${task.cpus}
+    """
+}
+
+process date_subset_tree {
+    container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/date_subset_tree"
+
+    input:
+    tuple val(subset_id), path(subset_snps), path(subset_tree)
+
+    output:
+    tuple val(subset_id),
+          path("${subset_id}/dated_tree.rds"), \
+          path("${subset_id}/treedater_log.txt"), \
+          path("${subset_id}/treedater_root_to_tip.pdf"), \
+          path("${subset_id}/treedater_root_to_tip.png"), \
+          path("${subset_id}/treedater_tree_with_time.nwk") 
+
+    script:
+    """
+    Rscript $projectDir/bin/date_subset_tree.R $subset_id $subset_tree $subset_snps $params.assemblies ${task.cpus}
     """
 }
 
@@ -219,7 +256,23 @@ process simulate_trees {
 
     script:
     """
-    Rscript $projectDir/bin/simulate_trees.R $tree_rds $params.nsim ${task.cpus}
+    Rscript $projectDir/bin/simulate_trees.R $tree_rds $params.simtrees ${task.cpus}
+    """
+}
+
+process simulate_subset_trees {
+    container "stitam/r-packages:1.8"
+    storeDir "$launchDir/results/simulate_subset_trees"
+
+    input:
+    tuple val(subset_id), path(subset_tree_rds), path(B), path(C), path(D), path(E)
+
+    output:
+    path "${subset_id}.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/simulate_subset_trees.R $subset_id $subset_tree_rds $params.simtrees ${task.cpus}
     """
 }
 
@@ -281,6 +334,38 @@ process snippy_single {
     --ref $params.reffile \
     --se $reads \
     --force
+    """
+}
+
+process subsample_input {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/subsample_input"
+
+    input:
+    path assemblies
+
+    output:
+    path "subsample_*.tsv"
+
+    script:
+    """
+    Rscript $projectDir/bin/subsample_input.R $assemblies $params.subsamples $params.subsample_size
+    """
+}
+
+process subset_snps {
+    container "stitam/r-bio:1.0"
+    storeDir "$launchDir/results/subset_snps"
+
+    input:
+    tuple path(A), path(B), path(snps), path(D), path(E), path(F), path(G), path(H), path(I), val(subsample_id), path(subsample)
+
+    output:
+    tuple val(subsample_id), path("${subsample_id}.fasta")
+
+    script:
+    """
+    Rscript $projectDir/bin/subset_snps.R $snps $subsample $params.Rdir
     """
 }
 
@@ -346,4 +431,14 @@ workflow {
     date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
     prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+    // prepare random subsamples from assemblies and create a channel
+    validate_input.out | subsample_input
+    subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
+    // 
+    build_tree.out.combine(subsample_ch) | subset_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    // subset_snps_tuple = subset_snps.out | map { [it.getBaseName(), it] }
+    //
+    // subset_snps_tuple | build_subset_tree
+
+
 }
