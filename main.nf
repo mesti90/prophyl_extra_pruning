@@ -83,14 +83,14 @@ process calculate_distances {
     storeDir "$launchDir/results/calculate_distances"
 
     input:
-    path simtrees
+    path simtree_paths
 
     output:
-    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds"), path("phylodist_array.rds")
+    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds"), path("phylodist_list.rds")
 
     script:
     """
-    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtrees
+    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtree_paths
     """
 }
 
@@ -99,14 +99,14 @@ process calculate_risk_ratios {
     storeDir "$launchDir/results/calculate_risk_ratios"
 
     input:
-    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_array)
+    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
 
     output:
     path "risk_ratios.rds"
 
     script:
     """
-    Rscript $projectDir/bin/calculate_risk_ratios.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_array
+    Rscript $projectDir/bin/calculate_risk_ratios.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_list $params.nboot_on_simtree
     """
 }
 
@@ -268,11 +268,12 @@ process simulate_subset_trees {
     tuple val(subset_id), path(subset_tree_rds), path(B), path(C), path(D), path(E)
 
     output:
+    path "${subset_id}.txt"
     path "${subset_id}.rds"
 
     script:
     """
-    Rscript $projectDir/bin/simulate_subset_trees.R $subset_id $subset_tree_rds $params.simtrees ${task.cpus}
+    Rscript $projectDir/bin/simulate_subset_trees.R $subset_id $subset_tree_rds $params.simtrees ${task.cpus} $launchDir
     """
 }
 
@@ -425,8 +426,8 @@ workflow {
     keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
     // Date tree with treedater
     build_tree.out | date_tree
-    // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate risk ratios
-    date_tree.out[1] | simulate_trees | calculate_distances | calculate_risk_ratios
+    // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
+    // date_tree.out[1] | simulate_trees | calculate_distances | calculate_risk_ratios
     // predict ancestral states for each variable defined in the ans_targets channel
     date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
@@ -434,11 +435,8 @@ workflow {
     // prepare random subsamples from assemblies and create a channel
     validate_input.out | subsample_input
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
-    // 
+    // build subset trees, date subset trees, simulate new trees using the dated trees
     build_tree.out.combine(subsample_ch) | subset_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
-    // subset_snps_tuple = subset_snps.out | map { [it.getBaseName(), it] }
-    //
-    // subset_snps_tuple | build_subset_tree
-
-
+    // calculate geo distance and phylo distance, calculate relative risks
+    simulate_subset_trees.out[0].collectFile(name: "simtree_paths.txt") | calculate_distances | calculate_risk_ratios
 }

@@ -109,7 +109,7 @@ saveRDS(colldist, file = "colldist.rds")
 
 nsim <- length(simtrees$trees)
 ntips <- length(simtrees$trees[[1]]$tip.label)
-phylodist_array <- array(NaN, c(ntips, ntips, nsim))
+phylodist_list <- list()
 
 for (i in 1:nsim) {
   phylodist <- ape::cophenetic.phylo(simtrees$trees[[i]])
@@ -123,6 +123,6 @@ for (i in 1:nsim) {
   # mrca definition: distance from the older sample 
   mrca = (phylodist - colldist_subset)/2
   mrca[which(mrca < 0)] = 0
-  phylodist_array[ , , i] <- mrca
+  phylodist_list[[i]] <- mrca
 }
-saveRDS(phylodist_array, file = "phylodist_array.rds")
+saveRDS(phylodist_list, file = "phylodist_list.rds")

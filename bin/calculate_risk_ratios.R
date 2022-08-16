@@ -75,13 +75,13 @@ geo_mat_continent = readRDS(args[4])
 geo_mat_km_centroids = readRDS(args[5])
 ## Genetic distances
 sim.mats <- readRDS(args[6])
-nsim = dim(sim.mats)[3]
+nsim = length(sim.mats)
 
 #####################################################################
 ## Parameters for the computation of the relative risks
 #####################################################################
 ## Number of bootstrap event to perform, of each tree
-nboot = 10
+nboot = as.numeric(args[7])
 
 ## MRCA windows on which to compute the relative risk
 Pmax <- c(5, 10, 20, 40, 1000) ## max windows
@@ -109,19 +109,35 @@ for (j in (1:n_steps)){
     for(ii in 1:nsim){
       print(ii)
       ## Choose isolates
+      ## Original
+      ## Each simulated tree contained all assemblies
       a = 1:nrow(data.seq)
+      ## New
+      ## Each simulated tree only contains a subset of all assemblies
+      a <- unname(sapply(colnames(sim.mats[[ii]]), function(x) {
+        which(data.seq$assembly == x)
+      }))
       ## Choose location matrix: same country
       geo_mat = geo_mat_country[a,a]
       ## Time between isolates: max 2 years
       time_mat2 = time_mat[a,a]<=2
       ## Choose MRCA matrix
-      MRCA_mat = sim.mats[,,ii]
+      MRCA_mat = sim.mats[[ii]]
       MRCA_mat2 = MRCA_mat[a,a]
       nseq = length(a)
       
       ## Reference
       ## Choose isolates: different countries >1000 km in the same continent
+      ## Original
+      ## Each simulated tree contained all assemblies
       ref = 1:nrow(data.seq)
+      ## New
+      ## Each simulated tree only contains a subset of all assemblies
+      ## New
+      ## Each simulated tree only contains a subset of all assemblies
+      ref <- unname(sapply(colnames(sim.mats[[ii]]), function(x) {
+        which(data.seq$assembly == x)
+      }))
       geo_mat_ref = (1-geo_mat_country[ref,ref])*(geo_mat_km_centroids[a,a]>1000)*(geo_mat_continent[ref,ref])
       geo_mat_ref[which(geo_mat_ref == 0)] = NA
       ## Time between isolates: max 2 years
@@ -129,11 +145,16 @@ for (j in (1:n_steps)){
       ## Choose MRCA matrix
       MRCA_mat2_ref = MRCA_mat[ref,ref]
       nseq_ref = length(ref)
-      
+
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
-        tmp = sample(nseq, nseq, replace = T)
-        tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
+        if (nboot == 1) {
+          tmp <- 1:nseq
+          tmp_ref <- 1:nseq_ref
+        } else {
+          tmp = sample(nseq, nseq, replace = T)
+          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
+        }
         rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
@@ -165,9 +186,14 @@ for (j in (1:n_steps)){
       
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
-        tmp = sample(nseq, nseq, replace = T)
-        tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        rr.out= ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        if (nboot == 1) {
+          tmp <- 1:nseq
+          tmp_ref <- 1:nseq_ref
+        } else {
+          tmp = sample(nseq, nseq, replace = T)
+          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
+        }
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
@@ -197,9 +223,14 @@ for (j in (1:n_steps)){
       
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
-        tmp = sample(nseq, nseq, replace = T)
-        tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        rr.out= ratio_bootstrap_dist_discrete_auto(tmp, tmp, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        if (nboot == 1) {
+          tmp <- 1:nseq
+          tmp_ref <- 1:nseq_ref
+        } else {
+          tmp = sample(nseq, nseq, replace = T)
+          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
+        }
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
@@ -230,9 +261,14 @@ for (j in (1:n_steps)){
       
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
-        tmp = sample(nseq, nseq, replace = T)
-        tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        rr.out= ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        if (nboot == 1) {
+          tmp <- 1:nseq
+          tmp_ref <- 1:nseq_ref
+        } else {
+          tmp = sample(nseq, nseq, replace = T)
+          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
+        }
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
