@@ -6,6 +6,7 @@ subset_id <- args[1]
 dated_tree <- readRDS(args[2])
 nreps <- args[3]
 ncpu <- args[4]
+launchDir <- args[5]
 
 simtrees <- treedater::parboot(
   dated_tree,
@@ -20,5 +21,13 @@ for (i in 1:length(simtrees$trees)) {
     strsplit(x, "\\|")[[1]][1]
   }))
 }
+
+write.table(
+  paste0(launchDir, "/results/simulate_subset_trees/", subset_id, ".rds"),
+  file = paste0(subset_id, ".txt"),
+  row.names = FALSE,
+  col.names = FALSE,
+  quote = FALSE
+)
 
 saveRDS(simtrees, file = paste0(subset_id, ".rds"))

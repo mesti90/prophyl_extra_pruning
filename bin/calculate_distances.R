@@ -11,7 +11,14 @@ load_all(args[2])
 
 assemblies <- read.csv(args[3], sep = "\t")
 assemblies <- assemblies[order(assemblies$assembly),]
-simtrees <- readRDS(args[4])
+
+simtree_paths <- readLines(args[4])
+simtrees <- list()
+simtrees$trees <- list()
+for (i in simtree_paths) {
+  newtrees <- readRDS(i)
+  simtrees$trees <- c(simtrees$trees, newtrees$trees)
+}
 
 # geographic distance - same country
 
@@ -94,6 +101,8 @@ saveRDS(geodist, file = "geodist.rds")
 dates <- unname(lubridate::decimal_date(date_middle(assemblies$collection_date)))
 colldist = round(abs(outer(dates, dates, "-")),2)
 diag(colldist) <- NA
+rownames(colldist) <- assemblies$assembly
+colnames(colldist) <- assemblies$assembly
 saveRDS(colldist, file = "colldist.rds")
 
 # temporal distance - cophenetic (patristic) distance between isolates
@@ -104,11 +113,16 @@ phylodist_array <- array(NaN, c(ntips, ntips, nsim))
 
 for (i in 1:nsim) {
   phylodist <- ape::cophenetic.phylo(simtrees$trees[[i]])
-  index <- order(colnames(phylodist))
-  phylodist <- phylodist[index, index]
+  index_phylodist <- order(colnames(phylodist))
+  phylodist <- phylodist[index_phylodist, index_phylodist]
   diag(phylodist) <- NA
-  mrca = (phylodist - colldist)/2
+  
+  index_colldist <- order(which(colnames(colldist) %in% colnames(phylodist)))
+  colldist_subset <- colldist[index_colldist, index_colldist]
+
+  # mrca definition: distance from the older sample 
+  mrca = (phylodist - colldist_subset)/2
   mrca[which(mrca < 0)] = 0
-  phylodist_array[, , i] <- mrca
+  phylodist_array[ , , i] <- mrca
 }
 saveRDS(phylodist_array, file = "phylodist_array.rds")
