@@ -20,7 +20,7 @@ plot_rr <- function(dir = "."){
   
   # This script has been modified to fit in the analysis pipeline
   
-  res <- readRDS(paste0(dir, "/results/calculate_risk_ratios/risk_ratios.rds"))
+  res <- readRDS(paste0(dir, "/results/calculate_relative_risks/risk_ratios.rds"))
   int = res$int
   l <- length(int) -1
   nboot = res$nboot

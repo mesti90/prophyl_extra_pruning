@@ -94,9 +94,9 @@ process calculate_distances {
     """
 }
 
-process calculate_risk_ratios {
+process calculate_relative_risks {
     container "stitam/r-bio:1.0"
-    storeDir "$launchDir/results/calculate_risk_ratios"
+    storeDir "$launchDir/results/calculate_relative_risks"
 
     input:
     tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
@@ -106,7 +106,7 @@ process calculate_risk_ratios {
 
     script:
     """
-    Rscript $projectDir/bin/calculate_risk_ratios.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_list $params.nboot_on_simtree
+    Rscript $projectDir/bin/calculate_relative_risks.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_list $params.nboot_on_simtree
     """
 }
 
@@ -427,7 +427,7 @@ workflow {
     // Date tree with treedater
     build_tree.out | date_tree
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
-    // date_tree.out[1] | simulate_trees | calculate_distances | calculate_risk_ratios
+    // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
     date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
@@ -438,5 +438,5 @@ workflow {
     // build subset trees, date subset trees, simulate new trees using the dated trees
     build_tree.out.combine(subsample_ch) | subset_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
-    simulate_subset_trees.out[0].collectFile(name: "simtree_paths.txt") | calculate_distances | calculate_risk_ratios
+    simulate_subset_trees.out[0].collectFile(name: "simtree_paths.txt") | calculate_distances | calculate_relative_risks
 }
