@@ -3,7 +3,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 assemblies <- read.csv(args[1], sep = "\t")
 nsubs <- as.numeric(args[2])
-ss <- round(nrow(assemblies)*as.numeric(args[3]), 0)
+ss <- as.numeric(args[3])
 
 set.seed(0)
 digits <- ceiling(log10(nsubs+1))
