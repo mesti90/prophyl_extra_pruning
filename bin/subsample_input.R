@@ -8,6 +8,10 @@ subsample_tipcount <- as.numeric(args[3])
 type <- "balanced"
 balance_by <- "region23"
 
+if (balance_by %in% names(assemblies) == FALSE) {
+  stop("Subsampling failed, variable '", balance_by, "' not found.")
+}
+
 if (type == "random") {
   set.seed(0)
   digits <- ceiling(log10(subsample_count+1))
