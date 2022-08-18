@@ -350,7 +350,7 @@ process subsample_input {
 
     script:
     """
-    Rscript $projectDir/bin/subsample_input.R $assemblies $params.subsamples $params.subsample_size
+    Rscript $projectDir/bin/subsample_input.R $assemblies $params.subsample_count $params.subsample_tipcount
     """
 }
 
