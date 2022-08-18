@@ -1,3 +1,5 @@
+# TODO: test that row and colnames of matrices are in the right order
+
 rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -117,7 +119,9 @@ for (i in 1:nsim) {
   phylodist <- phylodist[index_phylodist, index_phylodist]
   diag(phylodist) <- NA
   
-  index_colldist <- order(which(colnames(colldist) %in% colnames(phylodist)))
+  index_colldist <- unname(sapply(colnames(phylodist), function(x) {
+    which(colnames(colldist) == x)
+  }))
   colldist_subset <- colldist[index_colldist, index_colldist]
 
   # mrca definition: distance from the older sample 
