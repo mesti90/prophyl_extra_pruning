@@ -12,6 +12,12 @@
 date_middle <- function(dates){
   foo <- function(x){
     if(is.na(x)) return(NA)
+    year = suppressWarnings(
+      as.numeric(stringi::stri_sub(x, from = 1, to = 4))
+    )
+    if (is.na(year)) {
+      return(NA)
+    }
     date_elements <- strsplit(x, split = "-")[[1]]
     year <- date_elements[1]
     if (length(date_elements) == 1){
