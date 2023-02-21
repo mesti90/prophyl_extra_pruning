@@ -11,8 +11,16 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 // meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
 // meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
+// Containers
+gubbins_container = "mesti90/gubbins:latest"
+iqtree_container = "staphb/iqtree"
+fasttree_container = "staphb/fasttree:latest"
+pastml = "evolbioinfo/pastml"
+r_container = "stitam/r-aci:0.1"
+snippy_container = "staphb/snippy"
+
 process bootstrap_tree {
-    container "staphb/iqtree"
+    container "$iqtree_container"
     storeDir "$launchDir/results/bootstrap_tree"
 
     input:
@@ -34,7 +42,7 @@ process bootstrap_tree {
 }
 
 process build_tree {
-    container "mesti90/gubbins:latest"
+    container "$gubbins_container"
     storeDir "$launchDir/results/build_tree"
 
     input:
@@ -63,7 +71,7 @@ process build_tree {
 }
 
 process build_subset_tree {
-    container "staphb/fasttree:latest"
+    container "$fasttree_container"
     storeDir "$launchDir/results/build_subset_tree"
 
     input:
@@ -79,7 +87,8 @@ process build_subset_tree {
 }
 
 process calculate_distances {
-    container "stitam/r-bio:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/calculate_distances"
 
     input:
@@ -95,7 +104,8 @@ process calculate_distances {
 }
 
 process calculate_relative_risks {
-    container "stitam/r-bio:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/calculate_relative_risks"
 
     input:
@@ -111,7 +121,8 @@ process calculate_relative_risks {
 }
 
 process create_genome_list {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/create_genome_list"
 
     input:
@@ -130,7 +141,8 @@ process create_genome_list {
 }
 
 process date_tree {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/date_tree"
 
     input:
@@ -151,7 +163,8 @@ process date_tree {
 }
 
 process date_subset_tree {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/date_subset_tree"
 
     input:
@@ -172,7 +185,8 @@ process date_subset_tree {
 }
 
 process keep_chromosome {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/keep_chromosome"
 
     input:
@@ -188,7 +202,8 @@ process keep_chromosome {
 }
 
 process plot_tree {
-    container "stitam/rplots:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/plot_tree"
 
     input:
@@ -206,7 +221,8 @@ process plot_tree {
 
 
 process predict_ancestral_states {
-    container "evolbioinfo/pastml"
+    container "$pastml_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/predict_ancestral_states"
     
     input:
@@ -228,7 +244,8 @@ process predict_ancestral_states {
 }
 
 process prep_tree_tbl {
-    container "stitam/r-bio:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/prep_tree_tbl"
 
     input:
@@ -245,7 +262,8 @@ process prep_tree_tbl {
 }
 
 process simulate_trees {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/simulate_trees"
 
     input:
@@ -261,7 +279,8 @@ process simulate_trees {
 }
 
 process simulate_subset_trees {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/simulate_subset_trees"
 
     input:
@@ -278,7 +297,7 @@ process simulate_subset_trees {
 }
 
 process snippy_contig {
-    container "staphb/snippy"
+    container "$snippy_container"
     storeDir "$launchDir/results/snippy_contig"
 
     input:
@@ -298,7 +317,7 @@ process snippy_contig {
 }
 
 process snippy_paired {
-    container "staphb/snippy"
+    container "$snippy_container"
     storeDir "$launchDir/results/snippy_paired"
 
     input:
@@ -319,7 +338,7 @@ process snippy_paired {
 }
 
 process snippy_single {
-    container "staphb/snippy"
+    container "$snippy_container"
     storeDir "$launchDir/results/snippy_single"
 
     input:
@@ -339,7 +358,8 @@ process snippy_single {
 }
 
 process subsample_input {
-    container "stitam/r-bio:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/subsample_input"
 
     input:
@@ -355,7 +375,8 @@ process subsample_input {
 }
 
 process subset_snps {
-    container "stitam/r-bio:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/subset_snps"
 
     input:
@@ -371,7 +392,8 @@ process subset_snps {
 }
 
 process tidy_ancestral_states {
-    container "stitam/r-packages:1.8"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/tidy_ancestral_states"
 
     input:
@@ -387,7 +409,8 @@ process tidy_ancestral_states {
 }
 
 process tidy_bootstrap_tree {
-    container "stitam/r-bio:1.0"
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/tidy_bootstrap_tree"
 
     input: 
@@ -403,7 +426,8 @@ process tidy_bootstrap_tree {
 } 
 
 process validate_input {
-    container "stitam/r-bio:1.1" 
+    container "$r_container"
+    containerOptions "--no-home"
     storeDir "$launchDir/results/validate_input"
 
     output:
