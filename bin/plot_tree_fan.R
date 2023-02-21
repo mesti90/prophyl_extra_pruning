@@ -1,0 +1,112 @@
+rm(list = ls())
+
+library(devtools)
+library(ggnewscale)
+library(ggimage)
+library(ggplot2)
+library(ggtree)
+library(treeio)
+
+args <- commandArgs(trailingOnly = TRUE)
+
+# inputs
+# project directory, required for loading functions
+project_dir <- args[1]
+# a phylogenetic tree in newick format
+intree_path <- args[2]
+# a metadata file with .rds extension e.g. aci_all.rds
+meta_path <- args[3]
+# poppunk clusters with .csv extension
+pp_path <- args[4]
+
+# parameters
+# number of most frequent mlst-s to plot separately, pool the rest as "Other"
+top_mlst_count = 4
+# number of most frequent k serotypes to plot separately, pool the rest as "Other"
+top_k_count = 6
+# drop these tips (e.g. becasue they would distort the final plot)
+tips_to_drop = c("GCF_014171935.1", "GCA_900495195.1")
+
+# outputs
+outtree_1_path <- "tree_all_tips.pdf"
+outtree_2_path <- "tree_dropped_tips.pdf"
+
+# script
+load_all(project_dir)
+
+tree <- ape::read.tree(intree_path)
+meta <- readRDS(meta_path)
+
+# drop tips which do not have related metadata
+if (all(tree$tip.label %in% meta$assembly) == FALSE) {
+  labels <- tree$tip.label[which(tree$tip.label %in% meta$assembly == FALSE)]
+  msg <- paste(labels, collapse = ", ")
+  warning("One or more tip labels cannot be found in metadata table: ", msg)
+  # drop tips that are not in the table
+  tree <- ape::drop.tip(tree, tip = labels)
+}
+
+# only keep metadata for assemblies that are on the tree
+meta <- meta[which(meta$assembly %in% tree$tip.label),]
+
+# add poppunk clusters
+pp <- read.csv(pp_path)
+pp <- dplyr::rename(pp, assembly = Taxon, pp = Cluster)
+
+pp$assembly <- gsub("_", ".", pp$assembly)
+pp$assembly <- gsub("GCA\\.", "GCA_", pp$assembly)
+pp$assembly <- gsub("GCF\\.", "GCF_", pp$assembly)
+
+meta <- dplyr::left_join(meta, pp, by = "assembly")
+
+# collapse mlst and define colors
+top_mlst <- names(sort(table(meta$mlst), decreasing = TRUE))[1:top_mlst_count]
+meta$mlst <- ifelse(meta$mlst %in% top_mlst, meta$mlst, "Other")
+
+mlst_colors <- data.frame(
+  mlst = c(sort(top_mlst), "Other"),
+  color = c(qualpalr::qualpal(top_mlst_count, "pretty")$hex, "grey50")
+)
+
+# collapse k_serotype and define colors
+top_k <- names(sort(table(meta$k_serotype), decreasing = TRUE))[1:top_k_count]
+meta$k_serotype <- ifelse(meta$k_serotype %in% top_k, meta$k_serotype, "Other")
+
+k_colors <- data.frame(
+  mlst = c(sort(top_k), "Other"),
+  color = c(qualpalr::qualpal(top_k_count, "pretty_dark")$hex, "grey50")
+)
+
+# used for testing 
+# set.seed(0)
+# tree <- ape::keep.tip(tree, sample(tree$tip.label, 250))
+
+tree_tbl <- as_tibble(tree)
+
+tree_tbl <- dplyr::left_join(
+  tree_tbl,
+  meta[,c(
+    "assembly", "continent", "region23", "country", "city", "mlst",
+    "k_serotype", "k_confidence", "pp", "xdr"
+  )],
+  by = c("label" = "assembly")
+)
+
+plot_tree_fan(
+  tree_tbl,
+  open_angle = 20,
+  file_name = outtree_1_path,
+  verbose = TRUE
+)
+
+plot_tree_fan(
+  tree_tbl,
+  drop_tip = tips_to_drop,
+  open_angle = 20,
+  heatmap_var = c("mlst", "k_serotype"),
+  heatmap_colors = list("mlst" = mlst_colors, "k_serotype" = k_colors),
+  heatmap_offset = c(0, 0.02),
+  heatmap_font_size = 3,
+  file_name = outtree_2_path,
+  verbose = TRUE
+)

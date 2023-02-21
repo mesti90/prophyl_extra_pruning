@@ -62,8 +62,10 @@ plot_tree_fan <- function(tree_tbl,
   if (!grepl("\\.pdf$", file_name)) {
     stop("'filename' must be pdf.")
   }
-  if (length(heatmap_var) != length(heatmap_offset)) {
-    stop("'heatmap_var' and 'heatmap_offset' must have the same length.")
+  if (!is.null(heatmap_var)) {
+    if (length(heatmap_var) != length(heatmap_offset)) {
+      stop("'heatmap_var' and 'heatmap_offset' must have the same length.")
+    }
   }
   tree <-  treeio::as.treedata(tree_tbl)
   tree <- ape::as.phylo(tree)
@@ -75,10 +77,10 @@ plot_tree_fan <- function(tree_tbl,
   if (!is.null(heatmap_var)) {
     idx_x <- which(tree_tbl$label %in% tree$tip.label)
     for (i in 1:length(heatmap_var)) {
-      idx_y <- which(names(tree_tbl) %in% heatmap_var[i])
+      idx_y <- which(names(tree_tbl) == heatmap_var[i])
       hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
       rownames(hmdf) <- tree_tbl$label[idx_x]
-      colors = "not_set"
+      hmcolors <- "not_set"
       if (!is.null(heatmap_colors)) {
         index <- which(names(heatmap_colors) == heatmap_var[i])
         if (length(index) == 1) {
@@ -90,7 +92,7 @@ plot_tree_fan <- function(tree_tbl,
           # heatmap color tables
           hmdf_colors <- heatmap_colors[[index]]$color
           names(hmdf_colors) <- heatmap_colors[[index]][[heatmap_var[i]]]
-          colors = "set"
+          hmcolors <- "set"
         }
         if (length(index) > 1) {
           stop(paste0(
@@ -98,7 +100,7 @@ plot_tree_fan <- function(tree_tbl,
           )
         }
       }
-      if (colors == "not_set") {
+      if (hmcolors == "not_set") {
         if (verbose) {
           message(paste0(
             "Color coding table not found for variable ",
@@ -109,7 +111,7 @@ plot_tree_fan <- function(tree_tbl,
         hmdf_colors <- qualpalr::qualpal(
           length(unique(hmdf[[heatmap_var[i]]])), colorspace = "pretty")$hex
         names(hmdf_colors) <- unique(hmdf[[heatmap_var[i]]])
-        colors = "set"
+        hmcolors <- "set"
       }
       if (i > 1) {
         p <- p + new_scale_fill()
@@ -138,7 +140,6 @@ plot_tree_fan <- function(tree_tbl,
     }
     ggsave(
       filename = file_name,
-      units = "px",
       limitsize = FALSE
     )
     if (verbose) {
