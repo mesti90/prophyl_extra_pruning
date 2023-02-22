@@ -59,7 +59,7 @@ plot_tree_fan <- function(tree_tbl,
                           scale = 1,
                           file_name = "tree.pdf",
                           verbose = getOption("verbose")) {
-  if (!grepl("\\.pdf$", file_name)) {
+  if (!is.null(file_name) && !grepl("\\.pdf$", file_name)) {
     stop("'filename' must be pdf.")
   }
   if (!is.null(heatmap_var)) {

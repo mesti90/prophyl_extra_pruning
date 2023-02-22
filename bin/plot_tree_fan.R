@@ -18,6 +18,10 @@ intree_path <- args[2]
 meta_path <- args[3]
 # poppunk clusters with .csv extension
 pp_path <- args[4]
+# sample size, for testing purposes. Will only do sampling if sample size > 0.
+sample_size <- args[5]
+# output file name
+file_name <- args[6]
 
 # parameters
 # number of most frequent mlst-s to plot separately, pool the rest as "Other"
@@ -26,10 +30,6 @@ top_mlst_count = 4
 top_k_count = 6
 # drop these tips (e.g. becasue they would distort the final plot)
 tips_to_drop = c("GCF_014171935.1", "GCA_900495195.1")
-
-# outputs
-outtree_1_path <- "tree_all_tips.pdf"
-outtree_2_path <- "tree_dropped_tips.pdf"
 
 # script
 load_all(project_dir)
@@ -73,13 +73,15 @@ top_k <- names(sort(table(meta$k_serotype), decreasing = TRUE))[1:top_k_count]
 meta$k_serotype <- ifelse(meta$k_serotype %in% top_k, meta$k_serotype, "Other")
 
 k_colors <- data.frame(
-  mlst = c(sort(top_k), "Other"),
+  k_serotype = c(sort(top_k), "Other"),
   color = c(qualpalr::qualpal(top_k_count, "pretty_dark")$hex, "grey50")
 )
 
-# used for testing 
-# set.seed(0)
-# tree <- ape::keep.tip(tree, sample(tree$tip.label, 250))
+if (sample_size > 0) {
+  set.seed(0)
+  sample_size <- round(as.numeric(sample_size),0)
+  tree <- ape::keep.tip(tree, sample(tree$tip.label, sample_size))
+}
 
 tree_tbl <- as_tibble(tree)
 
@@ -94,19 +96,12 @@ tree_tbl <- dplyr::left_join(
 
 plot_tree_fan(
   tree_tbl,
-  open_angle = 20,
-  file_name = outtree_1_path,
-  verbose = TRUE
-)
-
-plot_tree_fan(
-  tree_tbl,
   drop_tip = tips_to_drop,
   open_angle = 20,
-  heatmap_var = c("mlst", "k_serotype"),
+  heatmap_var = c("mlst", "k_serotype", "continent"),
   heatmap_colors = list("mlst" = mlst_colors, "k_serotype" = k_colors),
-  heatmap_offset = c(0, 0.02),
+  heatmap_offset = c(0, 0.02, 0.04),
   heatmap_font_size = 3,
-  file_name = outtree_2_path,
+  file_name = file_name,
   verbose = TRUE
 )
