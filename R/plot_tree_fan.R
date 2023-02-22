@@ -4,13 +4,22 @@
 #' adds a number of heatmaps.
 #' @param tree_tbl tibble; the phylogenetic tree in tibble format.
 #' @param drop_tip character; a vector of tip labels to exclude from the tree.
-#' @param open_angle numeric; open angle for the fan layout
+#' @param open_angle numeric; open angle for the fan layout.
 #' @param heatmap_var character; a vector or variable names used for creating
-#' heatmaps. If \code{NULL} the plot will not contain any heatmaps
+#' heatmaps. If \code{NULL} the plot will not contain any heatmaps.
 #' @param heatmap_colors list; a list of data frames used for color coding
 #' heatmaps. See Details for more information. If \code{NULL}, the colors will
 #' be generated automatically.
-#' @param export logical; should the plot be exported?
+#' @param heatmap_offset numeric; distance between heatmaps.
+#' @param heatmap_width numeric; width of a heatmap band.
+#' @param heatmap_colnames_angle numeric; angle for column names.
+#' @param heatmap_colnames_font_size numeric; font size for column names.
+#' @param heatmap_colnames_hjust numeric; hjust for column names.
+#' @param file_name character; export file path. If \code{NULL}, the function
+#' will not export anything but print the tree to the console. Otherwise the
+#' function will interpret the path, create directories if they do not already
+#' exist and export the file. The file extension must be .pdf. 
+#' @param verbose logical; should verbose messages be printed to the console?
 #' @details When one or more heatmaps are added to the plot, it is possible to
 #' define heatmap colors manually, using the \code{heatmap_colors} argument.
 #' By default, the argument is \code{NULL} and the colors are defined
@@ -41,6 +50,7 @@
 #' @import ggimage
 #' @import ggplot2
 #' @import ggtree
+#' @import ggtreeExtra
 #' @importFrom qualpalr qualpal
 #' @export
 plot_tree_fan <- function(tree_tbl,
@@ -48,24 +58,15 @@ plot_tree_fan <- function(tree_tbl,
                           open_angle = 10,
                           heatmap_var = NULL,
                           heatmap_colors = NULL,
-                          heatmap_offset = 0,
-                          heatmap_width = 0.1,
-                          heatmap_colnames_position = "bottom",
+                          heatmap_offset = 0.15,
+                          heatmap_width = 5,
                           heatmap_colnames_angle = 45,
-                          heatmap_colnames_offset_x = 0,
-                          heatmap_colnames_offset_y = 0,
-                          heatmap_font_size = 4,
-                          heatmap_hjust = 1,
-                          scale = 1,
-                          file_name = "tree.pdf",
+                          heatmap_colnames_font_size = 4,
+                          heatmap_colnames_hjust = 1,
+                          file_name = NULL,
                           verbose = getOption("verbose")) {
   if (!is.null(file_name) && !grepl("\\.pdf$", file_name)) {
     stop("'filename' must be pdf.")
-  }
-  if (!is.null(heatmap_var)) {
-    if (length(heatmap_var) != length(heatmap_offset)) {
-      stop("'heatmap_var' and 'heatmap_offset' must have the same length.")
-    }
   }
   tree <-  treeio::as.treedata(tree_tbl)
   tree <- ape::as.phylo(tree)
@@ -77,9 +78,12 @@ plot_tree_fan <- function(tree_tbl,
   if (!is.null(heatmap_var)) {
     idx_x <- which(tree_tbl$label %in% tree$tip.label)
     for (i in 1:length(heatmap_var)) {
+      # define heatmap data frame
       idx_y <- which(names(tree_tbl) == heatmap_var[i])
       hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
-      rownames(hmdf) <- tree_tbl$label[idx_x]
+      row.names(hmdf) <- tree_tbl$label[idx_x]
+      hmdf <- data.frame(id = row.names(hmdf), group = hmdf[[heatmap_var[i]]])
+      # define heatmap colors
       hmcolors <- "not_set"
       if (!is.null(heatmap_colors)) {
         index <- which(names(heatmap_colors) == heatmap_var[i])
@@ -113,25 +117,33 @@ plot_tree_fan <- function(tree_tbl,
         names(hmdf_colors) <- unique(hmdf[[heatmap_var[i]]])
         hmcolors <- "set"
       }
+      # add heatmaps
       if (i > 1) {
         p <- p + new_scale_fill()
       }
-      p <- gheatmap(
-        p,
-        hmdf,
-        offset = heatmap_offset[i],
-        width = heatmap_width,
-        colnames_position = heatmap_colnames_position,
-        colnames_angle = heatmap_colnames_angle,
-        colnames_offset_x = heatmap_colnames_offset_x,
-        colnames_offset_y = heatmap_colnames_offset_y,
-        font.size = heatmap_font_size,
-        hjust = heatmap_hjust
+      axis_text <- heatmap_var[i]
+      p <- p + geom_fruit(
+        data=hmdf,
+        geom=geom_tile,
+        mapping=aes(y=id, fill=group),
+        width=heatmap_width,
+        offset=heatmap_offset,
+        axis.params = list(axis = "x",
+                           text = axis_text,
+                           text.size = heatmap_colnames_font_size,
+                           text.angle = heatmap_colnames_angle,
+                           hjust = heatmap_colnames_hjust)
       )+
-        scale_fill_manual(
-          name = heatmap_var[i],
-          values = hmdf_colors,
-          breaks = names(hmdf_colors))
+      scale_fill_manual(
+        name = heatmap_var[i],
+        values = hmdf_colors,
+        breaks = names(hmdf_colors)
+      )+
+      scale_color_manual(
+        name = heatmap_var[i],
+        values = hmdf_colors,
+        breaks = names(hmdf_colors)
+      )
     }
   }
   if (!is.null(file_name)) {
@@ -140,7 +152,10 @@ plot_tree_fan <- function(tree_tbl,
     }
     ggsave(
       filename = file_name,
-      limitsize = FALSE
+      limitsize = FALSE,
+      width = 32,
+      height = 20,
+      units = "cm"
     )
     if (verbose) {
       message(paste0("Plot exported to ", file_name, "."))

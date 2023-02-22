@@ -10,16 +10,12 @@ plot_tree_fan(
   open_angle = 10,
   heatmap_var = NULL,
   heatmap_colors = NULL,
-  heatmap_offset = 0,
-  heatmap_width = 0.1,
-  heatmap_colnames_position = "bottom",
+  heatmap_offset = 0.15,
+  heatmap_width = 5,
   heatmap_colnames_angle = 45,
-  heatmap_colnames_offset_x = 0,
-  heatmap_colnames_offset_y = 0,
-  heatmap_font_size = 4,
-  heatmap_hjust = 1,
-  scale = 1,
-  file_name = "tree.pdf",
+  heatmap_colnames_font_size = 4,
+  heatmap_colnames_hjust = 1,
+  file_name = NULL,
   verbose = getOption("verbose")
 )
 }
@@ -28,16 +24,31 @@ plot_tree_fan(
 
 \item{drop_tip}{character; a vector of tip labels to exclude from the tree.}
 
-\item{open_angle}{numeric; open angle for the fan layout}
+\item{open_angle}{numeric; open angle for the fan layout.}
 
 \item{heatmap_var}{character; a vector or variable names used for creating
-heatmaps. If \code{NULL} the plot will not contain any heatmaps}
+heatmaps. If \code{NULL} the plot will not contain any heatmaps.}
 
 \item{heatmap_colors}{list; a list of data frames used for color coding
 heatmaps. See Details for more information. If \code{NULL}, the colors will
 be generated automatically.}
 
-\item{export}{logical; should the plot be exported?}
+\item{heatmap_offset}{numeric; distance between heatmaps.}
+
+\item{heatmap_width}{numeric; width of a heatmap band.}
+
+\item{heatmap_colnames_angle}{numeric; angle for column names.}
+
+\item{heatmap_colnames_font_size}{numeric; font size for column names.}
+
+\item{heatmap_colnames_hjust}{numeric; hjust for column names.}
+
+\item{file_name}{character; export file path. If \code{NULL}, the function
+will not export anything but print the tree to the console. Otherwise the
+function will interpret the path, create directories if they do not already
+exist and export the file. The file extension must be either .pdf of .png.}
+
+\item{verbose}{logical; should verbose messages be printed to the console?}
 }
 \description{
 This function plots a phylogenetic tree using the fan layout and optionally
