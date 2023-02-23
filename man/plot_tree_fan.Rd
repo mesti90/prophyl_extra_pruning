@@ -15,6 +15,8 @@ plot_tree_fan(
   heatmap_colnames_angle = 45,
   heatmap_colnames_font_size = 4,
   heatmap_colnames_hjust = 1,
+  legend_show = NA,
+  legend_box = "horizontal",
   file_name = NULL,
   verbose = getOption("verbose")
 )
@@ -43,10 +45,16 @@ be generated automatically.}
 
 \item{heatmap_colnames_hjust}{numeric; hjust for column names.}
 
+\item{legend_show}{character; name of heatmap variables to include in legend.
+By default, all variables are included.}
+
+\item{legend_box}{character; arrangement of multiple legends. Can be either
+\code{"horizontal"} or \code{"vertical"}.}
+
 \item{file_name}{character; export file path. If \code{NULL}, the function
 will not export anything but print the tree to the console. Otherwise the
 function will interpret the path, create directories if they do not already
-exist and export the file. The file extension must be either .pdf of .png.}
+exist and export the file. The file extension must be .pdf.}
 
 \item{verbose}{logical; should verbose messages be printed to the console?}
 }

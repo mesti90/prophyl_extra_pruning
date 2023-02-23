@@ -15,6 +15,10 @@
 #' @param heatmap_colnames_angle numeric; angle for column names.
 #' @param heatmap_colnames_font_size numeric; font size for column names.
 #' @param heatmap_colnames_hjust numeric; hjust for column names.
+#' @param legend_show character; name of heatmap variables to include in legend.
+#' By default, all variables are included.
+#' @param legend_box character; arrangement of multiple legends. Can be either
+#' \code{"horizontal"} or \code{"vertical"}.
 #' @param file_name character; export file path. If \code{NULL}, the function
 #' will not export anything but print the tree to the console. Otherwise the
 #' function will interpret the path, create directories if they do not already
@@ -63,8 +67,11 @@ plot_tree_fan <- function(tree_tbl,
                           heatmap_colnames_angle = 45,
                           heatmap_colnames_font_size = 4,
                           heatmap_colnames_hjust = 1,
+                          legend_show = NA,
+                          legend_box = "horizontal",
                           file_name = NULL,
                           verbose = getOption("verbose")) {
+  legend_box <- match.arg(legend_box, choices = c("horizontal", "vertical"))
   if (!is.null(file_name) && !grepl("\\.pdf$", file_name)) {
     stop("'filename' must be pdf.")
   }
@@ -118,10 +125,13 @@ plot_tree_fan <- function(tree_tbl,
         hmcolors <- "set"
       }
       # add heatmaps
-      if (i > 1) {
-        p <- p + new_scale_fill()
-      }
+      p <- p + new_scale_fill()
       axis_text <- heatmap_var[i]
+      if (length(legend_show) == 1 && is.na(legend_show)) {
+        show_legend <- NA
+      } else {
+        show_legend <- ifelse(heatmap_var[i] %in% legend_show, NA, FALSE)
+      }
       p <- p + geom_fruit(
         data=hmdf,
         geom=geom_tile,
@@ -132,20 +142,24 @@ plot_tree_fan <- function(tree_tbl,
                            text = axis_text,
                            text.size = heatmap_colnames_font_size,
                            text.angle = heatmap_colnames_angle,
-                           hjust = heatmap_colnames_hjust)
+                           hjust = heatmap_colnames_hjust),
+        show.legend = show_legend
       )+
       scale_fill_manual(
         name = heatmap_var[i],
         values = hmdf_colors,
-        breaks = names(hmdf_colors)
+        breaks = names(hmdf_colors),
+        na.translate = FALSE
       )+
       scale_color_manual(
         name = heatmap_var[i],
         values = hmdf_colors,
-        breaks = names(hmdf_colors)
+        breaks = names(hmdf_colors),
+        na.translate = FALSE
       )
     }
   }
+  p <- p + theme(legend.box = legend_box)
   if (!is.null(file_name)) {
     if (!dir.exists(dirname(file_name))) {
       dir.create(dirname(file_name), recursive = TRUE)
