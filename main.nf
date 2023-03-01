@@ -446,8 +446,12 @@ workflow {
     create_genome_list.out[2].splitCsv(header: true) | snippy_single
     create_genome_list.out[3].splitCsv(header: true) | snippy_contig
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
+    chromosomes = keep_chromosome.out.collectFile(
+        name: "chromosomes.fasta",
+        storeDir: "$launchDir/results/"
+    )
     // Mask recombination, build tree, bootstrap
-    keep_chromosome.out.collectFile(name: "chromosomes.fasta") | build_tree | bootstrap_tree | tidy_bootstrap_tree
+    chromosomes | build_tree | bootstrap_tree | tidy_bootstrap_tree
     // Date tree with treedater
     build_tree.out | date_tree
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
