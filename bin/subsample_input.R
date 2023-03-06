@@ -23,7 +23,7 @@ balance_by <- "region23"
 focus_by <- "continent"
 focus_on <- "europe"
 # ratio of samples to take from focus group.
-focus_ratio <- 0.5
+focus_ratio <- 0.75
 
 if (balance_by %in% names(assemblies) == FALSE) {
   stop("Subsampling failed, variable '", balance_by, "' not found.")
@@ -122,9 +122,8 @@ if (type == "focused") {
     } else {
       stop("Not enough assemblies in focus group to subsample")
     }
-    # also include isolates where focus variable is NA
-    no_focus_index <- which(
-      is.na(assemblies[[focus_by]]) | assemblies[[focus_by]] != focus_on)
+    # exclude any assemblies where focus variable is NA
+    no_focus_index <- which(assemblies[[focus_by]] != focus_on)
     if (length(no_focus_index) >= no_focus_count) {
       no_focus <- sample(
       no_focus_index,
