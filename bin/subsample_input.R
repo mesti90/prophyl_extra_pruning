@@ -1,12 +1,29 @@
+# This script takes a table of assemblies and draws samples using the selected
+# sampling strategy. Each subsampled table will then be used to build and date a
+# subset tree. Each subset tree will be used to calculate a number of data
+# points for the relative risk plots.
+
 rm(list=ls())
 args <- commandArgs(trailingOnly = TRUE)
 
 assemblies <- read.csv(args[1], sep = "\t")
+# number of subsampled trees 
 subsample_count <- as.numeric(args[2])
+# number of tips to include in each subsampled tree
 subsample_tipcount <- as.numeric(args[3])
 
+# sampling strategy
+# can be either "random", "balanced" or "focused".
 type <- "balanced"
+# a variable within the input table used for balancing.
+# only used if the sampling strategy is "balanced"
 balance_by <- "region23"
+# a variable within the input table used for focusing.
+# only used if sampling strategy is "focused".
+focus_by <- "continent"
+focus_on <- "europe"
+# ratio of samples to take from focus group.
+focus_ratio <- 0.5
 
 if (balance_by %in% names(assemblies) == FALSE) {
   stop("Subsampling failed, variable '", balance_by, "' not found.")
@@ -80,5 +97,49 @@ if (type == "balanced") {
         quote = FALSE
       )
     }
+  }
+}
+
+if (type == "focused") {
+  set.seed(0)
+  focus_count <- round(focus_ratio * subsample_tipcount, 0)
+  no_focus_count <- subsample_tipcount - focus_count
+  if (focus_count == 0 | no_focus_count == 0) {
+    stop("Number of assemblies in and outside of focus group must be non zero.")
+  }
+  digits <- ceiling(log10(subsample_count + 1))
+  for (i in 1:subsample_count) {
+    zeroes <- digits - floor(log10(i))
+    filename = paste0(
+      c("subsample_", rep(0, times = zeroes), i, ".tsv"), collapse = "")
+    focus_index <- which(assemblies[[focus_by]] == focus_on)
+    if (length(focus_index) >= focus_count) {
+      focus <- sample(
+      focus_index,
+      focus_count,
+      replace = FALSE
+      )
+    } else {
+      stop("Not enough assemblies in focus group to subsample")
+    }
+    # also include isolates where focus variable is NA
+    no_focus_index <- which(
+      is.na(assemblies[[focus_by]]) | assemblies[[focus_by]] != focus_on)
+    if (length(no_focus_index) >= no_focus_count) {
+      no_focus <- sample(
+      no_focus_index,
+      no_focus_count,
+      replace = FALSE
+      )
+    } else {
+      stop("Not enough assemblies in non-focus group to subsample")
+    }
+    write.table(
+      assemblies[c(focus, no_focus), ],
+      file = filename,
+      sep = "\t",
+      row.names = FALSE,
+      quote = FALSE
+    )
   }
 }
