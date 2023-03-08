@@ -133,7 +133,9 @@ process collapse_outbreaks {
 
     script:
     """
-    Rscript $projectDir/bin/collapse_outbreaks.R 
+    Rscript $projectDir/bin/collapse_outbreaks.R \
+    $assemblies \
+    geo_date
     """
 }
 
