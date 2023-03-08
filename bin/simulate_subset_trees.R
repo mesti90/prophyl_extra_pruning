@@ -4,16 +4,20 @@ library(treedater)
 args <- commandArgs(trailingOnly = TRUE)
 subset_id <- args[1]
 dated_tree <- readRDS(args[2])
-nreps <- args[3]
-ncpu <- args[4]
+nreps <- as.numeric(args[3])
+ncpu <- as.numeric(args[4])
 launchDir <- args[5]
 
-simtrees <- treedater::parboot(
-  dated_tree,
-  nreps = nreps,
-  ncpu = ncpu,
-  quiet = FALSE
-)
+if (nreps == 1) {
+  simtrees <- dated_tree
+} else {
+  simtrees <- treedater::parboot(
+    dated_tree,
+    nreps = nreps,
+    ncpu = ncpu,
+    quiet = FALSE
+  )
+}
 
 for (i in 1:length(simtrees$trees)) {
   simtrees$trees[[i]]$tip.label <- unname(sapply(
