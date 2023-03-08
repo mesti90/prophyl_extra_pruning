@@ -16,7 +16,7 @@ gubbins_container = "mesti90/gubbins:latest"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-aci:0.1"
+r_container = "stitam/r-aci:0.2"
 snippy_container = "staphb/snippy"
 
 process bootstrap_tree {
@@ -133,7 +133,7 @@ process collapse_outbreaks {
 
     script:
     """
-    Rscript $projectDir/bin/collapse_oubreaks.R 
+    Rscript $projectDir/bin/collapse_outbreaks.R 
     """
 }
 
