@@ -120,6 +120,23 @@ process calculate_relative_risks {
     """
 }
 
+process collapse_outbreaks {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/collapse_outbreaks"
+
+    input:
+    path assemblies
+
+    output:
+    path "assemblies_collapsed_outbreaks.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/collapse_oubreaks.R 
+    """
+}
+
 process create_genome_list {
     container "$r_container"
     containerOptions "--no-home"
@@ -461,7 +478,7 @@ workflow {
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
     prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
     // prepare random subsamples from assemblies and create a channel
-    validate_input.out | subsample_input
+    validate_input.out | collapse_outbreaks | subsample_input
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
     build_tree.out.combine(subsample_ch) | subset_snps | build_subset_tree | date_subset_tree | simulate_subset_trees

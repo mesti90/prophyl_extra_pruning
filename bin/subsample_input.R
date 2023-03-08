@@ -6,7 +6,7 @@
 rm(list=ls())
 args <- commandArgs(trailingOnly = TRUE)
 
-assemblies <- read.csv(args[1], sep = "\t")
+assemblies <- readRDS(args[1])
 # number of subsampled trees 
 subsample_count <- as.numeric(args[2])
 # number of tips to include in each subsampled tree
