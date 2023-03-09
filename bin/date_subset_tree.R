@@ -249,6 +249,7 @@ dtr <- dater(tree,
              ncpu =  ncpu)
 
 # rescale non-dated branch lengths from per site to per genome (more intuitive)
+alignment_length <- length(f[[1]])
 dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
 
 # export plots
@@ -271,9 +272,11 @@ dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
 
 saveRDS(dtr, file = paste0(subset_id, "/dated_tree.rds"))
 
-dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
-  strsplit(x, "\\|")[[1]][1]
-}))
+# do not remove dates from tip labels
+# if dates are removed parboot will fail in a subsequent step
+# dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
+#   strsplit(x, "\\|")[[1]][1]
+# }))
 
 ape::write.tree(dtr, file = paste0(subset_id, "/treedater_tree_with_time.nwk"))
 
