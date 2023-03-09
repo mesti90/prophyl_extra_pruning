@@ -112,11 +112,21 @@ process calculate_relative_risks {
     tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
 
     output:
-    path "risk_ratios.rds"
+    path "relative_risks.rds"
+    path "relative_risks.pdf"
+    path "relative_risks.png"
 
     script:
     """
-    Rscript $projectDir/bin/calculate_relative_risks.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_list $params.nboot_on_simtree
+    Rscript $projectDir/bin/calculate_relative_risks.R \
+    $params.assemblies \
+    $colldist \
+    $same_country \
+    $same_continent \
+    $geodist \
+    $phylodist_list \
+    $params.nboot_on_simtree \
+    $projectDir
     """
 }
 

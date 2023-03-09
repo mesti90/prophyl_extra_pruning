@@ -13,7 +13,34 @@
 
 rm(list = ls())
 
-args <- commandArgs(trailingOnly = TRUE)
+if (!interactive()) {
+  args <- commandArgs(trailingOnly = TRUE)
+  data_seq_path <- args[1]
+  time_mat_path <- args[2]
+  geo_mat_country_path <- args[3]
+  geo_mat_continent_path <- args[4]
+  geo_mat_km_centroids_path <- args[5]
+  sim_mats_path <- args[6]
+  nboot <- as.numeric(args[7])
+  project_dir <- args[8]
+} else {
+  test_dir <- "~/Methods/prophyl-tests/test-calculate_relative_risks"
+  data_seq_path <- paste0(test_dir, "/assemblies.tsv")
+  time_mat_path <- paste0(test_dir, "/results/calculate_distances/colldist.rds")
+  geo_mat_country_path <- paste0(
+    test_dir, "/results/calculate_distances/same_country.rds")
+  geo_mat_continent_path <- paste0(
+    test_dir, "/results/calculate_distances/same_continent.rds")
+  geo_mat_km_centroids_path <- paste0(
+    test_dir, "/results/calculate_distances/geodist.rds")
+  sim_mats_path <- paste0(
+    test_dir, "/results/calculate_distances/phylodist_list.rds")
+  nboot <- 1
+  project_dir <- "~/Methods/prophyl"
+}
+
+library(devtools)
+load_all(project_dir)
 
 ## Main function
 ratio_bootstrap_dist_discrete_auto <- function(x, y, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref){
@@ -66,22 +93,22 @@ ratio_bootstrap_dist_discrete_auto <- function(x, y, geo_mat, time_mat2, MRCA_ma
 ## Load relevant datasets and matrices
 #####################################################################
 ## Metadata
-data.seq = read.csv(args[1], sep = "\t")
+data.seq = read.csv(data_seq_path, sep = "\t")
 ## Time
-time_mat = readRDS(args[2])
+time_mat = readRDS(time_mat_path)
 ## Geography
-geo_mat_country = readRDS(args[3])
-geo_mat_continent = readRDS(args[4])
-geo_mat_km_centroids = readRDS(args[5])
+geo_mat_country = readRDS(geo_mat_country_path)
+geo_mat_continent = readRDS(geo_mat_continent_path)
+geo_mat_km_centroids = readRDS(geo_mat_km_centroids_path)
 ## Genetic distances
-sim.mats <- readRDS(args[6])
+sim.mats <- readRDS(sim_mats_path)
 nsim = length(sim.mats)
 
 #####################################################################
 ## Parameters for the computation of the relative risks
 #####################################################################
 ## Number of bootstrap event to perform, of each tree
-nboot = as.numeric(args[7])
+nboot = nboot
 
 ## MRCA windows on which to compute the relative risk
 Pmax <- c(5, 10, 20, 40, 1000) ## max windows
@@ -205,6 +232,21 @@ res = list('rr' = rr,
            'int' = int,
            'nboot' = nboot,
            'nsim' = nsim)
-## Write results
-saveRDS(res, "risk_ratios.rds")
-#####################################################################
+class(res) <- "rrlist"
+
+if (!interactive()) {
+  # export results
+  saveRDS(res, "relative_risks.rds")
+  # plot results - pdf
+  try(dev.off(), silent = TRUE)
+  try(dev.off(), silent = TRUE)
+  pdf(file = "relative_risks.pdf")
+  plot_rr(res)
+  try(dev.off(), silent = TRUE)
+  try(dev.off(), silent = TRUE)
+  # plot results - png
+  png(file = "relative_risks.png")
+  plot_rr(res)
+  try(dev.off(), silent = TRUE)
+  try(dev.off(), silent = TRUE)
+}
