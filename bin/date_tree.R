@@ -1,15 +1,82 @@
-rm(list=ls())
+# This script takes
+# - a phylogenetic tree with branch lengths in snp per genome
+# - an alignment used for calculating the phylogenetic tree
+# - a table containing sample metadata
+# - a value for the number of processors to use
+# And calculates a dated phylogeny.
+
+# If the collection date of a sample is known by day, it will be used as is. If
+# the collection date of the sample is known by month or year, a matching range
+# will be used as input and the middle value as the starting value. If the
+# collection date of the sample is in another format or not known, the sample
+# will be dropped from the analysis. This is different from the approach used
+# by treedater authors in the article https://doi.org/10.1093/ve/vex025 where
+# they seem to have interpolated unknown samples to fall between the boundaries
+# of the rest of the genomes.
+
+rm(list = ls())
+
+if (!interactive()) {
+  # create log file and start logging
+  con <- file("treedater_log.txt")
+  sink(con, split = TRUE)
+}
+
 library(dplyr)
 library(magrittr)
 library(treedater)
 
-args <- commandArgs(trailingOnly = TRUE)
+if (!interactive()) {
+  args <- commandArgs(trailingOnly = TRUE)
+  
+  tree_path <- args[1]
+  f_path <- args[2]
+  assemblies_path <- args[3]
+  ncpu <- as.numeric(args[4])
+} else {
+  test_dir <- "~/Methods/prophyl-tests/test_date_tree"
+  tree_path <- paste0(
+    test_dir, "/results/build_tree/chromosomes.node_labelled.final_tree.tre"
+  )
+  f_path <- paste0(
+    test_dir, "/results/build_tree/chromosomes.filtered_polymorphic_sites.fasta"
+  )
+  assemblies_path <- paste0(test_dir, "/assemblies.tsv")
+  ncpu = 10
+}
 
-tree <- ape::read.tree(file = args[1])
-f <- seqinr::read.fasta(file = args[2])
-assemblies <- read.csv(args[3], sep = "\t", header = TRUE)
+tree <- ape::read.tree(tree_path)
+f <- seqinr::read.fasta(f_path)
+assemblies <- read.csv(assemblies_path, sep = "\t", header = TRUE)
 
-ncpu <- as.numeric(args[4])
+# rescale branch lengths from per genome to per site (required for treedater)
+alignment_length <- length(f[[1]])
+tree$edge.length <- tree$edge.length / alignment_length
+
+# drop tips which cannot be found in assembly table and give a warning
+index <- which(tree$tip.label %in% assemblies$assembly == FALSE)
+if (length(index) > 0) {
+  tips_to_drop <- tree$tip.label[index]
+  tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
+  tree <- ape::drop.tip(tree, tips_to_drop)
+  msg <- paste0(
+    "One or more tips could not be found in assembly table and were dropped: ",
+    tips_to_drop_collapsed,
+    "."
+  )
+  warning(msg)
+}
+
+# filter to assemblies that are included in the tree
+index <- which(assemblies$assembly %in% tree$tip.label == FALSE)
+if (length(index) > 0) {
+  assemblies <- assemblies[-index, ]
+}
+
+# filter to relevant columns
+assemblies <- assemblies[, which(names(assemblies) %in% c(
+  "assembly", "collection_date", "collection_day"
+))]
 
 date_lower <- function(dates) {
   foo <- function(x) {
@@ -130,47 +197,54 @@ date_middle <- function(dates){
   return(out)
 }
 
-dates <- assemblies[, which(names(assemblies) %in% c(
-  "assembly", "collection_date", "collection_day"
-))]
-dates <- dplyr::rename(dates, name = assembly)
-dates$date <- date_middle(dates$collection_date)
-dates$lower <- date_lower(dates$collection_date)
-dates$upper <- date_upper(dates$collection_date)
+# add new temporal variables
+assemblies$date <- date_middle(assemblies$collection_date)
+assemblies$lower <- date_lower(assemblies$collection_date)
+assemblies$upper <- date_upper(assemblies$collection_date)
+
+# define range for dates which are not known exactly
+index_uncertain <- which(is.na(assemblies$collection_day))
+uncertain_dates <- assemblies[index_uncertain, c("lower", "upper")]
+rownames(uncertain_dates) <- assemblies$assembly[index_uncertain]
+
+# drop tips where a range cannot be defined
+index <- which(is.na(uncertain_dates$lower) | is.na(uncertain_dates$upper))
+tips_to_drop <- rownames(uncertain_dates)[index]
+if (length(index) > 0) {
+  # drop from tree
+  tree <- ape::drop.tip(tree, tips_to_drop)
+  # drop from assemblies
+  assemblies <- assemblies[-which(assemblies$assembly %in% tips_to_drop), ]
+  # drop from uncertain dates
+  uncertain_dates <- uncertain_dates[-which(row.names(uncertain_dates) %in% tips_to_drop), ]
+  tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
+  msg <- paste0(
+    "One or more tips were dropped because no data on sampling data was found: ",
+    tips_to_drop_collapsed,
+    "."
+  )
+  warning(msg)
+}
+
+# rename tips to include dates
+tree$tip.label <- sapply(tree$tip.label, function(x) {
+  index <- which(assemblies$assembly == x)
+  paste(x, assemblies$date[index], sep = "|")
+}, USE.NAMES = FALSE)
+
+# rename rownames in uncertain dates to include dates
+row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
+  index <- which(assemblies$assembly == x)
+  paste(x, assemblies$date[index], sep = "|")
+}, USE.NAMES = FALSE)
+
+# extract dates from tip labels in appropriate format
+sts <- sampleYearsFromLabels(tree$tip.label, delimiter = "|")
 
 # unroot tree, if rooted
 if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
 
-# read data set with dates, requires full dates
-dates$date <- as.Date(dates$date)
-
-# rename tips to include dates
-
-tree$tip.label <- sapply(tree$tip.label, function(x) {
-  index <- which(dates$name == x)
-  paste(x, dates$date[index], sep = "|")
-}, USE.NAMES = FALSE)
-
-# extract dates from tip labels in appropriate format
-
-sts <- sampleYearsFromLabels(tree$tip.label, delimiter = "|")
-
-# define range for dates which are not known exactly
-
-index_uncertain <- which(is.na(dates$collection_day))
-uncertain_dates <- dates[index_uncertain, c("lower", "upper")]
-rownames(uncertain_dates) <- dates$name[index_uncertain]
-
-# drop tips where a range cannot be defined
-
-index <- which(is.na(uncertain_dates$lower) | is.na(uncertain_dates$upper))
-tree <- ape::drop.tip(tree, rownames(uncertain_dates)[index])
-
 # date tree
-
-con <- file("treedater_log.txt")
-sink(con, split = TRUE)
-
 dtr <- dater(tree,
              sts,
              s = length(f[[1]]),
@@ -178,6 +252,10 @@ dtr <- dater(tree,
              clock = 'strict', 
              ncpu =  ncpu)
 
+# rescale non-dated branch lengths from per site to per genome (more intuitive)
+dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
+
+# export plots
 try(dev.off(), silent = TRUE)
 try(dev.off(), silent = TRUE)
 
@@ -192,6 +270,7 @@ png(file = "treedater_root_to_tip.png")
 rootToTipRegressionPlot(dtr)
 dev.off()
 
+# rename internal nodes
 dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
 
 saveRDS(dtr, file = "dated_tree.rds")
@@ -202,4 +281,7 @@ dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
 
 ape::write.tree(dtr, file = "treedater_tree_with_time.nwk")
 
-sink(con)
+if (!interactive()) {
+  # end logging
+  sink(con)
+}
