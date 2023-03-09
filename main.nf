@@ -203,6 +203,23 @@ process date_subset_tree {
     """
 }
 
+process filter_snps {
+    //TODO create container from scratch
+    container "staphb/snp-sites:2.5.1"
+    storeDir "$launchDir/results/filter_snps"
+
+    input:
+    tuple val(subsample_id), path(alignment)
+
+    output:
+    tuple val(subsample_id), path("${subsample_id}_filtered.fasta")
+
+    script:
+    """
+    snp-sites -o "${subsample_id}_filtered.fasta" $alignment
+    """
+}
+
 process keep_chromosome {
     container "$r_container"
     containerOptions "--no-home"
@@ -483,7 +500,7 @@ workflow {
     validate_input.out | collapse_outbreaks | subsample_input
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
-    build_tree.out.combine(subsample_ch) | subset_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    build_tree.out.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simulate_subset_trees.out[0].collectFile(name: "simtree_paths.txt") | calculate_distances | calculate_relative_risks
 }
