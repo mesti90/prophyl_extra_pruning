@@ -4,13 +4,36 @@
 # points for the relative risk plots.
 
 rm(list=ls())
-args <- commandArgs(trailingOnly = TRUE)
 
-assemblies <- readRDS(args[1])
-# number of subsampled trees 
-subsample_count <- as.numeric(args[2])
-# number of tips to include in each subsampled tree
-subsample_tipcount <- as.numeric(args[3])
+if (!interactive()) {
+  args <- commandArgs(trailingOnly = TRUE)
+  assemblies_path <- args[1]
+  tree_path <- args[2]
+  # number of subsampled trees 
+  subsample_count <- as.numeric(args[3])
+  # number of tips to include in each subsampled tree
+  subsample_tipcount <- as.numeric(args[4])
+} else {
+  test_dir <- "~/Methods/prophyl-tests/test-subsample_input"
+  assemblies_path <- paste0(
+    test_dir, "/results/collapse_outbreaks/assemblies_collapsed_outbreaks.rds")
+  tree_path <- paste0(
+    test_dir, "/results/shrink_tree/treeshrink.tre")
+  subsample_count = 10
+  subsample_tipcount = 10
+}
+
+# read assemblies
+assemblies <- readRDS(assemblies_path)
+# read tree
+tree <- ape::read.tree(tree_path)
+
+# The shrinked tree may contain less tips than the original tree
+# Only sample assemblies that are included in the shrinked tree
+index <- which(assemblies$assembly %in% tree$tip.label == FALSE)
+if (length(index) > 0) {
+  assemblies <- assemblies[-index, ]
+}
 
 # sampling strategy
 # can be either "random", "balanced" or "focused".
