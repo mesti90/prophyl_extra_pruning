@@ -1,20 +1,34 @@
-# TODO: test that row and colnames of matrices are in the right order
-
+##ITT TARTOK!!!
 rm(list=ls())
-
-args <- commandArgs(trailingOnly = TRUE)
-.libPaths(new = args[1])
 
 library(devtools)
 library(dplyr)
 library(geosphere)
 library(lubridate)
-load_all(args[2])
 
-assemblies <- read.csv(args[3], sep = "\t")
+if (!interactive()) {
+  args <- commandArgs(trailingOnly = TRUE)
+  project_dir <- args[1]
+  assemblies_path <- args[2]
+  simtree_paths <- args[3]
+  focus_by <- args[4]
+  focus_on <- args[5]
+} else {
+  project_dir <- "~/Methods/prophyl"
+  test_dir <- "~/Methods/prophyl-tests/test-calculate_distances"
+  assemblies_path <- paste0(test_dir, "/assemblies.tsv")
+  #####TODO######
+  simtree_paths
+  focus_by <- "continent"
+  focus_on <- "europe"
+}
+
+load_all(project_dir)
+
+assemblies <- read.csv(assemblies_path, sep = "\t")
 assemblies <- assemblies[order(assemblies$assembly),]
 
-simtree_paths <- readLines(args[4])
+simtree_paths <- readLines(simtree_paths)
 simtrees <- list()
 simtrees$trees <- list()
 for (i in simtree_paths) {
@@ -25,44 +39,73 @@ for (i in simtree_paths) {
 # geographic distance - same country
 
 same_country <- matrix(0, nrow(assemblies), nrow(assemblies))
-if ("country" %in% names(assemblies)) {
-  for (i in unique(assemblies$country)){
-    index = which(assemblies$country == i)
-    same_country[index, index] = 1
+for (i in unique(assemblies$country)){
+  index <- which(assemblies$country == i)
+  same_country[index, index] <- 1
+  # if there is any focus for the analysis
+  if (!is.null(focus_on) & !is.null(focus_by)) {
+    # if country country in focus
+    if (assemblies[[focus_by]][index][1] != focus_on) {
+      same_country[index, index] = NA
+    }
   }
-  diag(same_country)<-NA
 }
-saveRDS(same_country, file = "same_country.rds")
+diag(same_country)<-NA
+
+if(!interactive()) {
+  saveRDS(same_country, file = "same_country.rds")
+}
 
 # geographic distance - neighbors
-
+# TODO check 
+# TODO implement focusing
 neighbors <- matrix(0, nrow(assemblies), nrow(assemblies))
-if ("iso2c" %in% names(assemblies)) {
-  for (i in unique(assemblies$iso2c)){
-    index1 = which(assemblies$iso2c == i)
-    
+for (i in unique(assemblies$country_iso2c)){
+  index1 = which(assemblies$country_iso2c == i)
+  if (!is.null(focus_on) & !is.null(focus_by)){
+    # if there is any focus for the analysis
+    if (assemblies[[focus_by]][index][1] == focus_on) {
+      # if in focus
+      
+    } else {
+      # if not in focus
+      
+    }
+  } else {
     data("custom_country_borders")
     borders <- edit_borders(custom_country_borders)
-    index2 = which(assemblies$iso2c %in% all_neighbors(i, borders = borders))
+    index2 = which(assemblies$country_iso2c %in% all_neighbors(i, borders = borders))
     
     neighbors[index1, index2] = 1
     neighbors[index2, index1] = 1
   }
-  diag(neighbors)<-NA
 }
-saveRDS(neighbors, file = "neighbors.rds")
+diag(neighbors)<-NA
+
+if (!interactive()) {
+  saveRDS(neighbors, file = "neighbors.rds")
+}
 
 # geographic distance - same continent
 
 same_continent <- matrix(0, nrow(assemblies), nrow(assemblies))
-if ("continent" %in% names(assemblies)) {
-  for (i in unique(assemblies$continent)){
-    index = which(assemblies$continent == i)
-    same_continent[index, index] = 1
+for (i in unique(assemblies$continent)){
+  index = which(assemblies$continent == i)
+  same_continent[index, index] = 1
+  # if there is any focus for the analysis
+  if (!is.null(focus_on) & !is.null(focus_by)) {
+    # if continent not in focus
+    if (assemblies[[focus_by]][index][1] != focus_on) {
+      same_continent[index, index] = NA
+    }
   }
-  diag(same_continent)<-NA
 }
-saveRDS(same_continent, file = "same_continent.rds")
+diag(same_continent)<-NA
+
+if (!interactive()) {
+  saveRDS(same_continent, file = "same_continent.rds")
+}
+
 
 # geographic distance - distances in km
 

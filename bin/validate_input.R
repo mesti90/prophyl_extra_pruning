@@ -38,6 +38,18 @@ if ("collection_day" %in% names(df) == FALSE) {
 #   stop("All assemblies must contain collection days. Check.")
 # }
 
+if ("country" %in% names(df) == FALSE) {
+  stop("Required column 'country' is missing.")
+}
+
+if ("country_iso2c" %in% names(df) == FALSE) {
+  stop("Required column 'country_iso2c' is missing.")
+}
+
+if ("continent" %in% names(df) == FALSE) {
+  stop("Required column 'continent' is missing.")
+}
+
 write.table(
   df, 
   file = "assemblies.tsv",

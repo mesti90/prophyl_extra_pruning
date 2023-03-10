@@ -96,11 +96,21 @@ process calculate_distances {
     path simtree_paths
 
     output:
-    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds"), path("phylodist_list.rds")
+    tuple path("same_country.rds"),
+          path("neighbors.rds"),
+          path("same_continent.rds"),
+          path("geodist.rds"),
+          path("colldist.rds"),
+          path("phylodist_list.rds")
 
     script:
     """
-    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtree_paths
+    Rscript $projectDir/bin/calculate_distances.R \
+    $projectDir \
+    $params.assemblies \
+    $simtree_paths \
+    $params.focus_by \
+    $params.focus_on
     """
 }
 
@@ -386,7 +396,12 @@ process simulate_subset_trees {
 
     script:
     """
-    Rscript $projectDir/bin/simulate_subset_trees.R $subset_id $subset_tree_rds $params.simtrees ${task.cpus} $launchDir
+    Rscript $projectDir/bin/simulate_subset_trees.R \
+    $subset_id \
+    $subset_tree_rds \
+    $params.simtrees \
+    ${task.cpus} \
+    $launchDir
     """
 }
 
@@ -567,5 +582,9 @@ workflow {
     // build subset trees, date subset trees, simulate new trees using the dated trees
     shrink_snps.out.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
-    simulate_subset_trees.out[0].collectFile(name: "simtree_paths.txt") | calculate_distances | calculate_relative_risks
+    simtree_paths = simulate_subset_trees.out[0].collectFile(
+        name: "simtree_paths.txt",
+        storeDir: "$launchDir/results/"
+    )
+    simtree_paths | calculate_distances | calculate_relative_risks
 }
