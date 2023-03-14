@@ -531,9 +531,4 @@ if __name__ == "__main__":
 	https://pure.au.dk/ws/files/19821675/rapidNJ.pdf	
 	'''
 	concat_snpsites(clusters,genomes)
-	params = [\
-	(config['dropped_recombinant'],config['tree']['dropped'],config['treeshrink']['prefix_dropped'],config['treeshrink']['aln_dropped'],2,),\
-	(config['snpsites'],config['tree']['masked'],config['treeshrink']['prefix_masked'],config['treeshrink']['aln_masked'],22,)\
-	]
-	#pool.starmap(build_tree,params)
 	build_tree(config['snpsites'],config['tree']['masked_rapidnj'],config['treeshrink']['prefix_masked_rapidnj'],config['treeshrink']['aln_masked_rapidnj'],threads,"iqtree")
