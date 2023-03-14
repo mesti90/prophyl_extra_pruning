@@ -14,6 +14,43 @@ nextflow.enable.dsl=2
 // Containers
 r_container = "stitam/r-aci:0.1"
 
+process shrink_tree {
+    container "$hgttree_container"
+    storeDir "$launchDir/results/shrink_tree"
+
+    output:
+    tuple path(snps),
+          path("treeshrink.tre"),
+          path("treeshrink.txt"),
+          path("treeshrink_summary.txt")    
+
+    script:
+    """
+    run_treeshrink.py \
+    --tree  $launchDir/$params.tree \
+    --outprefix treeshrink \
+    --force \
+    --outdir .
+    """
+}
+
+process shrink_snps {
+    //TODO create container from scratch
+    container "staphb/snp-sites:2.5.1"
+    storeDir "$launchDir/results/shrink_snps"
+
+    input:
+    tuple path(snps), path(shrinked_tree), path(C), path(D)  
+
+    output:
+    tuple path("shrinked_snps.fasta"), path(shrinked_tree), path(C), path(D)  
+
+    script:
+    """
+    snp-sites -o shrinked_snps.fasta $snps
+    """
+}
+
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
@@ -60,8 +97,12 @@ process plot_tree_fan {
 }
 
 workflow {
+    // shrink_tree
+    shrink_tree()
+    // shrink snps
+    shrink_tree.out | shrink_snps
     // date tree
-    date_tree()
+    shrink_snps.out | date_tree
     // plot dated tree
     date_tree.out[0] | plot_tree_fan
 }
