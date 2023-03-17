@@ -192,7 +192,8 @@ process date_tree {
     $shrinked_tree \
     $shrinked_snps \
     $params.assemblies \
-    ${task.cpus}
+    ${task.cpus} \
+    snp_per_genome
     """
 }
 

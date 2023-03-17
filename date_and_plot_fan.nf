@@ -74,7 +74,8 @@ process date_tree {
     $shrinked_tree \
     $shrinked_snps \
     $launchDir/$params.assembly_summary \
-    ${task.cpus}
+    ${task.cpus} \
+    snp_per_site
     """
 }
 

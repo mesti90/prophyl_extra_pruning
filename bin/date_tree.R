@@ -33,6 +33,7 @@ if (!interactive()) {
   f_path <- args[2]
   assemblies_path <- args[3]
   ncpu <- as.numeric(args[4])
+  branch_dimension <- args[5]
 } else {
   test_dir <- "~/Methods/prophyl-tests/test_date_tree"
   tree_path <- paste0(
@@ -43,15 +44,25 @@ if (!interactive()) {
   )
   assemblies_path <- paste0(test_dir, "/assemblies.tsv")
   ncpu = 10
+  branch_dimension <- "snp_per_genome"
 }
+
+# Input validation
+branch_dimension <- match.arg(
+  branch_dimension,
+  choices = c("snp_per_genome", "snp_per_site")
+)
 
 tree <- ape::read.tree(tree_path)
 f <- seqinr::read.fasta(f_path)
 assemblies <- read.csv(assemblies_path, sep = "\t", header = TRUE)
 
-# rescale branch lengths from per genome to per site (required for treedater)
 alignment_length <- length(f[[1]])
-tree$edge.length <- tree$edge.length / alignment_length
+
+if (branch_dimension == "snp_per_genome") {
+  # rescale branch lengths from per genome to per site (required for treedater)
+  tree$edge.length <- tree$edge.length / alignment_length
+}
 
 # drop tips which cannot be found in assembly table and give a warning
 index <- which(tree$tip.label %in% assemblies$assembly == FALSE)
@@ -247,13 +258,15 @@ if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
 # date tree
 dtr <- dater(tree,
              sts,
-             s = length(f[[1]]),
+             s = alignment_length,
              estimateSampleTimes = uncertain_dates,
              clock = 'strict', 
              ncpu =  ncpu)
 
-# rescale non-dated branch lengths from per site to per genome (more intuitive)
-dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
+if (branch_dimension == "snp_per_genome") {
+  # rescale non-dated branch lengths from per site to per genome (more intuitive)
+  dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
+}
 
 # export plots
 try(dev.off(), silent = TRUE)
