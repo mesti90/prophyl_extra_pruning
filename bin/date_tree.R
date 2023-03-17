@@ -263,10 +263,8 @@ dtr <- dater(tree,
              clock = 'strict', 
              ncpu =  ncpu)
 
-if (branch_dimension == "snp_per_genome") {
-  # rescale non-dated branch lengths from per site to per genome (more intuitive)
+# rescale non-dated branch lengths from per site to per genome (more intuitive)
   dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
-}
 
 # export plots
 try(dev.off(), silent = TRUE)
