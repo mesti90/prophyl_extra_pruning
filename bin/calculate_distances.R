@@ -1,4 +1,16 @@
-##ITT TARTOK!!!
+# This script calculates various matrices for risk calculations. These matrices
+# are symmetrical matrices and reflect comparisons between isolates. E.g. the
+# matrix "same_country" describes whether two isolates were collected from the
+# same country; "geodist" contains geographical distances between two isolates,
+# "colldist" contains differences in collection dates, etc. It is possible to 
+# run the script without any "focus" in this case all isolates on the tree will
+# be included in distance comparisons. Alternatively, it is possible to select a
+# focus group. In this case, each isolate can be categorised as "in-focus" or
+# "not-in-focus". Comparisons between two "in-focus" isolates will be kept also
+# comparisons between an "in-focus" and a "not-in-focus" isolate, but
+# comparisons between two "not-in-focus" isolates will be eliminated from the
+# analysis. In practice, these elements will be masked with NAs in all matrices.
+
 rm(list=ls())
 
 library(devtools)
@@ -23,10 +35,24 @@ if (!interactive()) {
   focus_on <- "europe"
 }
 
+
 load_all(project_dir)
 
 assemblies <- read.csv(assemblies_path, sep = "\t")
 assemblies <- assemblies[order(assemblies$assembly),]
+
+# TODO maybe this should be checked at input validation as well?
+# TODO maybe only character variables should be allowed?
+# validate input
+if (!is.null(focus_by)) {
+  focus_by <- match.arg(focus_by, choices = names(assemblies))
+}
+if (!is.null(focus_on)) {
+  focus_on <- match.arg(focus_on, choices = unique(assemblies[[focus_by]]))
+}
+if (!is.null(focus_on) & !is.null(focus_by)) {
+  maskmat <- mask_matrix(assemblies, focus_by = focus_by, focus_on = focus_on)
+}
 
 simtree_paths <- readLines(simtree_paths)
 simtrees <- list()
@@ -42,46 +68,34 @@ same_country <- matrix(0, nrow(assemblies), nrow(assemblies))
 for (i in unique(assemblies$country)){
   index <- which(assemblies$country == i)
   same_country[index, index] <- 1
-  # if there is any focus for the analysis
-  if (!is.null(focus_on) & !is.null(focus_by)) {
-    # if country country in focus
-    if (assemblies[[focus_by]][index][1] != focus_on) {
-      same_country[index, index] = NA
-    }
-  }
+}
+# mask matrix if analysis is "focused"
+if (!is.null(focus_on) & !is.null(focus_by)) {
+  same_country <- same_country * maskmat
 }
 diag(same_country)<-NA
-
+# export data
 if(!interactive()) {
   saveRDS(same_country, file = "same_country.rds")
 }
 
 # geographic distance - neighbors
-# TODO check 
-# TODO implement focusing
 neighbors <- matrix(0, nrow(assemblies), nrow(assemblies))
 for (i in unique(assemblies$country_iso2c)){
   index1 = which(assemblies$country_iso2c == i)
-  if (!is.null(focus_on) & !is.null(focus_by)){
-    # if there is any focus for the analysis
-    if (assemblies[[focus_by]][index][1] == focus_on) {
-      # if in focus
-      
-    } else {
-      # if not in focus
-      
-    }
-  } else {
-    data("custom_country_borders")
-    borders <- edit_borders(custom_country_borders)
-    index2 = which(assemblies$country_iso2c %in% all_neighbors(i, borders = borders))
-    
-    neighbors[index1, index2] = 1
-    neighbors[index2, index1] = 1
-  }
+  data("custom_country_borders")
+  borders <- edit_borders(custom_country_borders)
+  index2 = which(assemblies$country_iso2c %in% all_neighbors(i, borders = borders))
+  
+  neighbors[index1, index2] = 1
+  neighbors[index2, index1] = 1
+}
+# mask matrix if analysis is "focused"
+if (!is.null(focus_on) & !is.null(focus_by)) {
+  neighbors <- neighbors * maskmat
 }
 diag(neighbors)<-NA
-
+# export data
 if (!interactive()) {
   saveRDS(neighbors, file = "neighbors.rds")
 }
@@ -92,24 +106,20 @@ same_continent <- matrix(0, nrow(assemblies), nrow(assemblies))
 for (i in unique(assemblies$continent)){
   index = which(assemblies$continent == i)
   same_continent[index, index] = 1
-  # if there is any focus for the analysis
-  if (!is.null(focus_on) & !is.null(focus_by)) {
-    # if continent not in focus
-    if (assemblies[[focus_by]][index][1] != focus_on) {
-      same_continent[index, index] = NA
-    }
-  }
+}
+# mask matrix if analysis is "focused"
+if (!is.null(focus_on) & !is.null(focus_by)) {
+  same_continent <- same_continent * maskmat
 }
 diag(same_continent)<-NA
-
+# export data
 if (!interactive()) {
   saveRDS(same_continent, file = "same_continent.rds")
 }
 
-
 # geographic distance - distances in km
-
 geodist <- matrix(NA, nrow(assemblies), nrow(assemblies))
+# TODO checking for "lat" and "lon" should be in input validation
 if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
   indices <- 1:nrow(assemblies)
   for (i in 1:nrow(assemblies)) {
@@ -137,18 +147,32 @@ if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
       }
     }
   }
+  # mask matrix if analysis is "focused"
+  if (!is.null(focus_on) & !is.null(focus_by)) {
+    geodist <- geodist * maskmat
+  }
   diag(geodist) = NA
 }
-saveRDS(geodist, file = "geodist.rds")
+# export data
+if (!interactive()) {
+  saveRDS(geodist, file = "geodist.rds")
+}
 
 # temporal distance - time difference between collections dates
 
 dates <- unname(lubridate::decimal_date(date_middle(assemblies$collection_date)))
 colldist = round(abs(outer(dates, dates, "-")),2)
+# mask matrix if analysis is "focused"
+if (!is.null(focus_on) & !is.null(focus_by)) {
+  colldist <- colldist * maskmat
+}
 diag(colldist) <- NA
 rownames(colldist) <- assemblies$assembly
 colnames(colldist) <- assemblies$assembly
-saveRDS(colldist, file = "colldist.rds")
+# export data
+if (!interactive()) {
+  saveRDS(colldist, file = "colldist.rds")
+}
 
 # temporal distance - cophenetic (patristic) distance between isolates
 
@@ -160,6 +184,10 @@ for (i in 1:nsim) {
   phylodist <- ape::cophenetic.phylo(simtrees$trees[[i]])
   index_phylodist <- order(colnames(phylodist))
   phylodist <- phylodist[index_phylodist, index_phylodist]
+  # mask matrix if analysis is "focused"
+  if (!is.null(focus_on) & !is.null(focus_by)) {
+    phylodist <- phylodist * maskmat
+  }
   diag(phylodist) <- NA
   
   index_colldist <- unname(sapply(colnames(phylodist), function(x) {
@@ -172,4 +200,7 @@ for (i in 1:nsim) {
   mrca[which(mrca < 0)] = 0
   phylodist_list[[i]] <- mrca
 }
-saveRDS(phylodist_list, file = "phylodist_list.rds")
+# export data
+if (!interactive()) {
+  saveRDS(phylodist_list, file = "phylodist_list.rds")
+}
