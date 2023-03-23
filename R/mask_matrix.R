@@ -22,6 +22,7 @@
 mask_matrix <- function(df,
                         focus_by,
                         focus_on) {
+  
   mask <- matrix(1, nrow(df), nrow(df))
   index <- which(df[[focus_by]] %in% focus_on == FALSE)
   if (length(index) == 0) {
@@ -32,5 +33,7 @@ mask_matrix <- function(df,
       warning("Focus group is empty.")
     }
   }
+  rownames(mask) <- df$assembly
+  colnames(mask) <- df$assembly
   return(mask)
 }
