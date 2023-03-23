@@ -13,10 +13,11 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 
 // Containers
 gubbins_container = "mesti90/gubbins:latest"
+hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-aci:0.1"
+r_container = "stitam/r-aci:0.3"
 snippy_container = "staphb/snippy"
 
 process bootstrap_tree {
@@ -24,7 +25,7 @@ process bootstrap_tree {
     storeDir "$launchDir/results/bootstrap_tree"
 
     input:
-    tuple path(A), path(B), path(snps), path(D), path(tree), path(F), path(G), path(H), path(I) 
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)  
 
     output:
     path "chromosomes.filtered_polymorphic_sites.fasta.treefile"
@@ -32,8 +33,8 @@ process bootstrap_tree {
     script:
     """
     iqtree \
-    -t $tree \
-    -s $snps \
+    -t $shrinked_tree \
+    -s $shrinked_snps \
     -nt ${task.cpus} \
     -mem "${task.memory.toGiga()}G" \
     -bb $params.bootstrap_replicates \
@@ -95,11 +96,21 @@ process calculate_distances {
     path simtree_paths
 
     output:
-    tuple path("same_country.rds"), path("neighbors.rds"), path("same_continent.rds"), path("geodist.rds"), path("colldist.rds"), path("phylodist_list.rds")
+    tuple path("same_country.rds"),
+          path("neighbors.rds"),
+          path("same_continent.rds"),
+          path("geodist.rds"),
+          path("colldist.rds"),
+          path("phylodist_list.rds")
 
     script:
     """
-    Rscript $projectDir/bin/calculate_distances.R $params.Rdir $projectDir $params.assemblies $simtree_paths
+    Rscript $projectDir/bin/calculate_distances.R \
+    $projectDir \
+    $params.assemblies \
+    $simtree_paths \
+    $params.focus_by \
+    $params.focus_on
     """
 }
 
@@ -112,11 +123,40 @@ process calculate_relative_risks {
     tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
 
     output:
-    path "risk_ratios.rds"
+    path "relative_risks.rds"
+    path "relative_risks.pdf"
+    path "relative_risks.png"
 
     script:
     """
-    Rscript $projectDir/bin/calculate_relative_risks.R $params.assemblies $colldist $same_country $same_continent $geodist $phylodist_list $params.nboot_on_simtree
+    Rscript $projectDir/bin/calculate_relative_risks.R \
+    $params.assemblies \
+    $colldist \
+    $same_country \
+    $same_continent \
+    $geodist \
+    $phylodist_list \
+    $params.nboot_on_simtree \
+    $projectDir
+    """
+}
+
+process collapse_outbreaks {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/collapse_outbreaks"
+
+    input:
+    path assemblies
+
+    output:
+    path "assemblies_collapsed_outbreaks.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/collapse_outbreaks.R \
+    $assemblies \
+    geo_date
     """
 }
 
@@ -146,7 +186,7 @@ process date_tree {
     storeDir "$launchDir/results/date_tree"
 
     input:
-    tuple path(A), path(B), path(snps), path(D), path(tree), path(F), path(G), path(H), path(I) 
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)   
 
     output:
     path "treedater_tree_with_time.nwk"
@@ -158,7 +198,12 @@ process date_tree {
 
     script:
     """
-    Rscript $projectDir/bin/date_tree.R $tree $snps $params.assemblies ${task.cpus}
+    Rscript $projectDir/bin/date_tree.R \
+    $shrinked_tree \
+    $shrinked_snps \
+    $params.assemblies \
+    ${task.cpus} \
+    snp_per_genome
     """
 }
 
@@ -181,6 +226,67 @@ process date_subset_tree {
     script:
     """
     Rscript $projectDir/bin/date_subset_tree.R $subset_id $subset_tree $subset_snps $params.assemblies ${task.cpus}
+    """
+}
+
+process filter_snps {
+    //TODO create container from scratch
+    container "staphb/snp-sites:2.5.1"
+    storeDir "$launchDir/results/filter_snps"
+
+    input:
+    tuple val(subsample_id), path(alignment)
+
+    output:
+    tuple val(subsample_id), path("${subsample_id}_filtered.fasta")
+
+    script:
+    """
+    snp-sites -o "${subsample_id}_filtered.fasta" $alignment
+    """
+}
+
+process shrink_tree {
+    container "$hgttree_container"
+    storeDir "$launchDir/results/shrink_tree"
+
+    input:
+    tuple path(A),
+          path(B),
+          path(snps),
+          path(D),
+          path(tree),
+          path(F),
+          path(G),
+          path(H),
+          path(I) 
+
+    output:
+    tuple path(snps),
+          path("treeshrink.tre"),
+          path("treeshrink.txt"),
+          path("treeshrink_summary.txt")    
+
+    script:
+    """
+    run_treeshrink.py --tree $tree --outprefix treeshrink --force --outdir .
+    """
+}
+
+process shrink_snps {
+    //TODO create container from scratch
+    container "staphb/snp-sites:2.5.1"
+    storeDir "$launchDir/results/shrink_snps"
+
+    input:
+    tuple path(snps), path(shrinked_tree), path(C), path(D)  
+
+    output:
+    tuple path("shrinked_snps.fasta"), path(shrinked_tree), path(C), path(D)  
+
+    script:
+    """
+    snp-sites -o shrinked_snps.fasta $snps
     """
 }
 
@@ -218,7 +324,6 @@ process plot_tree {
     Rscript $projectDir/bin/plot_tree.R $tree_tbl
     """
 }
-
 
 process predict_ancestral_states {
     container "$pastml_container"
@@ -292,7 +397,12 @@ process simulate_subset_trees {
 
     script:
     """
-    Rscript $projectDir/bin/simulate_subset_trees.R $subset_id $subset_tree_rds $params.simtrees ${task.cpus} $launchDir
+    Rscript $projectDir/bin/simulate_subset_trees.R \
+    $subset_id \
+    $subset_tree_rds \
+    $params.simtrees \
+    ${task.cpus} \
+    $launchDir
     """
 }
 
@@ -364,13 +474,18 @@ process subsample_input {
 
     input:
     path assemblies
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)   
 
     output:
     path "subsample_*.tsv"
 
     script:
     """
-    Rscript $projectDir/bin/subsample_input.R $assemblies $params.subsample_count $params.subsample_tipcount
+    Rscript $projectDir/bin/subsample_input.R \
+    $assemblies \
+    $shrinked_tree \
+    $params.subsample_count \
+    $params.subsample_tipcount
     """
 }
 
@@ -380,14 +495,14 @@ process subset_snps {
     storeDir "$launchDir/results/subset_snps"
 
     input:
-    tuple path(A), path(B), path(snps), path(D), path(E), path(F), path(G), path(H), path(I), val(subsample_id), path(subsample)
+    tuple path(shrinked_snps), path(B), path(C), path(D), val(subsample_id), path(subsample)
 
     output:
     tuple val(subsample_id), path("${subsample_id}.fasta")
 
     script:
     """
-    Rscript $projectDir/bin/subset_snps.R $snps $subsample $params.Rdir
+    Rscript $projectDir/bin/subset_snps.R $shrinked_snps $subsample $params.Rdir
     """
 }
 
@@ -450,21 +565,27 @@ workflow {
         name: "chromosomes.fasta",
         storeDir: "$launchDir/results/"
     )
-    // Mask recombination, build tree, bootstrap
-    chromosomes | build_tree | bootstrap_tree | tidy_bootstrap_tree
-    // Date tree with treedater
-    build_tree.out | date_tree
+    // Mask recombination, build tree, shrink, bootstrap
+    chromosomes | build_tree | shrink_tree | shrink_snps //| bootstrap_tree | tidy_bootstrap_tree
+    // Date shrinked tree with treedater
+    shrink_snps.out | date_tree
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
-    date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
+    // date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
-    prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+    // prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
+    // collapse outbreaks
+    validate_input.out | collapse_outbreaks
     // prepare random subsamples from assemblies and create a channel
-    validate_input.out | subsample_input
+    subsample_input(collapse_outbreaks.out, shrink_snps.out)
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
-    build_tree.out.combine(subsample_ch) | subset_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    shrink_snps.out.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
-    simulate_subset_trees.out[0].collectFile(name: "simtree_paths.txt") | calculate_distances | calculate_relative_risks
+    simtree_paths = simulate_subset_trees.out[0].collectFile(
+        name: "simtree_paths.txt",
+        storeDir: "$launchDir/results/"
+    )
+    simtree_paths | calculate_distances | calculate_relative_risks
 }

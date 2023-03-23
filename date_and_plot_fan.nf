@@ -13,11 +13,52 @@ nextflow.enable.dsl=2
 
 // Containers
 r_container = "stitam/r-aci:0.1"
+hgttree_container = "mesti90/hgttree:2.6"
+
+process shrink_tree {
+    container "$hgttree_container"
+    storeDir "$launchDir/results/shrink_tree"
+
+    output:
+    tuple path("treeshrink.treefile"),
+          path("treeshrink.txt"),
+          path("treeshrink_summary.txt")       
+
+    script:
+    """
+    run_treeshrink.py \
+    --tree  $launchDir/$params.tree \
+    --outprefix treeshrink \
+    --force \
+    --outdir .
+    """
+}
+
+process shrink_snps {
+    //TODO create container from scratch
+    container "staphb/snp-sites:2.5.1"
+    storeDir "$launchDir/results/shrink_snps"
+
+    input:
+    tuple path(shrinked_tree), path(C), path(D)  
+
+    output:
+    tuple path("shrinked_snps.fasta"), path(shrinked_tree), path(C), path(D)  
+
+    script:
+    """
+    snp-sites -o shrinked_snps.fasta $launchDir/$params.snps
+    """
+}
 
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/post/date_tree"
+    storeDir "$launchDir/results/date_tree"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+
 
     output:
     path "treedater_tree_with_time.nwk"
@@ -30,17 +71,18 @@ process date_tree {
     script:
     """
     Rscript $projectDir/bin/date_tree.R \
-    $launchDir/$params.tree \
-    $launchDir/$params.snps \
+    $shrinked_tree \
+    $shrinked_snps \
     $launchDir/$params.assembly_summary \
-    ${task.cpus}
+    ${task.cpus} \
+    snp_per_site
     """
 }
 
 process plot_tree_fan {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/post/plot_tree_fan"
+    storeDir "$launchDir/results/plot_tree_fan"
 
     input:
     path tree
@@ -60,8 +102,12 @@ process plot_tree_fan {
 }
 
 workflow {
+    // shrink_tree
+    shrink_tree()
+    // shrink snps
+    shrink_tree.out | shrink_snps
     // date tree
-    date_tree()
+    shrink_snps.out | date_tree
     // plot dated tree
     date_tree.out[0] | plot_tree_fan
 }

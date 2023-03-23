@@ -116,7 +116,7 @@ if (length(unique(meta$k_serotype)) >= top_k_count) {
 # define colors for continents
 
 continent_colors <- data.frame(
-  continent = sort(unique(meta$continent)),
+  continent = sort(unique(meta$continent), na.last = TRUE),
   color = qualpalr::qualpal(length(unique(meta$continent)), "pretty")$hex
 )
 
@@ -148,5 +148,6 @@ plot_tree_fan(
                         "continent" = continent_colors),
   heatmap_colnames_font_size = 3,
   file_name = file_name,
-  verbose = TRUE
+  verbose = TRUE,
+  heatmap_width = 10,
 )
