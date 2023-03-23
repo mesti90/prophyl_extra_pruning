@@ -1,10 +1,2 @@
-# Ignore local directories
-
-analysis/*
-jobs/*
-input/*
-output/*
-tests/*
-
 .Rproj.user
 prophyl.Rproj

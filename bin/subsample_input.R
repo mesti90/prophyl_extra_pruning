@@ -37,10 +37,10 @@ if (length(index) > 0) {
 
 # sampling strategy
 # can be either "random", "balanced" or "focused".
-type <- "balanced"
+type <- "focused"
 # a variable within the input table used for balancing.
 # only used if the sampling strategy is "balanced"
-balance_by <- "region23"
+balance_by <- NULL
 # a variable within the input table used for focusing.
 # only used if sampling strategy is "focused".
 focus_by <- "continent"
