@@ -17,16 +17,16 @@
 #'   mlst = c("ST1", "ST2", "ST1", "ST2", "ST3")
 #' )
 #' # which samples come from the same country
-#' var_identity_matrix(df, var = "country")
+#' varid_matrix(df, var = "country")
 #' # same but focus on European samples
-#' var_identity_matrix(
+#' varid_matrix(
 #'   df, var = "country", focus_by = "continent", focus_on = "europe")
 #' # which samples have the same mlst
-#' var_identity_matrix(df, var = "mlst")
-var_identity_matrix <- function(df,
-                                var = "country",
-                                focus_on = NULL,
-                                focus_by = NULL) {
+#' varid_matrix(df, var = "mlst")
+varid_matrix <- function(df,
+                         var = "country",
+                         focus_on = NULL,
+                         focus_by = NULL) {
   if (length(var) != 1) {
     stop("Required argument 'var' must have length 1.")
   }
@@ -39,17 +39,17 @@ var_identity_matrix <- function(df,
   if (!is.null(focus_on)) {
     focus_on <- match.arg(focus_on, choices = unique(df[[focus_by]]))
   }
-  var_identity <- matrix(0, nrow(df), nrow(df))
+  varid <- matrix(0, nrow(df), nrow(df))
   for (i in unique(df[[var]])){
     index <- which(df[[var]] == i)
-    var_identity[index, index] <- 1
+    varid[index, index] <- 1
   }
   if (!is.null(focus_on) & !is.null(focus_by)) {
     maskmat <- mask_matrix(df = df, focus_on = focus_on, focus_by = focus_by)
-    var_identity <- var_identity * maskmat
+    varid <- varid * maskmat
   }
-  diag(var_identity)<-NA
-  rownames(var_identity) <- df$assembly
-  colnames(var_identity) <- df$assembly
-  return(var_identity)
+  diag(varid)<-NA
+  rownames(varid) <- df$assembly
+  colnames(varid) <- df$assembly
+  return(varid)
 }
