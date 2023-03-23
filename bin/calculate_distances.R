@@ -29,8 +29,7 @@ if (!interactive()) {
   project_dir <- "~/Methods/prophyl"
   test_dir <- "~/Methods/prophyl-tests/test-calculate_distances"
   assemblies_path <- paste0(test_dir, "/assemblies.tsv")
-  #####TODO######
-  simtree_paths
+  simtree_paths <- paste0(test_dir, "/test.txt")
   focus_by <- "continent"
   focus_on <- "europe"
 }
@@ -52,6 +51,8 @@ if (!is.null(focus_on)) {
 }
 if (!is.null(focus_on) & !is.null(focus_by)) {
   maskmat <- mask_matrix(assemblies, focus_by = focus_by, focus_on = focus_on)
+  rownames(maskmat) <- assemblies$assembly
+  colnames(maskmat) <- assemblies$assembly
 }
 
 simtree_paths <- readLines(simtree_paths)
@@ -63,141 +64,83 @@ for (i in simtree_paths) {
 }
 
 # geographic distance - same country
-
-same_country <- matrix(0, nrow(assemblies), nrow(assemblies))
-for (i in unique(assemblies$country)){
-  index <- which(assemblies$country == i)
-  same_country[index, index] <- 1
-}
-# mask matrix if analysis is "focused"
-if (!is.null(focus_on) & !is.null(focus_by)) {
-  same_country <- same_country * maskmat
-}
-diag(same_country)<-NA
+same_country <- varid_matrix(
+  df = assemblies,
+  var = "country",
+  focus_by = focus_by,
+  focus_on = focus_on
+)
 # export data
 if(!interactive()) {
   saveRDS(same_country, file = "same_country.rds")
 }
 
 # geographic distance - neighbors
-neighbors <- matrix(0, nrow(assemblies), nrow(assemblies))
-for (i in unique(assemblies$country_iso2c)){
-  index1 = which(assemblies$country_iso2c == i)
-  data("custom_country_borders")
-  borders <- edit_borders(custom_country_borders)
-  index2 = which(assemblies$country_iso2c %in% all_neighbors(i, borders = borders))
-  
-  neighbors[index1, index2] = 1
-  neighbors[index2, index1] = 1
-}
-# mask matrix if analysis is "focused"
-if (!is.null(focus_on) & !is.null(focus_by)) {
-  neighbors <- neighbors * maskmat
-}
-diag(neighbors)<-NA
+neighbors <- neighbors_matrix(
+  df = assemblies,
+  focus_by = focus_by,
+  focus_on = focus_on
+)
 # export data
 if (!interactive()) {
   saveRDS(neighbors, file = "neighbors.rds")
 }
 
 # geographic distance - same continent
-
-same_continent <- matrix(0, nrow(assemblies), nrow(assemblies))
-for (i in unique(assemblies$continent)){
-  index = which(assemblies$continent == i)
-  same_continent[index, index] = 1
-}
-# mask matrix if analysis is "focused"
-if (!is.null(focus_on) & !is.null(focus_by)) {
-  same_continent <- same_continent * maskmat
-}
-diag(same_continent)<-NA
+same_continent <- varid_matrix(
+  df = assemblies,
+  var = "continent",
+  focus_by = focus_by,
+  focus_on = focus_on
+)
 # export data
 if (!interactive()) {
   saveRDS(same_continent, file = "same_continent.rds")
 }
 
 # geographic distance - distances in km
-geodist <- matrix(NA, nrow(assemblies), nrow(assemblies))
-# TODO checking for "lat" and "lon" should be in input validation
-if ("lat" %in% names(assemblies) & "lon" %in% names(assemblies)) {
-  indices <- 1:nrow(assemblies)
-  for (i in 1:nrow(assemblies)) {
-    lat1 <- assemblies$lat[i]
-    lon1 <- assemblies$lon[i]
-    
-    # if coordinates are identical set distance to 0.
-    index <- which(assemblies$lat == lat1 & assemblies$lon == lon1)
-    geodist[i, index] = 0
-    geodist[index, i] = 0
-    
-    index_test <- which(is.na(geodist[i, ]))
-    
-    if (length(index_test) > 0) {
-      s <- assemblies[index_test, which(names(assemblies) %in% c("lat", "lon"))]
-      s <- dplyr::distinct(s)
-      for (j in 1:nrow(s)) {
-        geodist_km <- round(geosphere::distHaversine(
-          p1 = c(lon1, lat1),
-          p2 = c(s$lon[j], s$lat[j])
-        )/1000, 0)
-        new <- which(assemblies$lon == s$lon[j] & assemblies$lat == s$lat[j])
-        geodist[index, new] <- geodist_km
-        geodist[new, index] <- geodist_km
-      }
-    }
-  }
-  # mask matrix if analysis is "focused"
-  if (!is.null(focus_on) & !is.null(focus_by)) {
-    geodist <- geodist * maskmat
-  }
-  diag(geodist) = NA
-}
+geodist <- geodist_matrix(
+  df = assemblies,
+  focus_by = focus_by,
+  focus_on = focus_on
+)
 # export data
 if (!interactive()) {
   saveRDS(geodist, file = "geodist.rds")
 }
 
 # temporal distance - time difference between collections dates
-
-dates <- unname(lubridate::decimal_date(date_middle(assemblies$collection_date)))
-colldist = round(abs(outer(dates, dates, "-")),2)
-# mask matrix if analysis is "focused"
-if (!is.null(focus_on) & !is.null(focus_by)) {
-  colldist <- colldist * maskmat
-}
-diag(colldist) <- NA
-rownames(colldist) <- assemblies$assembly
-colnames(colldist) <- assemblies$assembly
+colldist <- colldist_matrix(
+  df = assemblies,
+  focus_by = focus_by,
+  focus_on = focus_on,
+  estimate_dates = "middle"
+)
 # export data
 if (!interactive()) {
   saveRDS(colldist, file = "colldist.rds")
 }
 
-# temporal distance - cophenetic (patristic) distance between isolates
+# temporal distance - most recent common ancestors between isolates
 
 nsim <- length(simtrees$trees)
-ntips <- length(simtrees$trees[[1]]$tip.label)
 phylodist_list <- list()
-
 for (i in 1:nsim) {
-  phylodist <- ape::cophenetic.phylo(simtrees$trees[[i]])
-  index_phylodist <- order(colnames(phylodist))
-  phylodist <- phylodist[index_phylodist, index_phylodist]
-  # mask matrix if analysis is "focused"
-  if (!is.null(focus_on) & !is.null(focus_by)) {
-    phylodist <- phylodist * maskmat
-  }
-  diag(phylodist) <- NA
-  
-  index_colldist <- unname(sapply(colnames(phylodist), function(x) {
-    which(colnames(colldist) == x)
-  }))
-  colldist_subset <- colldist[index_colldist, index_colldist]
-
-  # mrca definition: distance from the older sample 
-  mrca = (phylodist - colldist_subset)/2
-  mrca[which(mrca < 0)] = 0
+  phylodist_subset <- phylodist_matrix(
+    tree = simtrees$trees[[i]],
+    df = assemblies,
+    focus_by = focus_by,
+    focus_on = focus_on
+  )
+  # subset colldist to relevant rows and columns
+  index <- which(colnames(colldist) %in% colnames(phylodist_subset))
+  colldist_subset <- colldist[index, index]
+  # calculate mrca
+  mrca <- mrca_matrix(
+    phylodist_subset,
+    colldist_subset,
+    force_nonnegative = TRUE
+  )
   phylodist_list[[i]] <- mrca
 }
 # export data
