@@ -4,15 +4,19 @@
 \alias{plot_rr}
 \title{Plot Relative Risks}
 \usage{
-plot_rr(dir = ".")
+plot_rr(res)
 }
 \arguments{
-\item{dir}{character; the directory from which the pipeline was launched}
+\item{res}{rrlist; an object of class \code{"rrlist"} containing risk ratios.}
 }
 \value{
 The function returns a plot.
 }
 \description{
-This function plots the results of a risk analysis carried out within the
-analysis pipeline.
+This function plots the results of a risk analysis.
+}
+\examples{
+\dontrun{
+plot_rr("risk_ratios.rds")
+}
 }
