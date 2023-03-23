@@ -17,7 +17,7 @@ hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-aci:0.3"
+r_container = "stitam/r-prophyl:0.4"
 snippy_container = "staphb/snippy"
 
 process bootstrap_tree {
