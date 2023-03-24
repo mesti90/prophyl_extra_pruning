@@ -218,14 +218,14 @@ process date_tree_bactdating {
     output:
     path "treedater_tree_with_time.nwk"
     tuple path("dated_tree.rds"), \
-          path("dated_tree.tre")
+          path("dated_tree.tre"), \
           path("trace.pdf"), \
           path("root_to_tip_regression.pdf"), \
           path("log.txt")
 
     script:
     """
-    Rscript $projectDir/bin/date_tree.R \
+    Rscript $projectDir/bin/date_tree_bactdating.R \
     $projectDir \
     $shrinked_tree \
     $shrinked_snps \
