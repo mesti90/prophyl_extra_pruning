@@ -18,6 +18,7 @@ iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
 r_container = "stitam/r-aci:0.3"
+root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
 process bootstrap_tree {
@@ -243,6 +244,26 @@ process filter_snps {
     script:
     """
     snp-sites -o "${subsample_id}_filtered.fasta" $alignment
+    """
+}
+
+process root_tree {
+    container "$root_digger_container"
+    storeDir "$launchDir/results/root_tree"
+
+    input:
+    tuple path(shriked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    path "rd.ckp"
+    path "rd.rooted.tree"
+
+    script:
+    """
+    rd \
+    --msa $shrinked_snps \
+    --tree $shrinked_tree \
+    --prefix rd
     """
 }
 
