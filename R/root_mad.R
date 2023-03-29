@@ -17,19 +17,13 @@
 #' @examples
 #' \dontrun {
 #' # TODO simulate random tree
-#' mad(unrooted_newick, output_mode)
+#' root_mad(unrooted_newick, output_mode)
 #' }
-mad <- function(unrooted_newick,output_mode){
+root_mad <- function(unrooted_newick,output_mode){
   output_mode <- match.arg(
     output_mode,
     choices = c("newick", "stats", "full")
   )
-  # if (!library('ape',logical.return = TRUE)){
-  #   stop("'ape' package not found, please install it to run mad")
-  # }
-  # if (!library('phytools',logical.return = TRUE)){
-  #   stop("'phytools' package not found, please install it to run mad")
-  # }
   t <- NA
   if(class(unrooted_newick)=="phylo"){ 
     t <- unrooted_newick
@@ -69,7 +63,7 @@ mad <- function(unrooted_newick,output_mode){
     vv<-c(paste('@#',t$tip.label[r],'@#',sep=""),paste('(',t$tip.label[r],':0,',t$tip.label[c],':0)',sep=""))
     st<-drop.tip(t,c) 
     st$tip.label[st$tip.label==t$tip.label[r]]<-vv[1]
-    res<-mad(st,output_mode)
+    res<-root_mad(st,output_mode)
     if(is.list(res)){
       res[[1]]<-sub(vv[1],vv[2],res[[1]])
     }
