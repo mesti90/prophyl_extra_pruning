@@ -1,21 +1,30 @@
-# article: https://doi.org/10.1038/s41559-017-0193
-# script: https://www.mikrobio.uni-kiel.de/de/ag-dagan/ressourcen/mad2-2.zip
+#' Minimal Ancestor Deviation (MAD) rooting
+#' 
+#' @param unrooted_newick Unrooted tree string in newick format or a tree object
+#' of class 'phylo'.
+#' @param output_mode character; Amount of information to return. See Details
+#' for more information.
+#' @return a list with the results containing one (\code{"newick"}), two
+#' (\code{"stats"}) or six elements (\code{"full"})
+#' @details If \code{output_mode} is \code{"newick"}(default), the function only
+#' returns the rooted newick string. If \code{"stats"}, it also returns a
+#' structure with the ambiguity index, clock cv, the minimum ancestor deviation
+#' and the number of roots. If \code{"full"}, it also returns an unrooted tree
+#' object, the index of the root branch, the branch ancestor deviations and a
+#' rooted tree object.
+#' @source Article: https://doi.org/10.1038/s41559-017-0193
+#' @source Original code: https://www.mikrobio.uni-kiel.de/de/ag-dagan/ressourcen/mad2-2.zip
+#' @examples
+#' \dontrun {
+#' # TODO simulate random tree
+#' mad(unrooted_newick, output_mode)
+#' }
+#' @import ape phytools
 mad <- function(unrooted_newick,output_mode){
-  if(nargs()==0){ #print help message
-    return(cat("Minimal Ancestor Deviation (MAD) rooting","","Usage: res <- mad(unrooted_newick,output_mode)","",
-               "unrooted_newick: Unrooted tree string in newick format or a tree object of class 'phylo'","",
-               "output_mode: Amount of information to return.", "  If 'newick' (default) only the rooted newick string",
-               "  If 'stats' also a structure with the ambiguity index, clock cv, the minimum ancestor deviation and the number of roots",
-               "  If 'full' also an unrooted tree object, the index of the root branch, the branch ancestor deviations and a rooted tree object",
-               "","res: a list with the results containing one ('newick'), two ('stats') or six elements ('full')","",
-               "Dependencies: 'ape' and 'phytools'","","Version: 1.1, 03-May-2017",sep="\n"))
-  }
-  if (!library('ape',logical.return = TRUE)){
-    stop("'ape' package not found, please install it to run mad")
-  }
-  if (!library('phytools',logical.return = TRUE)){
-    stop("'phytools' package not found, please install it to run mad")
-  }
+  output_mode <- match.arg(
+    output_mode,
+    choices = c("newick", "stats", "full")
+  )
   t <- NA
   if(class(unrooted_newick)=="phylo"){ 
     t <- unrooted_newick
