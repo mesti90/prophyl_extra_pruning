@@ -19,21 +19,26 @@
 #' # TODO simulate random tree
 #' mad(unrooted_newick, output_mode)
 #' }
-#' @import ape phytools
 mad <- function(unrooted_newick,output_mode){
   output_mode <- match.arg(
     output_mode,
     choices = c("newick", "stats", "full")
   )
+  # if (!library('ape',logical.return = TRUE)){
+  #   stop("'ape' package not found, please install it to run mad")
+  # }
+  # if (!library('phytools',logical.return = TRUE)){
+  #   stop("'phytools' package not found, please install it to run mad")
+  # }
   t <- NA
   if(class(unrooted_newick)=="phylo"){ 
     t <- unrooted_newick
   }
   else{
-    t <- read.tree(text=unrooted_newick)
+    t <- ape::read.tree(text=unrooted_newick)
   }
   if(is.rooted(t)){
-    t<-unroot(t)
+    t <- ape::unroot(t)
   }
   #t$node.label<-NULL #To allow parsing when identical OTUs are present
   if(!is.binary.tree(t)){
@@ -52,7 +57,7 @@ mad <- function(unrooted_newick,output_mode){
   npairs <- notu*(notu-1)/2
   nodeids <- 1:(nbranch+1)
   otuids <- 1:notu
-  dis <- dist.nodes(t) # phenetic distance. All nodes
+  dis <- ape::dist.nodes(t) # phenetic distance. All nodes
   sdis <- dis[1:notu,1:notu] # phenetic distance. otus only
   
   #### Start recursion to collapse identical OTUs, if present.
@@ -77,7 +82,7 @@ mad <- function(unrooted_newick,output_mode){
   
   t2 <- t
   t2$edge.length <- rep(1,nbranch)
-  disbr <- dist.nodes(t2) # split distance. All nodes
+  disbr <- ape::dist.nodes(t2) # split distance. All nodes
   sdisbr <- disbr[1:notu,1:notu] # split distance. otus only
   rho <- vector(mode = "numeric",length = nbranch) # Store position of the optimized root nodes (branch order as in the input tree)
   bad <- vector(mode = "numeric",length = nbranch) # Store branch ancestor deviations (branch order as in the input tree)
