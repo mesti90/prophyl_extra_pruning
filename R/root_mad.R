@@ -19,6 +19,7 @@
 #' # TODO simulate random tree
 #' root_mad(unrooted_newick, output_mode)
 #' }
+#' @importFrom ape dist.nodes drop.tip is.binary is.rooted multi2di read.tree unroot 
 root_mad <- function(unrooted_newick,output_mode){
   output_mode <- match.arg(
     output_mode,
@@ -31,13 +32,13 @@ root_mad <- function(unrooted_newick,output_mode){
   else{
     t <- ape::read.tree(text=unrooted_newick)
   }
-  if(is.rooted(t)){
+  if(ape::is.rooted(t)){
     t <- ape::unroot(t)
   }
   #t$node.label<-NULL #To allow parsing when identical OTUs are present
-  if(!is.binary.tree(t)){
+  if(!ape::is.binary(t)){
     warning("Input tree is not binary! Internal multifurcations will be converted to branches of length zero and identical OTUs will be collapsed!")
-    t<-multi2di(t)
+    t <- ape::multi2di(t)
   }
   tf <- t$edge.length<0
   if(any(tf)){
@@ -61,7 +62,7 @@ root_mad <- function(unrooted_newick,output_mode){
     r<-ii[k[1],1]
     c<-ii[k[1],2]
     vv<-c(paste('@#',t$tip.label[r],'@#',sep=""),paste('(',t$tip.label[r],':0,',t$tip.label[c],':0)',sep=""))
-    st<-drop.tip(t,c) 
+    st<- ape::drop.tip(t,c) 
     st$tip.label[st$tip.label==t$tip.label[r]]<-vv[1]
     res<-root_mad(st,output_mode)
     if(is.list(res)){
