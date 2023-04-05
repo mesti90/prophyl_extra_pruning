@@ -9,7 +9,12 @@ Article: https://doi.org/10.1038/s41559-017-0193
 Original code: https://www.mikrobio.uni-kiel.de/de/ag-dagan/ressourcen/mad2-2.zip
 }
 \usage{
-root_mad(unrooted_newick, output_mode)
+root_mad(
+  unrooted_newick,
+  output_mode,
+  cache = TRUE,
+  verbose = getOption("verbose")
+)
 }
 \arguments{
 \item{unrooted_newick}{Unrooted tree string in newick format or a tree object
@@ -17,6 +22,10 @@ of class 'phylo'.}
 
 \item{output_mode}{character; Amount of information to return. See Details
 for more information.}
+
+\item{cache}{logical; should computations be cached?}
+
+\item{verbose}{logical; should verbose messages be printed to the console?}
 }
 \value{
 a list with the results containing one (\code{"newick"}), two

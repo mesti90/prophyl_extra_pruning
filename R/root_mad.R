@@ -4,6 +4,8 @@
 #' of class 'phylo'.
 #' @param output_mode character; Amount of information to return. See Details
 #' for more information.
+#' @param cache logical; should computations be cached?
+#' @param verbose logical; should verbose messages be printed to the console?
 #' @return a list with the results containing one (\code{"newick"}), two
 #' (\code{"stats"}) or six elements (\code{"full"})
 #' @details If \code{output_mode} is \code{"newick"}(default), the function only
@@ -20,7 +22,10 @@
 #' root_mad(unrooted_newick, output_mode)
 #' }
 #' @importFrom ape dist.nodes drop.tip is.binary is.rooted multi2di read.tree unroot 
-root_mad <- function(unrooted_newick,output_mode){
+root_mad <- function(unrooted_newick,
+                     output_mode,
+                     cache = TRUE,
+                     verbose = getOption("verbose")){
   output_mode <- match.arg(
     output_mode,
     choices = c("newick", "stats", "full")
@@ -56,7 +61,22 @@ root_mad <- function(unrooted_newick,output_mode){
   npairs <- notu*(notu-1)/2
   nodeids <- 1:(nbranch+1)
   otuids <- 1:notu
-  dis <- ape::dist.nodes(t) # phenetic distance. All nodes
+  
+  if (verbose) message("Calculating first distance matrix. ", appendLF = FALSE)
+  if (cache && file.exists("distmat_t.rds")) {
+    if (verbose) {
+      message("Already calculated. Reading from cache. ", appendLF = FALSE)
+    }
+    dis <- readRDS("distmat_t.rds")
+  } else {
+    dis <- ape::dist.nodes(t) # phenetic distance. All nodes
+    if (cache) {
+      if (verbose) message("Saving to cache. ", appendLF = FALSE)
+      saveRDS(dis, "distmat_t.rds")
+    }
+  }
+  if (verbose) message("Done.")
+  
   sdis <- dis[1:notu,1:notu] # phenetic distance. otus only
 
   #### Start recursion to collapse identical OTUs, if present.
@@ -83,12 +103,32 @@ root_mad <- function(unrooted_newick,output_mode){
   
   t2 <- t
   t2$edge.length <- rep(1,nbranch)
-  disbr <- ape::dist.nodes(t2) # split distance. All nodes
+  
+  if (verbose) message("Calculating second distance matrix. ", appendLF = FALSE)
+  if (cache && file.exists("distmat_t2.rds")) {
+    if (verbose) {
+      message("Already calculated. Reading from cache. ", appendLF = FALSE)
+    }
+    disbr <- readRDS("distmat_t2.rds")
+  } else {
+    disbr <- ape::dist.nodes(t2) # split distance. All nodes
+    if (cache) {
+      if (verbose) message("Saving to cache. ", appendLF = FALSE)
+      saveRDS(dis, "distmat_t2.rds")
+    }
+  }
+  if (verbose) message("Done.")
+  
   sdisbr <- disbr[1:notu,1:notu] # split distance. otus only
   rho <- vector(mode = "numeric",length = nbranch) # Store position of the optimized root nodes (branch order as in the input tree)
   bad <- vector(mode = "numeric",length = nbranch) # Store branch ancestor deviations (branch order as in the input tree)
   i2p <- matrix(nrow = nbranch+1, ncol = notu)
+  
   for (br in 1:nbranch){
+    
+    if (verbose) {
+      message(paste0("Calculating deviations: ", br, "/", nbranch))
+    }
     #collect the deviations associated with straddling otu pairs
     dij <- t$edge.length[br]
     if(dij==0){

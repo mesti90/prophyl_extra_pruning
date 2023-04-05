@@ -15,7 +15,7 @@ if (!interactive()) {
   project_dir <- args[1]
   tree_path <- args[2]
 } else {
-  test_dir <- "~/Methods/prophyl-tests/test_root_tree_mad"
+  test_dir <- "~/Methods/prophyl-tests/test-root_tree_mad"
   project_dir <- "~/Methods/prophyl"
   tree_path <- paste0(test_dir, "/treeshrink.tre")
 }
@@ -27,12 +27,15 @@ load_all(project_dir)
 tree <- ape::read.tree(tree_path)
 
 # root tree
-rooted_tree <- root_mad(tree, output_mode = "full", verbose = TRUE)
+rooted_tree <- root_mad(tree, output_mode = "full", cache = TRUE, verbose = TRUE)
 
 # export rooted tree
 if (!interactive()) {
+  # export rooted tree object
+  saveRDS(rooted_tree, "rooted_tree.rds")
+  # export newick tree
   ape::write.tree(
-    rooted_tree, 
+    rooted_tree[[1]], 
     file = "rooted_tree.tre"
   )
 }
