@@ -46,6 +46,10 @@ root_mad <- function(unrooted_newick,output_mode){
     t$edge.length[tf]<-0
   }
   
+  #### non-recursive alternative to collapse identical OTUs, if present
+  collapsed_tree <- collapse_identical_tips(t)
+  t <- collapsed_tree$tree
+  #### End of non-recursive alternative
   
   notu <- length(t$tip.label)
   nbranch <- dim(t$edge)[1]
@@ -54,26 +58,28 @@ root_mad <- function(unrooted_newick,output_mode){
   otuids <- 1:notu
   dis <- ape::dist.nodes(t) # phenetic distance. All nodes
   sdis <- dis[1:notu,1:notu] # phenetic distance. otus only
-  
+
   #### Start recursion to collapse identical OTUs, if present.
-  ii<-which(sdis==0,arr.ind=TRUE)
-  k<-which(ii[,1]!=ii[,2])
-  if(length(k)){
-    r<-ii[k[1],1]
-    c<-ii[k[1],2]
-    vv<-c(paste('@#',t$tip.label[r],'@#',sep=""),paste('(',t$tip.label[r],':0,',t$tip.label[c],':0)',sep=""))
-    st<- ape::drop.tip(t,c) 
-    st$tip.label[st$tip.label==t$tip.label[r]]<-vv[1]
-    res<-root_mad(st,output_mode)
-    if(is.list(res)){
-      res[[1]]<-sub(vv[1],vv[2],res[[1]])
-    }
-    else{
-      res<-sub(vv[1],vv[2],res)
-    }
-    return(res) #create the list 'res' to return the results 
-  }
+  # ii<-which(sdis==0,arr.ind=TRUE)
+  # k<-which(ii[,1]!=ii[,2])
+  # if(length(k)){
+  #   r<-ii[k[1],1]
+  #   c<-ii[k[1],2]
+  #   vv<-c(paste('@#',t$tip.label[r],'@#',sep=""),paste('(',t$tip.label[r],':0,',t$tip.label[c],':0)',sep=""))
+  #   st<- ape::drop.tip(t,c) 
+  #   st$tip.label[st$tip.label==t$tip.label[r]]<-vv[1]
+  #   res<-root_mad(st,output_mode)
+  #   if(is.list(res)){
+  #     res[[1]]<-sub(vv[1],vv[2],res[[1]])
+  #   }
+  #   else{
+  #     res<-sub(vv[1],vv[2],res)
+  #   }
+  #   return(res) #create the list 'res' to return the results 
+  # }
   #### End of recursion
+
+
   
   t2 <- t
   t2$edge.length <- rep(1,nbranch)
@@ -150,8 +156,8 @@ root_mad <- function(unrooted_newick,output_mode){
   for (i in 1:length(madr)){
     pp <- rho[madr[i]]*t$edge.length[madr[i]]
     nn <- t$edge[madr[i],]
-    rt[[i]] <- reroot(t,nn[2],pos = pp)
-    rooted_newick[i] <- write.tree(rt[[i]])
+    rt[[i]] <- phytools::reroot(t,nn[2],pos = pp)
+    rooted_newick[i] <- ape::write.tree(rt[[i]])
     dd <- dis[1:notu,nn]
     sp <- dd[,1]<dd[,2]
     otu2root <- vector(mode="numeric",notu)
