@@ -12,6 +12,7 @@ Original code: https://www.mikrobio.uni-kiel.de/de/ag-dagan/ressourcen/mad2-2.zi
 root_mad(
   unrooted_newick,
   output_mode,
+  threads = 1,
   cache = TRUE,
   verbose = getOption("verbose")
 )
@@ -22,6 +23,8 @@ of class 'phylo'.}
 
 \item{output_mode}{character; Amount of information to return. See Details
 for more information.}
+
+\item{threads}{numeric; the number of CPU threads to use.}
 
 \item{cache}{logical; should computations be cached?}
 

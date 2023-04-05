@@ -5,6 +5,7 @@
 #' @param output_mode character; Amount of information to return. See Details
 #' for more information.
 #' @param cache logical; should computations be cached?
+#' @param threads numeric; the number of CPU threads to use.
 #' @param verbose logical; should verbose messages be printed to the console?
 #' @return a list with the results containing one (\code{"newick"}), two
 #' (\code{"stats"}) or six elements (\code{"full"})
@@ -24,6 +25,7 @@
 #' @importFrom ape dist.nodes drop.tip is.binary is.rooted multi2di read.tree unroot 
 root_mad <- function(unrooted_newick,
                      output_mode,
+                     threads = 1,
                      cache = TRUE,
                      verbose = getOption("verbose")){
   output_mode <- match.arg(
@@ -120,64 +122,85 @@ root_mad <- function(unrooted_newick,
   if (verbose) message("Done.")
   
   sdisbr <- disbr[1:notu,1:notu] # split distance. otus only
-  rho <- vector(mode = "numeric",length = nbranch) # Store position of the optimized root nodes (branch order as in the input tree)
-  bad <- vector(mode = "numeric",length = nbranch) # Store branch ancestor deviations (branch order as in the input tree)
+  # NOTE
+  # Before parallelisation, elements of this matrix were editted in a for loop.
+  # Since parallelisation, elements of this matrix are only temporarily edited
+  # within mclapply, but not globally. Is this a problem?
   i2p <- matrix(nrow = nbranch+1, ncol = notu)
-  
-  for (br in 1:nbranch){
-    
-    if (verbose) {
-      message(paste0("Calculating deviations: ", br, "/", nbranch))
-    }
-    #collect the deviations associated with straddling otu pairs
-    dij <- t$edge.length[br]
-    if(dij==0){
-      rho[br]<-NA
-      bad[br]<-NA
-      next
-    }
-    rbca <- numeric(npairs)
-    i <- t$edge[br,1]
-    j <- t$edge[br,2]
-    sp <- dis[1:notu,i]<dis[1:notu,j] # otu split for 'br'
-    dbc <- matrix(sdis[sp,!sp],nrow=sum(sp),ncol=sum(!sp))
-    dbi <- replicate(dim(dbc)[2],dis[(1:notu)[sp],i]) 
-    
-    rho[br] <- sum((dbc-2*dbi)*dbc^-2)/(2*dij*sum(dbc^-2)) # optimized root node relative to 'i' node
-    rho[br] <- min(max(0,rho[br]),1)
-    dab <- dbi+(dij*rho[br])
-    ndab <- length(dab)
-    rbca[1:ndab] <- as.vector(2*dab/dbc-1)
-    # collect the remaining deviations (non-traversing otus)
-    bcsp <- rbind(sp,!sp)
-    ij <- c(i,j)
-    counter <- ndab
-    for (w in c(1,2)){
-      if(sum(bcsp[w,])>=2){
-        disbrw <- disbr[,ij[w]]
-        pairids <- otuids[bcsp[w,]]
-        for (z in pairids){
-          i2p[,z] <- disbr[z,]+disbrw==disbrw[z]
-        }
-        for (z in 1:(length(pairids)-1)){
-          p1 <- pairids[z]
-          disp1 <- dis[p1,]
-          pan <- nodeids[i2p[,p1]]
-          for (y in (z+1):length(pairids)){
-            p2 <- pairids[y]
-            pan1 <- pan[i2p[pan,p2]]
-            an <- pan1[which.max(disbrw[pan1])]
-            counter <- counter+1
-            rbca[counter] <- 2*disp1[an]/disp1[p2]-1
+
+  if (verbose) message("Calculating deviations. ", appendLF = FALSE)
+  if (cache && file.exists("rho.rds") && file.exists("bad.rds")) {
+    if (verbose) message("Already calculated. Reading from cache. ", appendLF = FALSE)
+    rho <- readRDS("rho.rds")
+    bad <- readRDS("bad.rds")
+  } else {
+    if (verbose) message("This may take a while. ", appendLF = FALSE)
+    out <- parallel::mclapply(1:nbranch, function(br) {
+      #collect the deviations associated with straddling otu pairs
+      dij <- t$edge.length[br]
+      if(dij==0){
+        RHO<-NA
+        BAD<-NA
+        next
+      }
+      rbca <- numeric(npairs)
+      i <- t$edge[br,1]
+      j <- t$edge[br,2]
+      sp <- dis[1:notu,i]<dis[1:notu,j] # otu split for 'br'
+      dbc <- matrix(sdis[sp,!sp],nrow=sum(sp),ncol=sum(!sp))
+      dbi <- replicate(dim(dbc)[2],dis[(1:notu)[sp],i]) 
+      
+      RHO <- sum((dbc-2*dbi)*dbc^-2)/(2*dij*sum(dbc^-2)) # optimized root node relative to 'i' node
+      RHO <- min(max(0,RHO),1)
+      dab <- dbi+(dij*RHO)
+      ndab <- length(dab)
+      rbca[1:ndab] <- as.vector(2*dab/dbc-1)
+      # collect the remaining deviations (non-traversing otus)
+      bcsp <- rbind(sp,!sp)
+      ij <- c(i,j)
+      counter <- ndab
+      for (w in c(1,2)){
+        if(sum(bcsp[w,])>=2){
+          disbrw <- disbr[,ij[w]]
+          pairids <- otuids[bcsp[w,]]
+          for (z in pairids){
+            i2p[,z] <- disbr[z,]+disbrw==disbrw[z]
+          }
+          for (z in 1:(length(pairids)-1)){
+            p1 <- pairids[z]
+            disp1 <- dis[p1,]
+            pan <- nodeids[i2p[,p1]]
+            for (y in (z+1):length(pairids)){
+              p2 <- pairids[y]
+              pan1 <- pan[i2p[pan,p2]]
+              an <- pan1[which.max(disbrw[pan1])]
+              counter <- counter+1
+              rbca[counter] <- 2*disp1[an]/disp1[p2]-1
+            }
           }
         }
       }
+      if(length(rbca)!=npairs){
+        stop("Unexpected number of pairs. Report this error to ftria@ifam.uni-kiel.de")
+      }
+      BAD <- sqrt(mean(rbca^2)) # branch ancestor deviation
+      return(list(
+        rho = RHO,
+        bad = BAD
+      ))
+    }, mc.cores = threads)
+    
+    rho <- sapply(out, function(x) x$rho)
+    bad <- sapply(out, function(x) x$bad)
+    
+    if (cache) {
+      if (verbose) message("Saving to cache. ", appendLF = FALSE)
+      saveRDS(rho, "rho.rds")
+      saveRDS(bad, "bad.rds")
     }
-    if(length(rbca)!=npairs){
-      stop("Unexpected number of pairs. Report this error to ftria@ifam.uni-kiel.de")
-    }
-    bad[br] <- sqrt(mean(rbca^2)) # branch ancestor deviation
   }
+  if (verbose) message("Done.")
+  
   # Select the branch with the minum ancestor deviation and calculate the root ambiguity index
   jj <- sort(bad,index.return = TRUE)
   tf<-bad==jj$x[1]
@@ -193,6 +216,7 @@ root_mad <- function(unrooted_newick,
   rt <- vector(mode = "list",nroots) # Rooted tree object
   ccv <- vector(mode = "numeric",nroots) # Clock CV
   rooted_newick <- vector(mode = "character",nroots)
+  
   for (i in 1:length(madr)){
     pp <- rho[madr[i]]*t$edge.length[madr[i]]
     nn <- t$edge[madr[i],]
