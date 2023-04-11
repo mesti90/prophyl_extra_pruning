@@ -42,53 +42,6 @@ if (!interactive()) {
 library(devtools)
 load_all(project_dir)
 
-## Main function
-ratio_bootstrap_dist_discrete_auto <- function(x, y, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref){
-  ## This function computes the relative risk, for a given 
-  ##     -location matrix (geo_mat), 
-  ##     -time matrix (time_mat2), 
-  ##     -genetic matrix (MRCA_mat2), 
-  ## compared to a reference:
-  ##     -location matrix (geo_mat_ref), 
-  ##     -time matrix (time_mat2_ref), 
-  ##     -genetic matrix (MRCA_mat2_ref),
-  ## for given bootstrap vectors x and y.
-  
-  geo_mat.tmp = geo_mat[x,x]
-  time_mat.tmp2 = time_mat2[x,x]
-  MRCA_mat.tmp2 = MRCA_mat2[x,x]
-  geo_mat_ref.tmp = geo_mat_ref[y,y]
-  time_mat2_ref.tmp2 = time_mat2_ref[y,y]
-  MRCA_mat2_ref.tmp2 = MRCA_mat2_ref[y,y]
-  
-  tmp = MRCA_mat.tmp2 * time_mat.tmp2
-  tmp[which(tmp == 0)] = NA
-  
-  tmp2 = time_mat.tmp2
-  tmp2[which(tmp2 == 0)] = NA
-  
-  tmp_ref = MRCA_mat2_ref.tmp2 * time_mat2_ref.tmp2
-  tmp_ref[which(tmp_ref == 0)] = NA
-  
-  tmp2_ref = time_mat2_ref.tmp2
-  tmp2_ref[which(tmp2_ref == 0)] = NA
-  
-  a1 = cumsum(hist(tmp*geo_mat.tmp, breaks = c(0,Pmax,1E10), plot = F)$counts)
-  a2 = cumsum(hist(tmp*geo_mat.tmp, breaks = c(0,Pmin,1E10), plot = F)$counts)
-  a = a1 - a2
-
-  b1 = cumsum(hist(tmp_ref * geo_mat_ref.tmp, breaks = c(0,Pmax,1E10), plot = F)$counts)
-  b2 = cumsum(hist(tmp_ref * geo_mat_ref.tmp, breaks = c(0,Pmin,1E10), plot = F)$counts)
-  b = b1 - b2
-
-  c = sum(tmp2*geo_mat.tmp,na.rm=T)
-
-  d = sum(tmp2_ref*geo_mat_ref.tmp,na.rm=T)
-  rr.out = (a/c)/(b/d) 
-
-  return(rr.out[-length(rr.out)])
-}
-
 #####################################################################
 ## Load relevant datasets and matrices
 #####################################################################
@@ -135,7 +88,7 @@ for (ii in 1:nsim) {
     which(data.seq$assembly == x)
   }))
   ## Time between isolates: max 2 years
-  time_mat2 = time_mat[a,a]<=2
+  time_mat2 = time_mat[a,a]<=2  
   # Choose MRCA matrix
   MRCA_mat = sim.mats[[ii]]
   MRCA_mat2 <- MRCA_mat
@@ -165,7 +118,7 @@ for (ii in 1:nsim) {
           tmp = sample(nseq, nseq, replace = T)
           tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
         }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
@@ -182,7 +135,7 @@ for (ii in 1:nsim) {
           tmp = sample(nseq, nseq, replace = T)
           tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
         }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
@@ -199,7 +152,7 @@ for (ii in 1:nsim) {
           tmp = sample(nseq, nseq, replace = T)
           tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
         }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
@@ -215,7 +168,7 @@ for (ii in 1:nsim) {
           tmp = sample(nseq, nseq, replace = T)
           tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
         }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref)
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
