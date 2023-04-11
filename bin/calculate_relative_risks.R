@@ -69,7 +69,7 @@ nboot = nboot
 
 # MRCA windows on which to compute the relative risk
 # This will define categories on the risk plot
-int <- c(0, 4, 8, 16, 128)
+int <- c(0, 4, 8, 16)
 
 Pmin <- int[-length(int)]
 Pmax <- int[-1]
@@ -255,3 +255,7 @@ if (!interactive()) {
   try(dev.off(), silent = TRUE)
   try(dev.off(), silent = TRUE)
 }
+
+png(file = "relative_risks.png", , width = 640, height = 480)
+plot_rr(res, labels = geo_categories$label)
+try(dev.off(), silent = TRUE)
