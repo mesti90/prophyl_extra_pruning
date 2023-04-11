@@ -17,7 +17,7 @@ hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-aci:0.3"
+r_container = "stitam/r-prophyl:0.4"
 snippy_container = "staphb/snippy"
 
 process bootstrap_tree {
@@ -203,6 +203,33 @@ process date_tree {
     $shrinked_snps \
     $params.assemblies \
     ${task.cpus} \
+    snp_per_genome
+    """
+}
+
+process date_tree_bactdating {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/date_tree_bactdating"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)   
+
+    output:
+    path "treedater_tree_with_time.nwk"
+    tuple path("dated_tree.rds"), \
+          path("dated_tree.tre"), \
+          path("trace.pdf"), \
+          path("root_to_tip_regression.pdf"), \
+          path("log.txt")
+
+    script:
+    """
+    Rscript $projectDir/bin/date_tree_bactdating.R \
+    $projectDir \
+    $shrinked_tree \
+    $shrinked_snps \
+    $params.assemblies \
     snp_per_genome
     """
 }
@@ -569,6 +596,8 @@ workflow {
     chromosomes | build_tree | shrink_tree | shrink_snps //| bootstrap_tree | tidy_bootstrap_tree
     // Date shrinked tree with treedater
     shrink_snps.out | date_tree
+    // Date shrinked tree with BactDating
+    // shrink_snps.out | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
