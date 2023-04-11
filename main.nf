@@ -18,6 +18,7 @@ iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
 r_container = "stitam/r-prophyl:0.4"
+root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
 process bootstrap_tree {
@@ -186,7 +187,7 @@ process date_tree {
     storeDir "$launchDir/results/date_tree"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)   
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
 
     output:
     path "treedater_tree_with_time.nwk"
@@ -203,7 +204,8 @@ process date_tree {
     $shrinked_snps \
     $params.assemblies \
     ${task.cpus} \
-    snp_per_genome
+    snp_per_genome \
+    $params.reroot_tree
     """
 }
 
@@ -270,50 +272,6 @@ process filter_snps {
     script:
     """
     snp-sites -o "${subsample_id}_filtered.fasta" $alignment
-    """
-}
-
-process shrink_tree {
-    container "$hgttree_container"
-    storeDir "$launchDir/results/shrink_tree"
-
-    input:
-    tuple path(A),
-          path(B),
-          path(snps),
-          path(D),
-          path(tree),
-          path(F),
-          path(G),
-          path(H),
-          path(I) 
-
-    output:
-    tuple path(snps),
-          path("treeshrink.tre"),
-          path("treeshrink.txt"),
-          path("treeshrink_summary.txt")    
-
-    script:
-    """
-    run_treeshrink.py --tree $tree --outprefix treeshrink --force --outdir .
-    """
-}
-
-process shrink_snps {
-    //TODO create container from scratch
-    container "staphb/snp-sites:2.5.1"
-    storeDir "$launchDir/results/shrink_snps"
-
-    input:
-    tuple path(snps), path(shrinked_tree), path(C), path(D)  
-
-    output:
-    tuple path("shrinked_snps.fasta"), path(shrinked_tree), path(C), path(D)  
-
-    script:
-    """
-    snp-sites -o shrinked_snps.fasta $snps
     """
 }
 
@@ -390,6 +348,90 @@ process prep_tree_tbl {
     script:
     """
     Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
+    """
+}
+
+
+process root_tree {
+    container "$root_digger_container"
+    storeDir "$launchDir/results/root_tree"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    tuple path(shrinked_snps), \
+          path("rooted_tree.rooted.tree"), \
+          path("rooted_tree.ckp")
+
+    script:
+    """
+    rd \
+    --msa $shrinked_snps \
+    --tree $shrinked_tree \
+    --prefix rooted_tree \
+    --threads ${task.cpus} \
+    --seed 0
+    """
+}
+
+process shrink_tree {
+    container "$hgttree_container"
+    storeDir "$launchDir/results/shrink_tree"
+
+    input:
+    tuple path(A),
+          path(B),
+          path(snps),
+          path(D),
+          path(tree),
+          path(F),
+          path(G),
+          path(H),
+          path(I) 
+
+    output:
+    tuple path(snps),
+          path("treeshrink.tre"),
+          path("treeshrink.txt"),
+          path("treeshrink_summary.txt")    
+
+    script:
+    """
+    run_treeshrink.py --tree $tree --outprefix treeshrink --force --outdir .
+    """
+}
+
+process shrink_snp_rows {
+    container "$r_container"
+    storeDir "$launchDir/results/shrink_snp_rows"
+
+    input:
+    tuple path(snps), path(shrinked_tree), path(C), path(D)
+
+    output:
+    tuple path("shrinked_snp_rows.fasta"), path(shrinked_tree), path(C), path(D)
+
+    script:
+    """
+    Rscript $projectDir/bin/shrink_snp_rows.R $shrinked_tree $snps
+    """
+}
+
+process shrink_snp_cols {
+    //TODO create container from scratch
+    container "staphb/snp-sites:2.5.1"
+    storeDir "$launchDir/results/shrink_snp_cols"
+
+    input:
+    tuple path(shrinked_snp_rows), path(shrinked_tree), path(C), path(D)  
+
+    output:
+    tuple path("shrinked_snp_cols.fasta"), path(shrinked_tree), path(C), path(D)  
+
+    script:
+    """
+    snp-sites -o shrinked_snp_cols.fasta $shrinked_snp_rows 
     """
 }
 
@@ -593,11 +635,11 @@ workflow {
         storeDir: "$launchDir/results/"
     )
     // Mask recombination, build tree, shrink, bootstrap
-    chromosomes | build_tree | shrink_tree | shrink_snps //| bootstrap_tree | tidy_bootstrap_tree
+    chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
     // Date shrinked tree with treedater
-    shrink_snps.out | date_tree
+    shrink_snp_cols.out | date_tree
     // Date shrinked tree with BactDating
-    // shrink_snps.out | date_tree_bactdating
+    // shrink_snp_cols.out | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
@@ -607,10 +649,10 @@ workflow {
     // collapse outbreaks
     validate_input.out | collapse_outbreaks
     // prepare random subsamples from assemblies and create a channel
-    subsample_input(collapse_outbreaks.out, shrink_snps.out)
+    subsample_input(collapse_outbreaks.out, shrink_snp_cols.out)
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
-    shrink_snps.out.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    shrink_snp_cols.out.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",

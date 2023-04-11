@@ -34,6 +34,7 @@ if (!interactive()) {
   assemblies_path <- args[3]
   ncpu <- as.numeric(args[4])
   branch_dimension <- args[5]
+  reroot <- args[6]
 } else {
   test_dir <- "~/Methods/prophyl-tests/test_date_tree"
   tree_path <- paste0(
@@ -43,8 +44,9 @@ if (!interactive()) {
     test_dir, "/results/build_tree/chromosomes.filtered_polymorphic_sites.fasta"
   )
   assemblies_path <- paste0(test_dir, "/assemblies.tsv")
-  ncpu = 10
-  branch_dimension <- "snp_per_genome"
+  ncpu <- 10
+  branchdimension <- "snp_per_genome"
+  reroot <- FALSE
 }
 
 # Input validation
@@ -252,8 +254,10 @@ row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
 # extract dates from tip labels in appropriate format
 sts <- sampleYearsFromLabels(tree$tip.label, delimiter = "|")
 
-# unroot tree, if rooted
-if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
+# if reroot == TRUE and tree is rooted unroot tree
+if (reroot) {
+  if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
+}
 
 # date tree
 dtr <- dater(tree,
