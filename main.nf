@@ -187,7 +187,7 @@ process date_tree {
     storeDir "$launchDir/results/date_tree"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C)  
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
 
     output:
     path "treedater_tree_with_time.nwk"
@@ -608,9 +608,9 @@ workflow {
         storeDir: "$launchDir/results/"
     )
     // Mask recombination, build tree, shrink, bootstrap
-    chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols | root_tree //| bootstrap_tree | tidy_bootstrap_tree
+    chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
     // Date shrinked tree with treedater
-    root_tree.out | date_tree
+    shrink_snp_cols.out | date_tree
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
