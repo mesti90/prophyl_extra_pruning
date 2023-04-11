@@ -38,9 +38,24 @@ RUN apt-get install -y \
   libudunits2-dev
 RUN R -e 'options(warn = 2); install.packages("leaflet", dependencies = TRUE)'
 
-#Install R packages from CRAN
+# Install R packages from CRAN
 RUN R -e 'options(warn = 2); install.packages("leaflet.minicharts", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("qualpalr", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("tictoc", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("tidytree", dependencies = TRUE)'
-RUN R -e 'options(warn = 2); install.packages("treedater", dependencies = TRUE)'
+
+# Install procps 
+# https://github.com/replikation/What_the_Phage/issues/89
+RUN apt-get install -y procps
+
+# Install geosphere
+RUN apt-get install -y r-cran-geosphere
+
+# Install treedater from GitHub instead of CRAN
+RUN R -e 'options(warn = 2); devtools::install_github("emvolz/treedater@7b8a72aa0ea71ded4cde6cd287529aa8ae679c68")'
+
+# Install BactDating
+RUN R -e 'options(warn = 2); devtools::install_github("xavierdidelot/BactDating@v1.1")'
+
+# Install phytools
+RUN apt-get install -y r-cran-phytools
