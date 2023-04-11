@@ -9,6 +9,9 @@
 #' @param verbose logical; should verbose messages be printed to the console?
 #' @return a list with the results containing one (\code{"newick"}), two
 #' (\code{"stats"}) or six elements (\code{"full"})
+#' @return if \code{cache} is \code{TRUE} also return a number of cache files:
+#' \code{"distmat_t.rds"}, \code{"distmat_t2.rds"}, \code{"bad.rds"},
+#' \code{"rho.rds"}.
 #' @details If \code{output_mode} is \code{"newick"}(default), the function only
 #' returns the rooted newick string. If \code{"stats"}, it also returns a
 #' structure with the ambiguity index, clock cv, the minimum ancestor deviation

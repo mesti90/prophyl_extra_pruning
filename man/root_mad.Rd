@@ -33,6 +33,10 @@ for more information.}
 \value{
 a list with the results containing one (\code{"newick"}), two
 (\code{"stats"}) or six elements (\code{"full"})
+
+if \code{cache} is \code{TRUE} also return a number of cache files:
+\code{"distmat_t.rds"}, \code{"distmat_t2.rds"}, \code{"bad.rds"},
+\code{"rho.rds"}.
 }
 \description{
 Minimal Ancestor Deviation (MAD) rooting
