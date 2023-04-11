@@ -25,7 +25,6 @@ if (!interactive()) {
   snps_path <- paste0(test_dir, "/shrinked_snps.fasta")
   assemblies_path <- paste0(test_dir, "/assemblies.tsv")
   branch_dimension <- "snp_per_genome"
-  sample_size <- 100
 }
 
 library(ape)
@@ -47,14 +46,6 @@ branch_dimension <- match.arg(
 tree <- ape::read.tree(tree_path) %>%
   ape::multi2di() %>%
   ape::unroot()
-
-if(interactive()){
-  if (length(tree$tip.label) > sample_size) {
-    set.seed(0)
-    index <- sample(1:length(tree$tip.label), sample_size)
-    tree <- ape::keep.tip(tree, tree$tip.label[index])
-  }
-}
 
 if (branch_dimension == "snp_per_site") {
   # rescale branch lengths from per site to per genome

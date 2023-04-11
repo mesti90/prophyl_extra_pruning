@@ -597,7 +597,7 @@ workflow {
     // Date shrinked tree with treedater
     shrink_snps.out | date_tree
     // Date shrinked tree with BactDating
-    shrink_snps.out | date_tree_bactdating
+    // shrink_snps.out | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
