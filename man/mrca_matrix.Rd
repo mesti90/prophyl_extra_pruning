@@ -4,12 +4,14 @@
 \alias{mrca_matrix}
 \title{Temporal distance (MRCA) matrix}
 \usage{
-mrca_matrix(phylodist, colldist)
+mrca_matrix(phylodist, colldist, force_nonnegative = TRUE)
 }
 \arguments{
 \item{phylodist}{phylodist; a cophenetic distance matrix}
 
 \item{colldist}{colldist; a collection date distance matrix}
+
+\item{force_nonnegative}{logical; should negative values be converted to 0?}
 }
 \value{
 a matrix

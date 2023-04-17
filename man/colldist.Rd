@@ -20,7 +20,7 @@ This functions calculates distances between sample collection dates for all
 pairs of tips within a phylogenetic tree.
 }
 \examples{
-\dontrun {
+\dontrun{
 # TODO put a tree_tbl into data so it can be imported.
 colldist(tree_tbl)
 }

@@ -4,13 +4,7 @@
 \alias{phylodist_matrix}
 \title{Temporal (cophenetic) distance matrix}
 \usage{
-phylodist_matrix(
-  tree,
-  df,
-  focus_on = NULL,
-  focus_by = NULL,
-  force_nonnegative = TRUE
-)
+phylodist_matrix(tree, df, focus_on = NULL, focus_by = NULL)
 }
 \arguments{
 \item{tree}{treedater; a dated phylogenetic tree}
