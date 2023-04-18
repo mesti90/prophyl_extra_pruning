@@ -1,4 +1,4 @@
-FROM debian:bullseye-20230208
+FROM debian:testing-20230411
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -24,6 +24,7 @@ RUN apt-get install -y \
   r-cran-rjava \
   r-cran-seqinr \
   r-cran-stringdist \
+  r-cran-stringi \
   r-cran-tibble \
   r-cran-tidyr \
   r-cran-tidyverse
@@ -59,3 +60,11 @@ RUN R -e 'options(warn = 2); devtools::install_github("xavierdidelot/BactDating@
 
 # Install phytools
 RUN apt-get install -y r-cran-phytools
+
+# Install ggtree
+RUN R -e 'options(warn = 2); BiocManager::install("ggtree", update = FALSE, ask = FALSE)'
+
+# Install ggimage, ggnewscale, ggtreeExtra
+RUN R -e 'options(warn = 2); install.packages("ggimage", dependencies = TRUE)'
+RUN R -e 'options(warn = 2); install.packages("ggnewscale", dependencies = TRUE)'
+RUN R -e 'options(warn = 2); BiocManager::install("ggtreeExtra", update = FALSE, ask = FALSE)'
