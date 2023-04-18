@@ -41,11 +41,12 @@ assemblies$collection_day <- date_middle(assemblies$collection_date)
 # if collection_day is NA, remove both from assembly tbl and tree
 remove <- assemblies$assembly[which(is.na(assemblies$collection_day))]
 
+if (length(remove) > 0) {
 # remove from assembly tbl
 assemblies <- assemblies[-which(assemblies$assembly %in% remove),]
-
 # remove from tree
 tree <- ape::drop.tip(tree, remove)
+}
 
 # collect tip dates in the same order as tree$tip.label
 tip_dates <- unname(sapply(tree$tip.label, function(x) {

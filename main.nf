@@ -17,7 +17,7 @@ hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-prophyl:0.4"
+r_container = "stitam/r-prophyl:0.6"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
@@ -352,7 +352,7 @@ process prep_tree_tbl {
 }
 
 
-process root_tree {
+process root_tree_rd {
     container "$root_digger_container"
     storeDir "$launchDir/results/root_tree"
 
@@ -372,6 +372,77 @@ process root_tree {
     --prefix rooted_tree \
     --threads ${task.cpus} \
     --seed 0
+    """
+}
+
+process root_tree_mad {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_tree_mad"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    tuple path(shrinked_snps), \
+          path("rooted_tree_mad.rds"), \
+          path("rooted_tree_mad.tre"), \
+          path("distmat_t.rds"), \
+          path("distmat_t2.rds"), \
+          path("log.txt")
+
+    script:
+    """
+    Rscript $projectDir/bin/root_tree_mad.R \
+    $projectDir \
+    $shrinked_tree \
+    $task.cpus
+    """
+}
+
+process root_tree_mp {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_tree_mp"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    tuple path(shrinked_snps), \
+          path("rooted_tree_mp.rds"), \
+          path("rooted_tree_mp.tre"), \
+          path("log.txt")
+
+    script:
+    """
+    Rscript $projectDir/bin/root_tree_mp.R $projectDir $shrinked_tree
+    """
+}
+
+process root_tree_rtt {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_tree_rtt"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    tuple path(shrinked_snps), \
+          path("rooted_trees.rds"), \
+          path("rtt_metrics.rds"), \
+          path("rtt_plots.pdf"), \
+          path("rooted_trees/*.tre"), \
+          path("log.txt")
+
+    script:
+    """
+    Rscript $projectDir/bin/root_tree_rtt.R \
+    $projectDir \
+    $shrinked_tree \
+    $params.assemblies \
+    $task.cpus
     """
 }
 
@@ -638,6 +709,10 @@ workflow {
     chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
     // Date shrinked tree with treedater
     shrink_snp_cols.out | date_tree
+    // Root shrinked tree using mad, midpoint, rtt
+    shrink_snp_cols.out | root_tree_mad
+    shrink_snp_cols.out | root_tree_mp
+    shrink_snp_cols.out | root_tree_rtt
     // Date shrinked tree with BactDating
     // shrink_snp_cols.out | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks

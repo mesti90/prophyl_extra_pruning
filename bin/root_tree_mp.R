@@ -36,10 +36,11 @@ if (!interactive()) {
   # export rooted tree object
   saveRDS(rooted_tree, "rooted_tree_mp.rds")
   # export newick tree
-  writeLines(
-    rooted_tree[[1]], 
-    con = "rooted_tree_mp.tre"
-  )
+  ape::write.tree(rooted_tree, file = "rooted_tree_mp.tre")
+  #writeLines(
+  #  rooted_tree[[1]], 
+  #  con = "rooted_tree_mp.tre"
+  #)
 }
 
 # end logging
