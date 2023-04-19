@@ -351,16 +351,18 @@ process prep_tree_tbl {
     """
 }
 
+mad_ch = Channel.of("mad")
 process root_tree_mad {
     container "$r_container"
     containerOptions "--no-home"
     storeDir "$launchDir/results/root_tree_mad"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+    val root_method
 
     output:
-    tuple val("mad"), path("rooted_tree_mad.tre"), path(shrinked_snps)
+    tuple val(root_method), path("rooted_tree_mad.tre"), path(shrinked_snps)
     path("rooted_tree_mad.rds")
     path("distmat_t.rds")
     path("distmat_t2.rds")
@@ -375,16 +377,18 @@ process root_tree_mad {
     """
 }
 
+mp_ch = Channel.of("midpoint")
 process root_tree_mp {
     container "$r_container"
     containerOptions "--no-home"
     storeDir "$launchDir/results/root_tree_mp"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+    val root_method
 
     output:
-    tuple val("midpoint"), path("rooted_tree_mp.tre"), path(shrinked_snps)
+    tuple val(root_method), path("rooted_tree_mp.tre"), path(shrinked_snps)
     path("rooted_tree_mp.rds")
     path("log.txt")
 
@@ -706,8 +710,8 @@ workflow {
     chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
 
     // Root shrinked tree using mad, midpoint, rtt
-    shrink_snp_cols.out[0] | root_tree_mad
-    shrink_snp_cols.out[0] | root_tree_mp
+    root_tree_mad(shrink_snp_cols.out[0], mad_ch)
+    root_tree_mp(shrink_snp_cols.out[0], mp_ch)
     shrink_snp_cols.out[0] | root_tree_rtt
     
     // Combine rooted trees
