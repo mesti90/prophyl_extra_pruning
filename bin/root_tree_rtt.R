@@ -59,16 +59,16 @@ if (ape::is.rooted(tree)) {
   tree <- ape::unroot(tree)
 }
 
-# define custom objective function, perform robust linear regression
-# TODO find another metric that works with residuals, is standardised, but
-# penalises negative deviations more than positive deviations
-objective_rlm <- function(x,y) -summary(MASS::rlm(y ~ x))$sigma^2
+# TODO: look for a better objective
+objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
+objective_rlm_rse <- function(x,y) summary(MASS::rlm(y ~ x))$sigma
 
 objective <- list(
   "correlation" = NULL,
   "rsquared" = NULL,
   "rms" = NULL,
-  "rlm" = objective_rlm
+  "rlm_slope" = objective_rlm_slope,
+  "rlm_rse" = objective_rlm_rse
 )
   
 rooted_trees <- list()
