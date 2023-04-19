@@ -1,5 +1,8 @@
-# This script takes a phylogenetic tree and attempts to root it using Minimum
-# Ancestor Deviation (MAD).
+# This script takes a phylogenetic tree and attempts to root it using
+# Root-to-tip regression. It uses a custom function that was built on the
+# non-exported .multi.rtt() function from the treedater package which in turn
+# was built on the rtt() function from the ape package. For more details, check
+# the function documentation ?root_rtt().
 
 rm(list = ls())
 
@@ -35,18 +38,20 @@ tree <- ape::read.tree(tree_path)
 # read assemblies
 assemblies <- read.csv(assemblies_path, sep = "\t")
 
-# ensure collection_day is a 'Date'
-assemblies$collection_day <- date_middle(assemblies$collection_date)
+# ensure as few collection days are NA as possible
+# comment this for now to avoid using uncertain tips for rooting
+# assemblies$collection_day <- date_middle(assemblies$collection_date)
 
 # if collection_day is NA, remove both from assembly tbl and tree
-remove <- assemblies$assembly[which(is.na(assemblies$collection_day))]
-
-if (length(remove) > 0) {
-# remove from assembly tbl
-assemblies <- assemblies[-which(assemblies$assembly %in% remove),]
-# remove from tree
-tree <- ape::drop.tip(tree, remove)
-}
+# comment this because this version of root-to-tip regression can handle unknown
+# dates.
+# remove <- assemblies$assembly[which(is.na(assemblies$collection_day))]
+# if (length(remove) > 0) {
+# # remove from assembly tbl
+# assemblies <- assemblies[-which(assemblies$assembly %in% remove),]
+# # remove from tree
+# tree <- ape::drop.tip(tree, remove)
+# }
 
 # collect tip dates in the same order as tree$tip.label
 tip_dates <- unname(sapply(tree$tip.label, function(x) {
@@ -54,12 +59,15 @@ tip_dates <- unname(sapply(tree$tip.label, function(x) {
   assemblies$collection_day[index]
 }))
 
+# convert tip dates to numeric for root_tree()
+tip_dates <- as.numeric(as.Date(tip_dates))
+
 # if tree is rooted, unroot
 if (ape::is.rooted(tree)) {
   tree <- ape::unroot(tree)
 }
 
-# TODO: look for a better objective
+# TODO: look for better objectives
 objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
 objective_rlm_rse <- function(x,y) summary(MASS::rlm(y ~ x))$sigma
 
@@ -71,8 +79,10 @@ objective <- list(
   "rlm_rse" = objective_rlm_rse
 )
   
-rooted_trees <- list()
+# return the top_n trees for each objective
 top_n = 3
+
+rooted_trees <- list()
 for (i in seq_along(objective)) {
   rtree <- root_rtt(
     t = tree,
@@ -97,16 +107,17 @@ snp <- lapply(rooted_trees, function(x) {
 # rescale tip_dates to calendar dates
 tip_dates <- as.Date(tip_dates, origin = "1970-01-01")
 
-# recalculate root-to-tip regression on best trees
+# recalculate root-to-tip regression on best trees using calendar dates
 fit <- lapply(snp, function(x) lm(x~tip_dates))
 
+# calculate metrics for each fit
 results <- data.frame(
   r.squared = sapply(fit, function(x) summary(x)$r.squared),
   adj.r.squared = sapply(fit, function(x) summary(x)$r.squared),
   rse = sapply(fit, function(x) summary(x)$sigma),
   ssr = sapply(fit, function(x) sum((summary(x)$residuals)^2)),
   mrca = sapply(fit, function(x) -x$coef[1]/x$coef[2]),
-  first = min(tip_dates)[1]
+  first = min(tip_dates, na.rm = TRUE)[1]
 )
 results$first <- as.Date(results$first, origin = "1970-01-01")
 results$mrca <- as.Date(results$mrca, origin = "1970-01-01")
@@ -119,7 +130,6 @@ for (i in seq_along(fit)) {
     date = fit[[i]]$model$tip_dates
   )
   df <- dplyr::bind_rows(df, new_df)
-  
 }
 
 g <- ggplot(df, aes(date, snp)) + 

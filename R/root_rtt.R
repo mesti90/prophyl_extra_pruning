@@ -28,8 +28,12 @@
 #' @details If none of these builtin objective functions are appropriate, you
 #' can define a custom objective function in \code{objective_fn}. This function
 #' must take two numeric vectors x then y and return a numeric value.
-#' @references Based on the \code{.multi.rtt()} function in the \code{treedater}
-#' package. https://github.com/emvolz/treedater/blob/master/R/multiRtT.R.
+#' @note At the time of writing this documentation \code{ape::rtt()} cannot
+#' handle missing dates, but \code{treedater:::.multi.rtt()} can. This
+#' flexibility is preserved in \code{root_rtt()} as well.
+#' @references Based on the non-exported \code{.multi.rtt()} function in the
+#' \code{treedater} package.
+#' https://github.com/emvolz/treedater/blob/master/R/multiRtT.R.
 #' @references Based on the \code{rtt()} function in the \code{ape} package.
 #' https://cran.r-project.org/web/packages/ape/index.html.
 
@@ -78,7 +82,7 @@ root_rtt <-function (
         objective <- objective_fn
       }
     }
-    ut <- unroot(t)
+    ut <- ape::unroot(t)
     dist <- dist.nodes(ut)[, 1:(ut$Nnode + 2)]
     f <- function(x, parent, child) {
       edge.dist <- x * dist[parent, ] + (1 - x) * dist[child, 
