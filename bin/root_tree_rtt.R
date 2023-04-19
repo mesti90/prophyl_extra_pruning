@@ -69,14 +69,14 @@ if (ape::is.rooted(tree)) {
 
 # TODO: look for better objectives
 objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
-objective_rlm_rse <- function(x,y) summary(MASS::rlm(y ~ x))$sigma
+objective_rlm_rms <- function(x,y) -summary(MASS::rlm(y ~ x))$sigma^2
 
 objective <- list(
   "correlation" = NULL,
   "rsquared" = NULL,
   "rms" = NULL,
   "rlm_slope" = objective_rlm_slope,
-  "rlm_rse" = objective_rlm_rse
+  "rlm_rms" = objective_rlm_rms
 )
   
 # return the top_n trees for each objective
