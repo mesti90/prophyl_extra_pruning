@@ -184,10 +184,10 @@ process create_genome_list {
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_tree"
+    storeDir "$launchDir/results/date_tree/$root_method"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+    tuple val(root_method), path(rooted_tree), path(snps)
 
     output:
     path "treedater_tree_with_time.nwk"
@@ -200,8 +200,8 @@ process date_tree {
     script:
     """
     Rscript $projectDir/bin/date_tree.R \
-    $shrinked_tree \
-    $shrinked_snps \
+    $rooted_tree \
+    $snps \
     $params.assemblies \
     ${task.cpus} \
     snp_per_genome \
@@ -351,6 +351,48 @@ process prep_tree_tbl {
     """
 }
 
+process root_tree_mad {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_tree_mad"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    tuple val("mad"), path("rooted_tree_mad.tre"), path(shrinked_snps)
+    path("rooted_tree_mad.rds")
+    path("distmat_t.rds")
+    path("distmat_t2.rds")
+    path("log.txt")
+
+    script:
+    """
+    Rscript $projectDir/bin/root_tree_mad.R \
+    $projectDir \
+    $shrinked_tree \
+    $task.cpus
+    """
+}
+
+process root_tree_mp {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_tree_mp"
+
+    input:
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+
+    output:
+    tuple val("midpoint"), path("rooted_tree_mp.tre"), path(shrinked_snps)
+    path("rooted_tree_mp.rds")
+    path("log.txt")
+
+    script:
+    """
+    Rscript $projectDir/bin/root_tree_mp.R $projectDir $shrinked_tree
+    """
+}
 
 process root_tree_rd {
     container "$root_digger_container"
@@ -375,51 +417,6 @@ process root_tree_rd {
     """
 }
 
-process root_tree_mad {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/root_tree_mad"
-
-    input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
-
-    output:
-    tuple path(shrinked_snps), \
-          path("rooted_tree_mad.rds"), \
-          path("rooted_tree_mad.tre"), \
-          path("distmat_t.rds"), \
-          path("distmat_t2.rds"), \
-          path("log.txt")
-
-    script:
-    """
-    Rscript $projectDir/bin/root_tree_mad.R \
-    $projectDir \
-    $shrinked_tree \
-    $task.cpus
-    """
-}
-
-process root_tree_mp {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/root_tree_mp"
-
-    input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
-
-    output:
-    tuple path(shrinked_snps), \
-          path("rooted_tree_mp.rds"), \
-          path("rooted_tree_mp.tre"), \
-          path("log.txt")
-
-    script:
-    """
-    Rscript $projectDir/bin/root_tree_mp.R $projectDir $shrinked_tree
-    """
-}
-
 process root_tree_rtt {
     container "$r_container"
     containerOptions "--no-home"
@@ -429,12 +426,11 @@ process root_tree_rtt {
     tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
 
     output:
-    tuple path(shrinked_snps), \
-          path("rooted_trees.rds"), \
-          path("rtt_metrics.rds"), \
-          path("rtt_plots.pdf"), \
-          path("rooted_trees/*.tre"), \
-          path("log.txt")
+    path("rooted_trees/*.tre")
+    path("rooted_trees.rds")
+    path("rtt_metrics.rds")
+    path("rtt_plots.pdf")
+    path("log.txt")
 
     script:
     """
@@ -498,7 +494,8 @@ process shrink_snp_cols {
     tuple path(shrinked_snp_rows), path(shrinked_tree), path(C), path(D)  
 
     output:
-    tuple path("shrinked_snp_cols.fasta"), path(shrinked_tree), path(C), path(D)  
+    tuple path("shrinked_snp_cols.fasta"), path(shrinked_tree), path(C), path(D)
+    path "shrinked_snp_cols.fasta"
 
     script:
     """
@@ -707,14 +704,27 @@ workflow {
     )
     // Mask recombination, build tree, shrink, bootstrap
     chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
-    // Date shrinked tree with treedater
-    shrink_snp_cols.out | date_tree
+
     // Root shrinked tree using mad, midpoint, rtt
-    shrink_snp_cols.out | root_tree_mad
-    shrink_snp_cols.out | root_tree_mp
-    shrink_snp_cols.out | root_tree_rtt
+    shrink_snp_cols.out[0] | root_tree_mad
+    shrink_snp_cols.out[0] | root_tree_mp
+    shrink_snp_cols.out[0] | root_tree_rtt
+    
+    // Combine rooted trees
+    rtt_trees_ch = root_tree_rtt.out[0].flatten()
+    rtt_trees_ch = rtt_trees_ch | map { [it.getBaseName().split("_tree_")[1], it] }  
+    rtt_trees_ch = rtt_trees_ch.combine(shrink_snp_cols.out[1])
+
+    rooted_trees_ch = root_tree_mad.out[0].mix(
+        root_tree_mp.out[0],
+        rtt_trees_ch
+    )
+
+    // Date all rooted trees
+    date_tree(rooted_trees_ch)
+
     // Date shrinked tree with BactDating
-    // shrink_snp_cols.out | date_tree_bactdating
+    // shrink_snp_cols.out[0] | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
     // predict ancestral states for each variable defined in the ans_targets channel
@@ -724,10 +734,10 @@ workflow {
     // collapse outbreaks
     validate_input.out | collapse_outbreaks
     // prepare random subsamples from assemblies and create a channel
-    subsample_input(collapse_outbreaks.out, shrink_snp_cols.out)
+    subsample_input(collapse_outbreaks.out, shrink_snp_cols.out[0])
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
-    shrink_snp_cols.out.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    shrink_snp_cols.out[0].combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",
