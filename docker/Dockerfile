@@ -68,3 +68,8 @@ RUN R -e 'options(warn = 2); BiocManager::install("ggtree", update = FALSE, ask 
 RUN R -e 'options(warn = 2); install.packages("ggimage", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("ggnewscale", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); BiocManager::install("ggtreeExtra", update = FALSE, ask = FALSE)'
+
+# Install quarto
+RUN apt-get install -y wget
+RUN wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.336/quarto-1.3.336-linux-amd64.deb
+RUN dpkg -i quarto-1.3.336-linux-amd64.deb
