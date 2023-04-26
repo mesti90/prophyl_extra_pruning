@@ -45,7 +45,7 @@ if (!interactive()) {
   )
   assemblies_path <- paste0(test_dir, "/assemblies.tsv")
   ncpu <- 10
-  branchdimension <- "snp_per_genome"
+  branch_dimension <- "snp_per_genome"
   reroot <- FALSE
 }
 
