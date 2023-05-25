@@ -2,11 +2,6 @@ rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
 
-myPaths <- .libPaths()
-myPaths <- c(myPaths, args[2])
-
-.libPaths(myPaths)
-
 library(ggtree)
 
 tree <- ape::read.tree(args[1])

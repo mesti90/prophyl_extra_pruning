@@ -238,7 +238,7 @@ process prep_tree_tbl {
     
     script:
     """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states
     """
 }
 
@@ -506,7 +506,7 @@ process tidy_bootstrap_tree {
 
     script:
     """
-    Rscript $projectDir/bin/tidy_bootstrap_tree.R $bstree $params.Rdir
+    Rscript $projectDir/bin/tidy_bootstrap_tree.R $bstree
     """
 } 
 

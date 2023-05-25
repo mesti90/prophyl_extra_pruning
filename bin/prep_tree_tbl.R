@@ -2,8 +2,6 @@ rm(list=ls())
 
 args <- commandArgs(trailingOnly = TRUE)
 
-.libPaths(new = args[4])
-
 library(ggtree) # required for tibble to convert tree to tibble
 
 tree_file <- args[1]
