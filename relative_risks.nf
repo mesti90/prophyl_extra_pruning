@@ -200,8 +200,7 @@ process subset_snps {
     """
     Rscript $projectDir/bin/subset_snps.R \
     $params.snps \
-    $subsample \
-    $params.Rdir
+    $subsample
     """
 }
 
