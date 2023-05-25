@@ -17,7 +17,7 @@ hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-prophyl:0.6"
+r_container = "stitam/r-prophyl:0.7"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
@@ -273,6 +273,24 @@ process date_tree_bactdating {
     $shrinked_snps \
     $params.assemblies \
     snp_per_genome
+    """
+}
+
+process filter_input {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/filter_input"
+
+    input:
+    path assembly_tbl
+
+    output:
+    path "filtered_assemblies.rds", emit: filtered_assemblies
+    path "log.txt"
+
+    script:
+    """
+    Rscript $projectDir/bin/filter_input.R --assembly_file $assembly_tbl
     """
 }
 
@@ -760,10 +778,11 @@ workflow {
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
     // prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
 
-    // collapse outbreaks prepare random subsamples from assemblies
-    validate_input.out | collapse_outbreaks
+    // collapse outbreaks 
+    validate_input.out | filter_input
+    filter_input.out.filtered_assemblies | collapse_outbreaks
+    // create a channel from random subsamples prepare random subsamples from assemblies
     subsample_input(collapse_outbreaks.out, shrink_snp_cols.out[0])
-    // create a channel from random subsamples
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
     shrink_snp_cols.out[0].combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees

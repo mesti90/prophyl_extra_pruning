@@ -5,11 +5,11 @@ if (!interactive()) {
   df_path <- args[1]
   collapse_by <- args[2]
 } else {
-  df_path <- "~/Methods/prophyl-test/results/validate_input/assemblies.tsv"
+  df_path <- "~/Methods/prophyl-test/results/validate_input/filtered_assemblies.rds"
   collapse_by <- "geo_date"
 }
 
-df <- read.csv(df_path, sep = "\t")
+df <- readRDS(df_path)
 
 # add new variable for combined serotype
 # TODO generalise to cases where there is no such variable
