@@ -23,6 +23,7 @@ if (!interactive()) {
   sim_mats_path <- args[6]
   nboot <- as.numeric(args[7])
   project_dir <- args[8]
+  geo_mat_neighbor_path <- args[9]
 } else {
   test_dir <- "~/Methods/prophyl-tests/test-calculate_relative_risks"
   data_seq_path <- paste0(test_dir, "/assemblies.tsv")
@@ -37,6 +38,8 @@ if (!interactive()) {
     test_dir, "/results/calculate_distances/phylodist_list.rds")
   nboot <- 1
   project_dir <- "~/Methods/prophyl"
+  geo_mat_neighbor_path <- paste0(
+    test_dir, "/results/calculate_distances/neighbors.rds")
 }
 
 library(devtools)
@@ -53,6 +56,7 @@ time_mat = readRDS(time_mat_path)
 geo_mat_country = readRDS(geo_mat_country_path)
 geo_mat_continent = readRDS(geo_mat_continent_path)
 geo_mat_km_centroids = readRDS(geo_mat_km_centroids_path)
+geo_mat_neighbor = readRDS(geo_mat_neighbor_path)
 ## Genetic distances
 sim.mats <- readRDS(sim_mats_path)
 nsim = length(sim.mats)
@@ -80,12 +84,14 @@ l = length(Pmax) ## number of intervals
 all_geo_categories <- data.frame(
   category = c(
     "same_country",
+    "neighbor",
     "close_country",
     "distant_country",
     "other_continent"
   ),
   label = c(
     "Within countries",
+    "Between neighbors",
     "Between countries \n <1000km",
     "Between countries \n >1000km (ref)",
     "Between continents"
@@ -187,6 +193,22 @@ for (ii in 1:nsim) {
     if (geo_categories$category[j] == "other_continent") {
       # different continents
       geo_mat = 1-geo_mat_continent[a,a]
+      ##Bootstrap to create the ci
+      for (i in (1:nboot)){
+        if (nboot == 1) {
+          tmp <- 1:nseq
+          tmp_ref <- 1:nseq_ref
+        } else {
+          tmp = sample(nseq, nseq, replace = T)
+          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
+        }
+        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
+        rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
+      }
+    }
+    if (geo_categories$category[j] == "neighbor") {
+      # same country
+      geo_mat = geo_mat_neighbor[a,a]
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
         if (nboot == 1) {
