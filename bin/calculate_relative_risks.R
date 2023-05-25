@@ -70,11 +70,39 @@ pmid <- (Pmin+Pmax)/2 ## mid-point
 int <- c(0, 5, 10, 20, 40, 1000)
 l = length(Pmax) ## number of intervals
 
-n_steps = 4 ## Number of location matrix to consider, here:
-## 1- same country in EU
-## 2- different countries <1000km in the same continent
-## 3- different countries >1000 km in the same continent (reference)
-## 4- different continents
+# Define a data frame of all geo categories
+# The variable "category" will be used below to dispatch calculations
+# The variable "label" will be used as plot label
+# same_country: same country
+# close_country: different countries <1000km in the same continent
+# distant_country: different countries >1000 km in the same continent (reference)
+# other_continent: different continents
+all_geo_categories <- data.frame(
+  category = c(
+    "same_country",
+    "close_country",
+    "distant_country",
+    "other_continent"
+  ),
+  label = c(
+    "Within countries",
+    "Between countries \n <1000km",
+    "Between countries \n >1000km (ref)",
+    "Between continents"
+  )
+)
+
+# Subset all geo categories
+# Only include these categories in the analysis
+
+geo_order <- c(
+  "same_country", "close_country", "distant_country", "other_continent")
+
+geo_categories <- all_geo_categories[unname(sapply(geo_order, function(x) {
+  which(all_geo_categories$category == x)
+})),]
+
+n_steps = nrow(geo_categories) ## Number of location matrix to consider, here:
 
 ## Set the boot matrix to save the results
 rr = matrix(NA,l*n_steps, nboot*nsim)
@@ -106,7 +134,7 @@ for (ii in 1:nsim) {
   nseq_ref = length(ref)
   
   for (j in 1:n_steps) {
-    if (j == 1) {
+    if (geo_categories$category[j] == "same_country") {
       # same country
       geo_mat = geo_mat_country[a,a]
       ##Bootstrap to create the ci
@@ -122,7 +150,7 @@ for (ii in 1:nsim) {
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
-    if (j == 2) {
+    if (geo_categories$category[j] == "close_country") {
       # different countries in the same continent, less than 1000km apart
       geo_mat = (1-geo_mat_country[a,a])*(geo_mat_km_centroids[a,a]<=1000)*(geo_mat_continent[a,a])
       geo_mat[which(geo_mat == 0)] = NA
@@ -139,7 +167,7 @@ for (ii in 1:nsim) {
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
-    if (j == 3) {
+    if (geo_categories$category[j] == "distant_country") {
       # different countries in the same continent, more than 1000km apart (reference)
       geo_mat = (1-geo_mat_country[a,a])*(geo_mat_km_centroids[a,a]>1000)*(geo_mat_continent[a,a])
       geo_mat[which(geo_mat == 0)] = NA
@@ -156,7 +184,7 @@ for (ii in 1:nsim) {
         rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
       }
     }
-    if (j == 4) {
+    if (geo_categories$category[j] == "other_continent") {
       # different continents
       geo_mat = 1-geo_mat_continent[a,a]
       ##Bootstrap to create the ci
@@ -194,12 +222,12 @@ if (!interactive()) {
   try(dev.off(), silent = TRUE)
   try(dev.off(), silent = TRUE)
   pdf(file = "relative_risks.pdf")
-  plot_rr(res)
+  plot_rr(res, labels = geo_categories$label)
   try(dev.off(), silent = TRUE)
   try(dev.off(), silent = TRUE)
   # plot results - png
   png(file = "relative_risks.png")
-  plot_rr(res)
+  plot_rr(res, labels = geo_categories$label)
   try(dev.off(), silent = TRUE)
   try(dev.off(), silent = TRUE)
 }
