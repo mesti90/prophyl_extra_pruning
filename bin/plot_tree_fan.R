@@ -3,31 +3,71 @@
 # - The tree may be the whole tree or a random subsample
 # - Adds three heatmaps: mlst, k_serotype, continent 
 
-rm(list = ls())
-
 library(devtools)
 library(ggnewscale)
 library(ggimage)
 library(ggplot2)
 library(ggtree)
 library(ggtreeExtra)
+library(optparse)
 library(treeio)
 
-args <- commandArgs(trailingOnly = TRUE)
+rm(list = ls())
 
-# inputs
-# project directory, required for loading functions
-project_dir <- args[1]
-# a phylogenetic tree in newick format
-intree_path <- args[2]
-# a metadata file with .rds extension e.g. aci_all.rds
-meta_path <- args[3]
-# poppunk clusters with .csv extension
-pp_path <- args[4]
-# sample size, for testing purposes. Will only do sampling if sample size > 0.
-sample_size <- args[5]
-# output file name
-file_name <- args[6]
+args_list <- list(
+  make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory which contains the pipeline scripts."
+  ),
+  make_option(
+    c("-t", "--tree"),
+    type = "character",
+    help = "Path to a phylogenetic tree in newick format."
+  ),
+  make_option(
+    c("-m", "--metadata"),
+    type = "character",
+    help = "Path to a metadata file with .rds extension e.g. aci_all.rds."
+  ),
+  make_option(
+    c("-P", "--poppunk"),
+    type = "character",
+    help = "Path to poppunk clusters with .csv extension."
+  ),
+  make_option(
+    c("-s", "--sample_size"),
+    type = "character",
+    help = "Sample size, for testing purposes. Will only do sampling if sample size > 0."
+  ),
+  make_option(
+    c("-o", "--output_file"),
+    type = "character",
+    help = "Output file name."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    project_dir = "~/Methods/prophyl",
+    tree = "treedater_tree_with_time.nwk",
+    metadata = "aci_filtered.rds",
+    poppunk = "ppdb_clusters.csv",
+    sample_size = 0,
+    output_file = "ST2_all_tips.pdf"
+  )
+}
+
+project_dir <- args$project_dir
+intree_path <- args$tree
+meta_path <- args$metadata
+pp_path <- args$poppunk
+sample_size <- args$sample_size
+file_name <- args$output_file
 
 # parameters
 # number of most frequent mlst-s to plot separately, pool the rest as "Other"
