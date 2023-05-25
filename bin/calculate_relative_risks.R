@@ -69,7 +69,7 @@ nboot = nboot
 
 # MRCA windows on which to compute the relative risk
 # This will define categories on the risk plot
-int <- c(0, 5, 10, 20, 40, 1000)
+int <- c(0, 4, 8, 16, 128)
 
 Pmin <- int[-length(int)]
 Pmax <- int[-1]
@@ -104,7 +104,7 @@ all_geo_categories <- data.frame(
 # Only include these categories in the analysis
 
 geo_order <- c(
-  "same_country", "close_country", "distant_country", "other_continent")
+  "same_country", "neighbor", "distant_country", "other_continent")
 
 geo_categories <- all_geo_categories[unname(sapply(geo_order, function(x) {
   which(all_geo_categories$category == x)
@@ -176,8 +176,8 @@ for (ii in 1:nsim) {
       }
     }
     if (geo_categories$category[j] == "distant_country") {
-      # different countries in the same continent, more than 1000km apart (reference)
-      geo_mat = (1-geo_mat_country[a,a])*(geo_mat_km_centroids[a,a]>1000)*(geo_mat_continent[a,a])
+      # different countries in the same continent, more than 1000km apart (reference), not neighbors
+      geo_mat = (1-geo_mat_country[a,a])*(geo_mat_km_centroids[a,a]>1000)*(geo_mat_continent[a,a])*(1-geo_mat_neighbor[a,a])
       geo_mat[which(geo_mat == 0)] = NA
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
@@ -193,8 +193,8 @@ for (ii in 1:nsim) {
       }
     }
     if (geo_categories$category[j] == "other_continent") {
-      # different continents
-      geo_mat = 1-geo_mat_continent[a,a]
+      # different continents, not neighbors
+      geo_mat = (1-geo_mat_continent[a,a])*(1-geo_mat_neighbor[a,a])
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
         if (nboot == 1) {
@@ -209,7 +209,7 @@ for (ii in 1:nsim) {
       }
     }
     if (geo_categories$category[j] == "neighbor") {
-      # same country
+      # neighbors, regardless of continent
       geo_mat = geo_mat_neighbor[a,a]
       ##Bootstrap to create the ci
       for (i in (1:nboot)){
