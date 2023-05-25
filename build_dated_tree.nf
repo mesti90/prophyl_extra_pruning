@@ -121,11 +121,10 @@ process date_tree {
 
     output:
     path "treedater_tree_with_time.nwk"
-    tuple path("dated_tree.rds"), \
-          path("treedater_log.txt"), \
-          path("treedater_root_to_tip.pdf"), \
-          path("treedater_root_to_tip.png"), \
-          path("treedater_tree_with_time.nwk") 
+    path "dated_tree.rds", emit: dated_tree_rds
+    path "treedater_log.txt"
+    path "treedater_root_to_tip.pdf"
+    path "treedater_root_to_tip.png"
 
     script:
     """
