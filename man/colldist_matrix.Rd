@@ -14,7 +14,7 @@ colldist_matrix(df, focus_on = NULL, focus_by = NULL, estimate_dates = "asis")
 \item{focus_by}{character; a variable of the df to focus on}
 
 \item{estimate_dates}{character; strategy for estimating uncertain dates.
-Either \code{"asis} (no estimation), \code{"upper"}, \code{"middle"}, or 
+Either \code{"asis"} (no estimation), \code{"upper"}, \code{"middle"}, or 
 \code{"lower"}.}
 }
 \value{

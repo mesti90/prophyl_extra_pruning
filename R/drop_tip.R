@@ -21,3 +21,4 @@ drop_tip <- function(tree_tbl, tip, ...) {
   )
   return(small_tbl)
 }
+# NOTE: not sure if the function does the right thing, check.

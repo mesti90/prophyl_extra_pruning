@@ -1,6 +1,6 @@
 account="stitam"
 container="r-prophyl"
-version="0.5"
+version="0.6"
 
 # build docker image
 sudo docker build -f Dockerfile -t $account/$container:$version .

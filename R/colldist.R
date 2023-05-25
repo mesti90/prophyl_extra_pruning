@@ -7,7 +7,7 @@
 #' collection dates.
 #' @return a tibble with three columns.
 #' @examples
-#' \dontrun {
+#' \dontrun{
 #' # TODO put a tree_tbl into data so it can be imported.
 #' colldist(tree_tbl)
 #' }

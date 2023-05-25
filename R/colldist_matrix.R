@@ -7,7 +7,7 @@
 #' @param focus_by character; a variable of the df to focus on
 #' @param focus_on character; one or more values of focus_by to focus on
 #' @param estimate_dates character; strategy for estimating uncertain dates.
-#' Either \code{"asis} (no estimation), \code{"upper"}, \code{"middle"}, or 
+#' Either \code{"asis"} (no estimation), \code{"upper"}, \code{"middle"}, or 
 #' \code{"lower"}.
 #' @seealso [date_upper()],[date_middle()],[date_lower()]
 #' @return a matrix
