@@ -56,9 +56,15 @@ If none of these builtin objective functions are appropriate, you
 can define a custom objective function in \code{objective_fn}. This function
 must take two numeric vectors x then y and return a numeric value.
 }
+\note{
+At the time of writing this documentation \code{ape::rtt()} cannot
+handle missing dates, but \code{treedater:::.multi.rtt()} can. This
+flexibility is preserved in \code{root_rtt()} as well.
+}
 \references{
-Based on the \code{.multi.rtt()} function in the \code{treedater}
-package. https://github.com/emvolz/treedater/blob/master/R/multiRtT.R.
+Based on the non-exported \code{.multi.rtt()} function in the
+\code{treedater} package.
+https://github.com/emvolz/treedater/blob/master/R/multiRtT.R.
 
 Based on the \code{rtt()} function in the \code{ape} package.
 https://cran.r-project.org/web/packages/ape/index.html.
