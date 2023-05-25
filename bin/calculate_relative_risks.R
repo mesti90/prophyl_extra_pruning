@@ -67,11 +67,13 @@ nsim = length(sim.mats)
 ## Number of bootstrap event to perform, of each tree
 nboot = nboot
 
-## MRCA windows on which to compute the relative risk
-Pmax <- c(5, 10, 20, 40, 1000) ## max windows
-Pmin <- c(0, 5, 10, 20, 40) ## min windows
-pmid <- (Pmin+Pmax)/2 ## mid-point
+# MRCA windows on which to compute the relative risk
+# This will define categories on the risk plot
 int <- c(0, 5, 10, 20, 40, 1000)
+
+Pmin <- int[-length(int)]
+Pmax <- int[-1]
+pmid <- (Pmin+Pmax)/2 ## mid-point <- int[-1]
 l = length(Pmax) ## number of intervals
 
 # Define a data frame of all geo categories
