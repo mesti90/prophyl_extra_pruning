@@ -25,21 +25,15 @@ if (!interactive()) {
   project_dir <- args[8]
   geo_mat_neighbor_path <- args[9]
 } else {
-  test_dir <- "~/Methods/prophyl-tests/test-calculate_relative_risks"
-  data_seq_path <- paste0(test_dir, "/assemblies.tsv")
-  time_mat_path <- paste0(test_dir, "/results/calculate_distances/colldist.rds")
-  geo_mat_country_path <- paste0(
-    test_dir, "/results/calculate_distances/same_country.rds")
-  geo_mat_continent_path <- paste0(
-    test_dir, "/results/calculate_distances/same_continent.rds")
-  geo_mat_km_centroids_path <- paste0(
-    test_dir, "/results/calculate_distances/geodist.rds")
-  sim_mats_path <- paste0(
-    test_dir, "/results/calculate_distances/phylodist_list.rds")
+  data_seq_path <- "assemblies.tsv"
+  time_mat_path <- "colldist.rds"
+  geo_mat_country_path <- "same_country.rds"
+  geo_mat_continent_path <- "same_continent.rds"
+  geo_mat_km_centroids_path <- "geodist.rds"
+  sim_mats_path <- "phylodist_list.rds"
   nboot <- 1
   project_dir <- "~/Methods/prophyl"
-  geo_mat_neighbor_path <- paste0(
-    test_dir, "/results/calculate_distances/neighbors.rds")
+  geo_mat_neighbor_path <- "neighbors.rds"
 }
 
 library(devtools)
@@ -239,7 +233,6 @@ res = list('rr' = rr,
            'nsim' = nsim)
 class(res) <- "rrlist"
 
-if (!interactive()) {
   # export results
   saveRDS(res, "relative_risks.rds")
   # plot results - pdf
@@ -253,9 +246,4 @@ if (!interactive()) {
   png(file = "relative_risks.png")
   plot_rr(res, labels = geo_categories$label)
   try(dev.off(), silent = TRUE)
-  try(dev.off(), silent = TRUE)
-}
-
-png(file = "relative_risks.png", , width = 640, height = 480)
-plot_rr(res, labels = geo_categories$label)
 try(dev.off(), silent = TRUE)
