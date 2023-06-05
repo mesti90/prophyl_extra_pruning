@@ -30,21 +30,21 @@ if (!interactive()) {
 assemblies <- read.csv(args$assembly_file, sep = "\t")
 
 # only keep assemblies where city of origin is known
-if (!"city" %in% names(assemblies)) {
-    stop("No 'city' column in assembly file")
-}
-
-index_drop <- which(is.na(assemblies$city))
-index_keep <- which(!is.na(assemblies$city))
-
-if (length(index_keep) == 0) {
-    stop("No assemblies with known city")
-} else {
-    message("Keeping ", length(index_keep), " assemblies with known city")
-    message("Dropping ", length(index_drop), " assemblies with unknown city")
-}
-
-assemblies <- assemblies[index_keep, ]
+# if (!"city" %in% names(assemblies)) {
+#     stop("No 'city' column in assembly file")
+# }
+#
+# index_drop <- which(is.na(assemblies$city))
+# index_keep <- which(!is.na(assemblies$city))
+#
+# if (length(index_keep) == 0) {
+#     stop("No assemblies with known city")
+# } else {
+#     message("Keeping ", length(index_keep), " assemblies with known city")
+#     message("Dropping ", length(index_drop), " assemblies with unknown city")
+# }
+#
+# assemblies <- assemblies[index_keep, ]
 
 saveRDS(assemblies, file = "filtered_assemblies.rds")
 
