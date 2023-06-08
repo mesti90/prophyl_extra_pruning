@@ -35,6 +35,7 @@ if (!interactive()) {
   ncpu <- as.numeric(args[4])
   branch_dimension <- args[5]
   reroot <- args[6]
+  root_method <- args[7]
 } else {
   test_dir <- "~/Methods/prophyl-tests/test_date_tree"
   tree_path <- paste0(
@@ -47,6 +48,7 @@ if (!interactive()) {
   ncpu <- 10
   branch_dimension <- "snp_per_genome"
   reroot <- FALSE
+  root_method <- "correlation"
 }
 
 # Input validation
@@ -268,7 +270,7 @@ dtr <- dater(tree,
              ncpu =  ncpu)
 
 # rescale non-dated branch lengths from per site to per genome (more intuitive)
-  dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
+dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
 
 # export plots
 try(dev.off(), silent = TRUE)
@@ -288,7 +290,12 @@ dev.off()
 # rename internal nodes
 dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
 
-saveRDS(dtr, file = "dated_tree.rds")
+dtr_class <- class(dtr)
+
+dtr$root_method <- root_method
+class(dtr) <- dtr_class
+
+saveRDS(dtr, file = paste0("dated_tree_", root_method, ".rds"))
 
 dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
   strsplit(x, "\\|")[[1]][1]

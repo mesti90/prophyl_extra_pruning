@@ -1,7 +1,6 @@
 rm(list=ls())
 args <- commandArgs(trailingOnly = TRUE)
 
-.libPaths(new = args[3])
 snps = seqinr::read.fasta(args[1])
 subsample_path = args[2]
 

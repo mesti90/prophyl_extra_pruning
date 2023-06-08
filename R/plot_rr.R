@@ -2,13 +2,14 @@
 #' 
 #' This function plots the results of a risk analysis.
 #' @param res rrlist; an object of class \code{"rrlist"} containing risk ratios.
+#' @param labels character; a character vector of x axis labels.
 #' @return The function returns a plot.
 #' @examples
 #' \dontrun{
 #' plot_rr("risk_ratios.rds")
 #' }
 #' @export
-plot_rr <- function(res){
+plot_rr <- function(res, labels){
   
   # Original script from:
   # https://github.com/noemielefrancq/Global_spread_Listeria_monocytogenes_CC1
@@ -76,12 +77,7 @@ plot_rr <- function(res){
       axis(
         1,
         at = 1:(n_steps),
-        labels = c(
-          "Within countries",
-          "Between countries \n <1000km",
-          "Between countries \n >1000km (ref)",
-          "Between continents"
-        ),
+        labels = labels,
         cex.axis=1,
         las =2
       )

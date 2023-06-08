@@ -30,11 +30,10 @@ if (!interactive()) {
   assemblies_path <- args[4]
   ncpu <- as.numeric(args[5])
 } else {
-  test_dir <- "~/Methods/prophyl-tests/test_date_tree"
   subset_id <- "test"
-  tree_path <- paste0(test_dir,"/results/build_subset_tree/subsample_0001.nwk")
-  f_path <- paste0(test_dir, "/results/build_subset_tree/subsample_0001.fasta")
-  assemblies_path <- paste0(test_dir, "/assemblies.tsv")
+  tree_path <- "rooted_subset_tree.rds"
+  f_path <- "subsample_008_filtered.fasta"
+  assemblies_path <- "assemblies.tsv"
   ncpu = 10
 }
 
@@ -45,16 +44,27 @@ if (!interactive()) {
   sink(con, split = TRUE)
 }
 
-tree <- ape::read.tree(tree_path)
+# import subset tree.
+# if rooting was based on rtt, this can be a list of trees
+tree <- readRDS(tree_path)
+
+# if the tree is NOT a list of trees, make it a list of length 1 so that the
+# rest of the script can be used without modification
+if ("tip.label" %in% names(tree)) {
+  tree <- list(tree)
+}
+
 f <- seqinr::read.fasta(f_path)
 assemblies <- read.csv(assemblies_path, sep = "\t", header = TRUE)
 
 # drop tips which cannot be found in assembly table and give a warning
-index <- which(tree$tip.label %in% assemblies$assembly == FALSE)
+index <- which(tree[[1]]$tip.label %in% assemblies$assembly == FALSE)
 if (length(index) > 0) {
-  tips_to_drop <- tree$tip.label[index]
+  tips_to_drop <- tree[[1]]$tip.label[index]
   tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
-  tree <- ape::drop.tip(tree, tips_to_drop)
+  for (i in 1:length(tree)) {
+    tree[[i]] <- ape::drop.tip(tree[[i]], tips_to_drop)
+  }
   msg <- paste0(
     "One or more tips could not be found in assembly table and were dropped: ",
     tips_to_drop_collapsed,
@@ -64,7 +74,7 @@ if (length(index) > 0) {
 }
 
 # filter to assemblies that are included in the tree
-index <- which(assemblies$assembly %in% tree$tip.label == FALSE)
+index <- which(assemblies$assembly %in% tree[[1]]$tip.label == FALSE)
 if (length(index) > 0) {
   assemblies <- assemblies[-index, ]
 }
@@ -208,7 +218,9 @@ index <- which(is.na(uncertain_dates$lower) | is.na(uncertain_dates$upper))
 tips_to_drop <- rownames(uncertain_dates)[index]
 if (length(index) > 0) {
   # drop from tree
-  tree <- ape::drop.tip(tree, tips_to_drop)
+  for (i in 1:length(tree)) {
+    tree[[i]] <- ape::drop.tip(tree[[i]], tips_to_drop)
+  }
   # drop from assemblies
   assemblies <- assemblies[-which(assemblies$assembly %in% tips_to_drop), ]
   # drop from uncertain dates
@@ -223,10 +235,12 @@ if (length(index) > 0) {
 }
 
 # rename tips to include dates
-tree$tip.label <- sapply(tree$tip.label, function(x) {
+for (i in 1:length(tree)) {
+  tree[[i]]$tip.label <- sapply(tree[[i]]$tip.label, function(x) {
   index <- which(assemblies$assembly == x)
   paste(x, assemblies$date[index], sep = "|")
 }, USE.NAMES = FALSE)
+}
 
 # rename rownames in uncertain dates to include dates
 row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
@@ -235,18 +249,26 @@ row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
 }, USE.NAMES = FALSE)
 
 # extract dates from tip labels in appropriate format
-sts <- sampleYearsFromLabels(tree$tip.label, delimiter = "|")
-
-# unroot tree, if rooted
-if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
+sts <- sampleYearsFromLabels(tree[[1]]$tip.label, delimiter = "|")
 
 # date tree
-dtr <- dater(tree,
-             sts,
-             s = length(f[[1]]),
-             estimateSampleTimes = uncertain_dates,
-             clock = 'strict', 
-             ncpu =  ncpu)
+
+# if there are multiple rooted trees, date each one separately and then keep
+# the one with the highest log likelihood
+dtr <- list()
+for (i in 1:length(tree)) {
+  dtr[[i]] <- dater(
+    tree[[i]],
+    sts,
+    s = length(f[[1]]),
+    estimateSampleTimes = uncertain_dates,
+    clock = 'strict', 
+    ncpu =  ncpu
+  )
+}
+loglik <- sapply(1:length(dtr), function(x) dtr[[x]]$loglik)
+index <- which(loglik == max(loglik))[1]
+dtr <- dtr[[index]]
 
 # rescale non-dated branch lengths from per site to per genome (more intuitive)
 alignment_length <- length(f[[1]])

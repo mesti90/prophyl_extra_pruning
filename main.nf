@@ -17,7 +17,7 @@ hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-prophyl:0.6"
+r_container = "stitam/r-prophyl:0.7"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
@@ -40,6 +40,22 @@ process bootstrap_tree {
     -mem "${task.memory.toGiga()}G" \
     -bb $params.bootstrap_replicates \
     -wbtl
+    """
+}
+
+process build_subset_tree {
+    container "$fasttree_container"
+    storeDir "$launchDir/results/build_subset_tree"
+
+    input:
+    tuple val(subset_id), path(subset_snps)
+
+    output:
+    tuple val(subset_id), path(subset_snps), path("${subset_id}.nwk"), emit: subset_tree         
+
+    script:
+    """
+    FastTree -nt $subset_snps > "${subset_id}.nwk"
     """
 }
 
@@ -69,22 +85,6 @@ process build_tree {
     --threads ${task.cpus} \
     --iterations $params.gubbins_iterations\
     $chromosomes
-    """
-}
-
-process build_subset_tree {
-    container "$fasttree_container"
-    storeDir "$launchDir/results/build_subset_tree"
-
-    input:
-    tuple val(subset_id), path(subset_snps)
-
-    output:
-    tuple val(subset_id), path(subset_snps), path("${subset_id}.nwk")         
-
-    script:
-    """
-    FastTree -nt $subset_snps > "${subset_id}.nwk"
     """
 }
 
@@ -138,7 +138,26 @@ process calculate_relative_risks {
     $geodist \
     $phylodist_list \
     $params.nboot_on_simtree \
-    $projectDir
+    $projectDir \
+    $neighbors
+    """
+}
+
+process choose_dated_tree {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/choose_dated_tree"
+
+    input:
+    path dated_trees
+
+    output:
+    path "final_dated_tree.rds", emit: dated_big_tree
+    path "log.txt"
+
+    script:
+    """
+    Rscript $projectDir/bin/choose_dated_tree.R $dated_trees
     """
 }
 
@@ -181,6 +200,33 @@ process create_genome_list {
     """
 }
 
+process date_subset_tree {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/date_subset_tree"
+
+    input:
+    tuple val(subset_id), path(subset_snps), path(rooted_subset_tree)
+
+    output:
+    tuple val(subset_id),
+          path("${subset_id}/dated_tree.rds"), \
+          path("${subset_id}/treedater_log.txt"), \
+          path("${subset_id}/treedater_root_to_tip.pdf"), \
+          path("${subset_id}/treedater_root_to_tip.png"), \
+          path("${subset_id}/treedater_tree_with_time.nwk") 
+
+    script:
+    """
+    Rscript $projectDir/bin/date_subset_tree.R \
+    $subset_id \
+    $rooted_subset_tree \
+    $subset_snps \
+    $params.assemblies \
+    ${task.cpus}
+    """
+}
+
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
@@ -191,11 +237,10 @@ process date_tree {
 
     output:
     path "treedater_tree_with_time.nwk"
-    tuple path("dated_tree.rds"), \
-          path("treedater_log.txt"), \
-          path("treedater_root_to_tip.pdf"), \
-          path("treedater_root_to_tip.png"), \
-          path("treedater_tree_with_time.nwk") 
+    path "dated_tree_${root_method}.rds", emit: dated_tree_rds
+    path "treedater_log.txt"
+    path "treedater_root_to_tip.pdf"
+    path "treedater_root_to_tip.png"
 
     script:
     """
@@ -205,7 +250,8 @@ process date_tree {
     $params.assemblies \
     ${task.cpus} \
     snp_per_genome \
-    $params.reroot_tree
+    $params.reroot_tree \
+    $root_method
     """
 }
 
@@ -236,25 +282,21 @@ process date_tree_bactdating {
     """
 }
 
-process date_subset_tree {
+process filter_input {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_subset_tree"
+    storeDir "$launchDir/results/filter_input"
 
     input:
-    tuple val(subset_id), path(subset_snps), path(subset_tree)
+    path assembly_tbl
 
     output:
-    tuple val(subset_id),
-          path("${subset_id}/dated_tree.rds"), \
-          path("${subset_id}/treedater_log.txt"), \
-          path("${subset_id}/treedater_root_to_tip.pdf"), \
-          path("${subset_id}/treedater_root_to_tip.png"), \
-          path("${subset_id}/treedater_tree_with_time.nwk") 
+    path "filtered_assemblies.rds", emit: filtered_assemblies
+    path "log.txt"
 
     script:
     """
-    Rscript $projectDir/bin/date_subset_tree.R $subset_id $subset_tree $subset_snps $params.assemblies ${task.cpus}
+    Rscript $projectDir/bin/filter_input.R --assembly_file $assembly_tbl
     """
 }
 
@@ -347,7 +389,35 @@ process prep_tree_tbl {
     
     script:
     """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
+    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states
+    """
+}
+
+process root_subset_tree {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_subset_tree/${subset_id}"
+
+    input:
+    path dated_big_tree
+    tuple val(subset_id), path(subset_snps), path(subset_tree)
+
+    output:
+    path "log.txt"
+    tuple \
+      val(subset_id), \
+      path(subset_snps), \
+      path("rooted_subset_tree.rds"), \
+      emit: rooted_subset_tree
+
+    script:
+    """
+    Rscript $projectDir/bin/root_subset_tree.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --dated_tree $dated_big_tree \
+    --subset_tree $subset_tree \
+    --threads ${task.cpus}
     """
 }
 
@@ -446,6 +516,29 @@ process root_tree_rtt {
     """
 }
 
+process simulate_subset_trees {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/simulate_subset_trees"
+
+    input:
+    tuple val(subset_id), path(subset_tree_rds), path(B), path(C), path(D), path(E)
+
+    output:
+    path "${subset_id}.txt"
+    path "${subset_id}.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/simulate_subset_trees.R \
+    $subset_id \
+    $subset_tree_rds \
+    $params.simtrees \
+    ${task.cpus} \
+    $launchDir
+    """
+}
+
 process shrink_tree {
     container "$hgttree_container"
     storeDir "$launchDir/results/shrink_tree"
@@ -524,29 +617,6 @@ process simulate_trees {
     """
 }
 
-process simulate_subset_trees {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/simulate_subset_trees"
-
-    input:
-    tuple val(subset_id), path(subset_tree_rds), path(B), path(C), path(D), path(E)
-
-    output:
-    path "${subset_id}.txt"
-    path "${subset_id}.rds"
-
-    script:
-    """
-    Rscript $projectDir/bin/simulate_subset_trees.R \
-    $subset_id \
-    $subset_tree_rds \
-    $params.simtrees \
-    ${task.cpus} \
-    $launchDir
-    """
-}
-
 process snippy_contig {
     container "$snippy_container"
     storeDir "$launchDir/results/snippy_contig"
@@ -615,10 +685,11 @@ process subsample_input {
 
     input:
     path assemblies
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)   
+    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
 
     output:
     path "subsample_*.tsv"
+    
 
     script:
     """
@@ -641,9 +712,12 @@ process subset_snps {
     output:
     tuple val(subsample_id), path("${subsample_id}.fasta")
 
+
     script:
     """
-    Rscript $projectDir/bin/subset_snps.R $shrinked_snps $subsample $params.Rdir
+    Rscript $projectDir/bin/subset_snps.R \
+    $shrinked_snps \
+    $subsample
     """
 }
 
@@ -677,7 +751,7 @@ process tidy_bootstrap_tree {
 
     script:
     """
-    Rscript $projectDir/bin/tidy_bootstrap_tree.R $bstree $params.Rdir
+    Rscript $projectDir/bin/tidy_bootstrap_tree.R $bstree
     """
 } 
 
@@ -727,6 +801,8 @@ workflow {
     // Date all rooted trees
     date_tree(rooted_trees_ch)
 
+    date_tree.out.dated_tree_rds.collect() | choose_dated_tree
+
     // Date shrinked tree with BactDating
     // shrink_snp_cols.out[0] | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
@@ -735,13 +811,22 @@ workflow {
     // date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
     // prepare tree_tbl which contains predicted ancestral states for internal nodes
     // prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
-    // collapse outbreaks
-    validate_input.out | collapse_outbreaks
-    // prepare random subsamples from assemblies and create a channel
+
+    // collapse outbreaks 
+    validate_input.out | filter_input
+    filter_input.out.filtered_assemblies | collapse_outbreaks
+    // create a channel from random subsamples prepare random subsamples from assemblies
     subsample_input(collapse_outbreaks.out, shrink_snp_cols.out[0])
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
-    // build subset trees, date subset trees, simulate new trees using the dated trees
-    shrink_snp_cols.out[0].combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    // build subset trees
+    shrink_snp_cols.out[0].combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree
+    // root subset trees
+    root_subset_tree(
+        choose_dated_tree.out.dated_big_tree, 
+        build_subset_tree.out.subset_tree
+    )
+    // date subset trees, simulate subset trees
+    root_subset_tree.out.rooted_subset_tree | date_subset_tree | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",

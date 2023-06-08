@@ -48,7 +48,7 @@ focus_on <- "europe"
 # ratio of samples to take from focus group.
 focus_ratio <- 0.75
 
-if (balance_by %in% names(assemblies) == FALSE) {
+if (!is.null(balance_by) && balance_by %in% names(assemblies) == FALSE) {
   stop("Subsampling failed, variable '", balance_by, "' not found.")
 }
 

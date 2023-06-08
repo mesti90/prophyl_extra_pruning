@@ -73,3 +73,6 @@ RUN R -e 'options(warn = 2); BiocManager::install("ggtreeExtra", update = FALSE,
 RUN apt-get install -y wget
 RUN wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.336/quarto-1.3.336-linux-amd64.deb
 RUN dpkg -i quarto-1.3.336-linux-amd64.deb
+
+# Install optparse
+RUN apt-get install -y r-cran-optparse
