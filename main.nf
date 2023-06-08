@@ -13,7 +13,7 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 
 // Containers
 gubbins_container = "mesti90/gubbins:latest"
-hgttree_container = "mesti90/hgttree:2.6"
+hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
@@ -67,15 +67,15 @@ process build_tree {
     path chromosomes
 
     output:
-    tuple path("chromosomes.log"), \
-          path("chromosomes.branch_base_reconstruction.embl"), \
-          path("chromosomes.filtered_polymorphic_sites.fasta"), \
-          path("chromosomes.filtered_polymorphic_sites.phylip"), \
-          path("chromosomes.node_labelled.final_tree.tre"), \
-          path("chromosomes.per_branch_statistics.csv"), \
-          path("chromosomes.recombination_predictions.embl"), \
-          path("chromosomes.recombination_predictions.gff"), \
-          path("chromosomes.summary_of_snp_distribution.vcf")          
+    tuple path("chromosomes.nodup.log"), \
+          path("chromosomes.nodup.branch_base_reconstruction.embl"), \
+          path("chromosomes.nodup.filtered_polymorphic_sites.fasta"), \
+          path("chromosomes.nodup.filtered_polymorphic_sites.phylip"), \
+          path("chromosomes.nodup.node_labelled.final_tree.tre"), \
+          path("chromosomes.nodup.per_branch_statistics.csv"), \
+          path("chromosomes.nodup.recombination_predictions.embl"), \
+          path("chromosomes.nodup.recombination_predictions.gff"), \
+          path("chromosomes.nodup.summary_of_snp_distribution.vcf")          
 
     script:
     """
@@ -409,6 +409,25 @@ process prep_tree_tbl {
     script:
     """
     Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states
+    """
+}
+
+process remove_duplicates {
+    container "$hgttree_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/remove_duplicates"
+    
+    input:
+    path chromosomes
+    
+    output:
+    path "chromosomes.nodup.fasta", emit: chromosomes_nodup
+    path "duplicates.txt"
+    
+    script:
+    """
+    touch duplicates.txt
+    seqkit rmdup -s $chromosomes -D duplicates.txt -o chromosomes.nodup.fasta -j ${task.cpus}
     """
 }
 
@@ -816,8 +835,10 @@ workflow {
         storeDir: "$launchDir/results/"
     )
 
-    // Mask recombination, build tree, shrink, bootstrap
-    chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
+    // Remove duplicates, mask recombination, build tree, shrink, bootstrap
+
+    chromosomes | remove_duplicates
+    remove_duplicates.out.chromosomes_nodup | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
 
     // Root shrinked tree using mad, midpoint, rtt
     root_tree_mad(shrink_snp_cols.out[0], mad_ch)
