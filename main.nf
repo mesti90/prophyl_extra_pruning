@@ -161,6 +161,25 @@ process choose_dated_tree {
     """
 }
 
+process choose_reference_genome {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/choose_reference_genome"
+
+    input:
+    path assemblies
+
+    output:
+    path "*.*"
+
+    script:
+    """
+    Rscript $projectDir/bin/choose_reference_genome.R \
+    --assemblies $assemblies \
+    --genome_dir $params.genome_dir
+    """
+}
+
 process collapse_outbreaks {
     container "$r_container"
     containerOptions "--no-home"
@@ -623,6 +642,7 @@ process snippy_contig {
 
     input:
     tuple val(assembly_id), val(contigs)
+    each reference_genome
 
     output:
     path assembly_id
@@ -631,7 +651,7 @@ process snippy_contig {
     """
     snippy \
     --outdir $assembly_id \
-    --ref $params.reffile \
+    --ref $reference_genome \
     --ctgs $contigs \
     --force
     """
@@ -643,6 +663,7 @@ process snippy_paired {
 
     input:
     tuple val(assembly_id), val(R1), val(R2)
+    each reference_genome
 
     output:
     path assembly_id
@@ -651,7 +672,7 @@ process snippy_paired {
     """
     snippy \
     --outdir $assembly_id \
-    --ref $params.reffile \
+    --ref $reference_genome \
     --R1 $R1 \
     --R2 $R2 \
     --force
@@ -664,6 +685,7 @@ process snippy_single {
 
     input:
     tuple val(assembly_id), val(reads)
+    each reference_genome
 
     output:
     path assembly_id
@@ -672,7 +694,7 @@ process snippy_single {
     """
     snippy \
     --outdir $assembly_id \
-    --ref $params.reffile \
+    --ref $reference_genome \
     --se $reads \
     --force
     """
@@ -770,16 +792,30 @@ process validate_input {
 }
 
 workflow {
-    // Prepare pseudo-whole genomes
+    // Validate input and create a list of genomes to process
     validate_input() | create_genome_list
-    create_genome_list.out[1].splitCsv(header: true) | snippy_paired
-    create_genome_list.out[2].splitCsv(header: true) | snippy_single
-    create_genome_list.out[3].splitCsv(header: true) | snippy_contig
+    
+    // Choose a reference genome
+    if (params.reference_genome != null) {
+        reference_genome = "$launchDir/$params.reference_genome"
+        println("Reference genome for snippy: $reference_genome")
+    } else {
+        reference_genome = choose_reference_genome(validate_input.out)
+    }
+    
+    // Construct pseudo-whole genomes
+
+    snippy_paired(create_genome_list.out[1].splitCsv(header: true), reference_genome)
+    snippy_single(create_genome_list.out[2].splitCsv(header: true), reference_genome)
+    snippy_contig(create_genome_list.out[3].splitCsv(header: true), reference_genome)
+
+    // Combine snippy outputs and keep only chromosomes
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
     chromosomes = keep_chromosome.out.collectFile(
         name: "chromosomes.fasta",
         storeDir: "$launchDir/results/"
     )
+
     // Mask recombination, build tree, shrink, bootstrap
     chromosomes | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
 
