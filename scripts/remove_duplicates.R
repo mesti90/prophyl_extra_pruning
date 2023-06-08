@@ -1,3 +1,9 @@
+# TODO
+# This script is very inefficient because it requires me to read in all the 
+# chromosomes. This can easily lead to memory issues. Therefore it is better
+# to use less memory intensive tools to just remove duplicates and print a 
+# list of genomes that were removed and later rename some tips if necessary.
+
 library(dplyr)
 library(optparse)
 rm(list = ls())

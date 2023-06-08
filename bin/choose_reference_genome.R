@@ -34,7 +34,7 @@ if (!interactive()) {
 
 df <- read.csv(args$assemblies, sep = "\t")
 
-index_max_length <- which(df$longest_contig == max(df$longest_contig))
+index_max_length <- which(df$longest_contig == max(df$longest_contig, na.rm = TRUE))
 longest_assemblies <- df$assembly[index_max_length]
 
 df_filtered <- df[which(df$assembly %in% longest_assemblies),]
