@@ -75,7 +75,7 @@ process build_tree {
           path("chromosomes.nodup.per_branch_statistics.csv"), \
           path("chromosomes.nodup.recombination_predictions.embl"), \
           path("chromosomes.nodup.recombination_predictions.gff"), \
-          path("chromosomes.nodup.summary_of_snp_distribution.vcf")          
+          path("chromosomes.nodup.summary_of_snp_distribution.vcf")
 
     script:
     """
@@ -466,7 +466,7 @@ process root_tree_mad {
     storeDir "$launchDir/results/root_tree_mad"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+    tuple path(shrinked_snps), path(shrinked_tree)
     val root_method
 
     output:
@@ -492,7 +492,7 @@ process root_tree_mp {
     storeDir "$launchDir/results/root_tree_mp"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+    tuple path(shrinked_snps), path(shrinked_tree)
     val root_method
 
     output:
@@ -511,7 +511,7 @@ process root_tree_rd {
     storeDir "$launchDir/results/root_tree"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+    tuple path(shrinked_snps), path(shrinked_tree)
 
     output:
     tuple path(shrinked_snps), \
@@ -535,7 +535,7 @@ process root_tree_rtt {
     storeDir "$launchDir/results/root_tree_rtt"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D) 
+    tuple path(shrinked_snps), path(shrinked_tree)
 
     output:
     path("rooted_trees/*.tre")
@@ -593,48 +593,14 @@ process shrink_tree {
           path(I) 
 
     output:
-    tuple path(snps),
-          path("treeshrink.tre"),
-          path("treeshrink.txt"),
-          path("treeshrink_summary.txt")    
+    tuple path(snps), path("treeshrink.tre"), emit: shrinked_tree
+    path snps, emit: snps
+    path "treeshrink.txt"
+    path "treeshrink_summary.txt"    
 
     script:
     """
     run_treeshrink.py --tree $tree --outprefix treeshrink --force --outdir .
-    """
-}
-
-process shrink_snp_rows {
-    container "$r_container"
-    storeDir "$launchDir/results/shrink_snp_rows"
-
-    input:
-    tuple path(snps), path(shrinked_tree), path(C), path(D)
-
-    output:
-    tuple path("shrinked_snp_rows.fasta"), path(shrinked_tree), path(C), path(D)
-
-    script:
-    """
-    Rscript $projectDir/bin/shrink_snp_rows.R $shrinked_tree $snps
-    """
-}
-
-process shrink_snp_cols {
-    //TODO create container from scratch
-    container "staphb/snp-sites:2.5.1"
-    storeDir "$launchDir/results/shrink_snp_cols"
-
-    input:
-    tuple path(shrinked_snp_rows), path(shrinked_tree), path(C), path(D)  
-
-    output:
-    tuple path("shrinked_snp_cols.fasta"), path(shrinked_tree), path(C), path(D)
-    path "shrinked_snp_cols.fasta"
-
-    script:
-    """
-    snp-sites -o shrinked_snp_cols.fasta $shrinked_snp_rows 
     """
 }
 
@@ -726,7 +692,7 @@ process subsample_input {
 
     input:
     path assemblies
-    tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
+    tuple path(shrinked_snps), path(shrinked_tree)
 
     output:
     path "subsample_*.tsv"
@@ -748,7 +714,7 @@ process subset_snps {
     storeDir "$launchDir/results/subset_snps"
 
     input:
-    tuple path(shrinked_snps), path(B), path(C), path(D), val(subsample_id), path(subsample)
+    tuple path(shrinked_snps), path(B), val(subsample_id), path(subsample)
 
     output:
     tuple val(subsample_id), path("${subsample_id}.fasta")
@@ -838,17 +804,17 @@ workflow {
     // Remove duplicates, mask recombination, build tree, shrink, bootstrap
 
     chromosomes | remove_duplicates
-    remove_duplicates.out.chromosomes_nodup | build_tree | shrink_tree | shrink_snp_rows | shrink_snp_cols //| bootstrap_tree | tidy_bootstrap_tree
+    remove_duplicates.out.chromosomes_nodup | build_tree | shrink_tree //| bootstrap_tree | tidy_bootstrap_tree
 
     // Root shrinked tree using mad, midpoint, rtt
-    root_tree_mad(shrink_snp_cols.out[0], mad_ch)
-    root_tree_mp(shrink_snp_cols.out[0], mp_ch)
-    shrink_snp_cols.out[0] | root_tree_rtt
+    root_tree_mad(shrink_tree.out.shrinked_tree, mad_ch)
+    root_tree_mp(shrink_tree.out.shrinked_tree, mp_ch)
+    shrink_tree.out.shrinked_tree | root_tree_rtt
     
     // Combine rooted trees
     rtt_trees_ch = root_tree_rtt.out[0].flatten()
     rtt_trees_ch = rtt_trees_ch | map { [it.getBaseName().split("_tree_")[1], it] }  
-    rtt_trees_ch = rtt_trees_ch.combine(shrink_snp_cols.out[1])
+    rtt_trees_ch = rtt_trees_ch.combine(shrink_tree.out.snps)
 
     rooted_trees_ch = root_tree_mad.out[0].mix(
         root_tree_mp.out[0],
@@ -873,10 +839,10 @@ workflow {
     validate_input.out | filter_input
     filter_input.out.filtered_assemblies | collapse_outbreaks
     // create a channel from random subsamples prepare random subsamples from assemblies
-    subsample_input(collapse_outbreaks.out, shrink_snp_cols.out[0])
+    subsample_input(collapse_outbreaks.out, shrink_tree.out.shrinked_tree)
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees
-    shrink_snp_cols.out[0].combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree
+    shrink_tree.out.shrinked_tree.combine(subsample_ch) | subset_snps | filter_snps | build_subset_tree
     // root subset trees
     root_subset_tree(
         choose_dated_tree.out.dated_big_tree, 
