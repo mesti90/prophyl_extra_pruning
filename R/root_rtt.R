@@ -82,6 +82,7 @@ root_rtt <-function (
         objective <- objective_fn
       }
     }
+    t <- ape::multi2di(t)
     ut <- ape::unroot(t)
     dist <- dist.nodes(ut)[, 1:(ut$Nnode + 2)]
     f <- function(x, parent, child) {
