@@ -8,8 +8,10 @@ f <- seqinr::read.fasta(
   forceDNAtolower = FALSE
 )
 
+f_lengths <- sapply(f, length)
+
 seqinr::write.fasta(
-  sequences = f[[1]],
+  sequences = f[[which.max(f_lengths)]],
   names = basename(args[1]),
   file.out = paste0(basename(args[1]), ".fasta")
 )
