@@ -261,6 +261,11 @@ if (reroot) {
   if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
 }
 
+# if there are no uncertain dates, replace the object with NULL
+if (nrow(uncertain_dates) == 0) {
+  uncertain_dates <- NULL
+}
+
 # date tree
 dtr <- dater(tree,
              sts,
