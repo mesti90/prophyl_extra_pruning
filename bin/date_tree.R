@@ -225,16 +225,16 @@ for (i in 1:length(trees)) {
 names(dtr) <- names(trees)
 
 # rescale non-dated branch lengths from per site to per genome (more intuitive)
-dtr <- lapply(dtr, function(tree)) {
+dtr <- lapply(dtr, function(tree) {
   tree$intree$edge.length <- tree$intree$edge.length * alignment_length
   return(tree)
-}
+})
 
 # rename internal nodes
-dtr <- lapply(dtr, function(tree)) {
+dtr <- lapply(dtr, function(tree) {
   tree %<>% makeNodeLabel(., method = "number", prefix = "Node_")
   return(tree)
-}
+})
 
 # add root method to dated tree objects
 dtr_class <- class(dtr[[1]])
