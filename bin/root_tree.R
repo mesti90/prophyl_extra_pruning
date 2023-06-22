@@ -1,10 +1,56 @@
-# This script takes a phylogenetic tree and attempts to root it using
-# Root-to-tip regression. It uses a custom function that was built on the
+# This script takes a phylogenetic tree and attempts to root it using three
+# aproaches:
+#
+# 1. Midpoint rooting
+# 2. Minimum Ancestor Deviation (MAD)
+# 3. Root-to-tip regression
+#
+# Root-to-tip regression uses a custom function that was built on the
 # non-exported .multi.rtt() function from the treedater package which in turn
 # was built on the rtt() function from the ape package. For more details, check
 # the function documentation ?root_rtt().
 
+library(devtools)
+library(optparse)
 rm(list = ls())
+
+args_list <- list(
+ make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
+  ),
+ make_option(
+   c("-t", "--tree"),
+   type = "character",
+   help = "Path to tree file."
+ ),
+ make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "Path to assemblies file."
+  ),
+  make_option(
+    c("-t", "--threads"),
+    type = "integer",
+    help = "Number of threads to use."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    project_dir = "~/Methods/prophyl",
+    tree = "treeshrink.tre",
+    assemblies = "assemblies.tsv",
+    threads = 10
+  )
+}
+
+load_all(args$project_dir)
 
 # create log file and start logging
 if (!interactive()) {
@@ -12,46 +58,37 @@ if (!interactive()) {
   sink(con, split = TRUE)
 }
 
-# define input
-if (!interactive()) {
-  args <- commandArgs(trailingOnly = TRUE)
-  project_dir <- args[1]
-  tree_path <- args[2]
-  assemblies_path <- args[3]
-  threads <- args[4]
-} else {
-  test_dir <- "~/Methods/prophyl-tests/test-root_tree_rtt"
-  project_dir <- "~/Methods/prophyl"
-  tree_path <- paste0(test_dir, "/sample_tree.tre")
-  assemblies_path <- paste0(test_dir, "/assemblies.tsv")
-  threads <- 2
+# read tree
+tree <- ape::read.tree(args$tree)
+tree <- ape::keep.tip(tree, tree$tip.label[sample(1:length(tree$tip.label), 25)])
+
+# if tree is rooted, unroot
+if (ape::is.rooted(tree)) {
+  tree <- ape::unroot(tree)
 }
 
-library(devtools)
-library(dplyr)
-library(ggplot2)
-load_all(project_dir)
+rooted_trees <- list()
 
-# read tree
-tree <- ape::read.tree(tree_path)
+# OPTION 1: MIDPOINT ROOTING
+
+# root tree
+rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
+
+# OPTION 2: MINIMUM ANCESTOR DEVIATION (MAD)
+
+# root tree
+rooted_trees[["mad"]] <- root_mad(
+  tree,
+  output_mode = "full",
+  cache = TRUE,
+  threads = args$threads,
+  verbose = TRUE
+)[[3]]
+
+# OPTION 3: ROOT-TO-TIP REGRESSION
 
 # read assemblies
-assemblies <- read.csv(assemblies_path, sep = "\t")
-
-# ensure as few collection days are NA as possible
-# comment this for now to avoid using uncertain tips for rooting
-# assemblies$collection_day <- date_middle(assemblies$collection_date)
-
-# if collection_day is NA, remove both from assembly tbl and tree
-# comment this because this version of root-to-tip regression can handle unknown
-# dates.
-# remove <- assemblies$assembly[which(is.na(assemblies$collection_day))]
-# if (length(remove) > 0) {
-# # remove from assembly tbl
-# assemblies <- assemblies[-which(assemblies$assembly %in% remove),]
-# # remove from tree
-# tree <- ape::drop.tip(tree, remove)
-# }
+assemblies <- read.csv(args$assemblies, sep = "\t")
 
 # collect tip dates in the same order as tree$tip.label
 tip_dates <- unname(sapply(tree$tip.label, function(x) {
@@ -61,11 +98,6 @@ tip_dates <- unname(sapply(tree$tip.label, function(x) {
 
 # convert tip dates to numeric for root_tree()
 tip_dates <- as.numeric(as.Date(tip_dates))
-
-# if tree is rooted, unroot
-if (ape::is.rooted(tree)) {
-  tree <- ape::unroot(tree)
-}
 
 # TODO: look for better objectives
 objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
@@ -82,22 +114,23 @@ objective <- list(
 # return the top_n trees for each objective
 top_n = 3
 
-rooted_trees <- list()
 for (i in seq_along(objective)) {
   rtree <- root_rtt(
     t = tree,
     tip.dates = tip_dates,
     topx = top_n, 
-    ncpu = threads,
+    ncpu = args$threads,
     objective = names(objective)[[i]],
     objective_fn = objective[[i]]
   )
-  names(rtree) <- paste0(names(objective)[i], "_", 1:top_n)
-  index_from = (i-1)*top_n+1
-  index_to = i*top_n
+  names(rtree) <- paste0("rtt_", names(objective)[i], "_", 1:top_n)
+  index_from = (i-1)*top_n + 3
+  index_to = i*top_n + 2
   rooted_trees[index_from:index_to] <- rtree
   names(rooted_trees)[index_from:index_to] <- names(rtree)
 }
+
+# CALCULATE ROOT TO TIP METRICS FOR EACH ROOTED TREE
 
 # calculate snps for each rooted tree
 snp <- lapply(rooted_trees, function(x) {
@@ -107,13 +140,13 @@ snp <- lapply(rooted_trees, function(x) {
 # rescale tip_dates to calendar dates
 tip_dates <- as.Date(tip_dates, origin = "1970-01-01")
 
-# recalculate root-to-tip regression on best trees using calendar dates
+# recalculate root-to-tip regression using calendar dates
 fit <- lapply(snp, function(x) lm(x~tip_dates))
 
 # calculate metrics for each fit
 results <- data.frame(
   r.squared = sapply(fit, function(x) summary(x)$r.squared),
-  adj.r.squared = sapply(fit, function(x) summary(x)$r.squared),
+  adj.r.squared = sapply(fit, function(x) summary(x)$adj.r.squared),
   rse = sapply(fit, function(x) summary(x)$sigma),
   ssr = sapply(fit, function(x) sum((summary(x)$residuals)^2)),
   mrca = sapply(fit, function(x) -x$coef[1]/x$coef[2]),
@@ -137,38 +170,38 @@ g <- ggplot(df, aes(date, snp)) +
   facet_grid(name~.) + 
   geom_smooth(method = "lm")
 
-if (!interactive()) {
-  rooted_trees_path <- "rooted_trees.rds"
-  rtt_metrics_path <- "rtt_metrics.rds"
-  rtt_plots_path <- "rtt_plots.pdf"
-  nwk_dir <- "rooted_trees"
-} else {
-  rooted_trees_path <- paste0(test_dir, "/rooted_trees.rds")
-  rtt_metrics_path <- paste0(test_dir, "/rtt_metrics.rds")
-  rtt_plots_path <- paste0(test_dir, "/rtt_plots.pdf")
-  nwk_dir <- paste0(test_dir, "/rooted_trees")
-}
-
 # export rooted tree object
-saveRDS(rooted_trees, file = rooted_trees_path)
+saveRDS(rooted_trees, file = "rooted_trees.rds")
 # export root to tip metrics
-saveRDS(results, file = rtt_metrics_path)
+saveRDS(results, file = "rtt_metrics.rds")
 # export root to tip regression plots
 ggsave(
-  filename = rtt_plots_path,
+  filename = "rtt_plots.pdf",
   plot = g,
   width = 10,
   height = 5 * length(rooted_trees),
   limitsize = FALSE
 )
 
-if (!dir.exists(nwk_dir)) dir.create(nwk_dir, recursive = TRUE)
+if (!dir.exists("rooted_trees")) dir.create("rooted_trees")
 
 for (i in seq_along(rooted_trees)) {
   ape::write.tree(
     rooted_trees[i],
-    file = paste0(nwk_dir, "/rooted_tree_rtt_", names(rooted_trees)[i], ".tre")
+    file = paste0("rooted_trees/rooted_tree_", names(rooted_trees)[i], ".tre")
   )
+}
+
+# consistency checks
+
+# check that all trees have the same number of tips
+ntips <- sapply(rooted_trees, function(x) length(x$tip.label))
+testthat::expect_equal(length(unique(ntips)), 1)
+
+# check that all trees have the same tip labels
+for (i in 1:ntips) {
+  tiplabs <- sapply(rooted_trees, function(x) x$tip.label[i])
+  testthat::expect_equal(length(unique(tiplabs)), 1)
 }
 
 # end logging

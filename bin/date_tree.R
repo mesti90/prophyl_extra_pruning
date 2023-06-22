@@ -1,10 +1,7 @@
-# This script takes
-# - a phylogenetic tree with branch lengths in snp per genome
-# - an alignment used for calculating the phylogenetic tree
-# - a table containing sample metadata
-# - a value for the number of processors to use
-# And calculates a dated phylogeny.
-
+# This script takes a list of rooted phylogentic trees as a single rds file and
+# other input files and calculates dated phylogenetic trees for each tree in
+# the list.
+#
 # If the collection date of a sample is known by day, it will be used as is. If
 # the collection date of the sample is known by month or year, a matching range
 # will be used as input and the middle value as the starting value. If the
@@ -14,41 +11,73 @@
 # they seem to have interpolated unknown samples to fall between the boundaries
 # of the rest of the genomes.
 
+library(devtools)
+library(dplyr)
+library(magrittr)
+library(optparse)
+library(treedater)
 rm(list = ls())
+
+args_list <- list(
+  make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
+  ),
+  make_option(
+   c("-t", "--trees"),
+   type = "character",
+   help = "A list of rooted trees in rds format."
+  ),
+  make_option(
+    c("-s", "--snps"),
+    type = "character",
+    help = "Path to a fasta file containing snps."
+  ),
+  make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "Path to assemblies file."
+  ),
+  make_option(
+    c("-t", "--threads"),
+    type = "integer",
+    help = "Number of threads to use."
+  ),
+  make_option(
+    c("-b", "--branch_dimension"),
+    type = "character",
+    help = "Dimension of branch lengths in tree. Either 'snp_per_genome' or 'snp_per_site'."
+  ),
+  make_option(
+    c("-r", "--reroot"),
+    type = "logical",
+    help = "Whether to reroot the tree using treedater's standard rerooting functionality."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    project_dir = "~/Methods/prophyl",
+    trees = "rooted_trees.rds",
+    snps = "chromosomes.nodup.filtered_polymorphic_sites.fasta",
+    assemblies = "assemblies.tsv",
+    threads = 10,
+    branch_dimension = "snp_per_genome",
+    reroot = FALSE
+  )
+}
+
+load_all(project_dir)
 
 if (!interactive()) {
   # create log file and start logging
-  con <- file("treedater_log.txt")
+  con <- file("log.txt")
   sink(con, split = TRUE)
-}
-
-library(dplyr)
-library(magrittr)
-library(treedater)
-
-if (!interactive()) {
-  args <- commandArgs(trailingOnly = TRUE)
-  
-  tree_path <- args[1]
-  f_path <- args[2]
-  assemblies_path <- args[3]
-  ncpu <- as.numeric(args[4])
-  branch_dimension <- args[5]
-  reroot <- args[6]
-  root_method <- args[7]
-} else {
-  test_dir <- "~/Methods/prophyl-tests/test_date_tree"
-  tree_path <- paste0(
-    test_dir, "/results/build_tree/chromosomes.node_labelled.final_tree.tre"
-  )
-  f_path <- paste0(
-    test_dir, "/results/build_tree/chromosomes.filtered_polymorphic_sites.fasta"
-  )
-  assemblies_path <- paste0(test_dir, "/assemblies.tsv")
-  ncpu <- 10
-  branch_dimension <- "snp_per_genome"
-  reroot <- FALSE
-  root_method <- "correlation"
 }
 
 # Input validation
@@ -57,23 +86,46 @@ branch_dimension <- match.arg(
   choices = c("snp_per_genome", "snp_per_site")
 )
 
-tree <- ape::read.tree(tree_path)
-f <- seqinr::read.fasta(f_path)
-assemblies <- read.csv(assemblies_path, sep = "\t", header = TRUE)
+# import trees
+trees <- readRDS(args$trees)
 
-alignment_length <- length(f[[1]])
+# consistency checks
 
-if (branch_dimension == "snp_per_genome") {
-  # rescale branch lengths from per genome to per site (required for treedater)
-  tree$edge.length <- tree$edge.length / alignment_length
+# check that all trees have the same number of tips
+ntips <- sapply(rooted_trees, function(x) length(x$tip.label))
+testthat::expect_equal(length(unique(ntips)), 1)
+
+# check that all trees have the same tip labels
+for (i in 1:ntips) {
+  tiplabs <- sapply(rooted_trees, function(x) x$tip.label[i])
+  testthat::expect_equal(length(unique(tiplabs)), 1)
 }
 
+# import snps
+f <- seqinr::read.fasta(args$snps)
+
+# rescale branch lengths if necessary
+alignment_length <- length(f[[1]])
+if (branch_dimension == "snp_per_genome") {
+  # rescale branch lengths from per genome to per site (required for treedater)
+  trees <- lapply(trees, function(tree) {
+    tree$edge.length <- tree$edge.length / alignment_length
+    return(tree)
+  })
+}
+
+# import assemblies
+assemblies <- read.csv(args$assemblies, sep = "\t", header = TRUE)
+
 # drop tips which cannot be found in assembly table and give a warning
-index <- which(tree$tip.label %in% assemblies$assembly == FALSE)
+index <- which(tree[[1]]$tip.label %in% assemblies$assembly == FALSE)
 if (length(index) > 0) {
-  tips_to_drop <- tree$tip.label[index]
+  tips_to_drop <- trees[[1]]$tip.label[index]
   tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
-  tree <- ape::drop.tip(tree, tips_to_drop)
+  trees <- lapply(trees, function(tree) {
+    tree <- ape::drop.tip(tree, tips_to_drop)
+    return(tree)
+  })
   msg <- paste0(
     "One or more tips could not be found in assembly table and were dropped: ",
     tips_to_drop_collapsed,
@@ -83,134 +135,15 @@ if (length(index) > 0) {
 }
 
 # filter to assemblies that are included in the tree
-index <- which(assemblies$assembly %in% tree$tip.label == FALSE)
+index <- which(assemblies$assembly %in% trees[[1]]$tip.label == FALSE)
 if (length(index) > 0) {
   assemblies <- assemblies[-index, ]
 }
 
 # filter to relevant columns
 assemblies <- assemblies[, which(names(assemblies) %in% c(
-  "assembly", "collection_date", "collection_day"
+  "assembly", "collection_date"
 ))]
-
-date_lower <- function(dates) {
-  foo <- function(x) {
-    if (is.na(x)) return(NA)
-    year = suppressWarnings(
-      as.numeric(stringi::stri_sub(x, from = 1, to = 4))
-    )
-    if (is.na(year)) {
-      return(NA)
-    }
-    date_elements <- strsplit(x, split = "-")[[1]]
-    year <- date_elements[1]
-    year_start <- as.Date(paste0(year, "-01-01"))
-    year_end <- as.Date(paste0(year, "-12-31"))
-    if (length(date_elements) == 3) {
-      date <- as.Date(x, format = "%Y-%m-%d")
-    }
-    if (length(date_elements) == 2) {
-      month <- date_elements[2]
-      date <- as.Date(paste(year, month, "01", sep = "-"))
-    }
-    if (length(date_elements) == 1) {
-      date <- as.Date(paste(year, "01", "01", sep = "-"))
-    }
-    date_out <- as.numeric(date-year_start)/as.numeric(year_end-year_start+1)
-    # 1st january may be problematic
-    date_out <- round(1000*date_out, 0)
-    if(nchar(date_out) == 2){
-      date_out <- paste0("0", date_out)
-    }
-    if(nchar(date_out) == 1) {
-      date_out <- paste0("00", date_out)
-    }
-    date_out <- paste0(year, ".", date_out)
-    
-    return(date_out)
-  }
-  out <- unname(sapply(dates, function(x) try(foo(x), silent = TRUE)))
-  out <- as.numeric(out)
-  return(out)
-}
-
-date_upper <- function(dates) {
-  foo <- function(x) {
-    if(is.na(x)) return(NA)
-    year = suppressWarnings(
-      as.numeric(stringi::stri_sub(x, from = 1, to = 4))
-    )
-    if (is.na(year)) {
-      return(NA)
-    }
-    date_elements <- strsplit(x, split = "-")[[1]]
-    year <- date_elements[1]
-    year_start <- as.Date(paste0(year, "-01-01"))
-    year_end <- as.Date(paste0(year, "-12-31"))
-    if (length(date_elements) == 3) {
-      date <- as.Date(x, format = "%Y-%m-%d")
-    }
-    if (length(date_elements) == 2) {
-      month <- date_elements[2]
-      if (month == "02"){
-        leap <- lubridate::leap_year(paste0(year, "-01-01"))
-        if (leap) day <- "29"
-        else day <- "28"
-      }
-      if (month != "02"){
-        if (month %in% c("04", "06", "09", "11")) day <- "30"
-        else day <- "31"
-      }
-      date <- as.Date(paste(year, month, day, sep = "-"))
-    }
-    if (length(date_elements) == 1) {
-      date <- as.Date(paste(year, "12", "31", sep = "-"))
-    }
-    
-    date_out <- as.numeric(date-year_start)/as.numeric(year_end-year_start+1)
-    # 1st january may be problematic
-    date_out <- round(1000*date_out, 0)
-    if(nchar(date_out) == 2){
-      date_out <- paste0("0", date_out)
-    }
-    if(nchar(date_out) == 1) {
-      date_out <- paste0("00", date_out)
-    }
-    date_out <- paste0(year, ".", date_out)
-    
-    return(date_out)
-  }
-  out <- unname(sapply(dates, function(x) try(foo(x), silent = TRUE)))
-  out <- as.numeric(out)
-  return(out)
-}
-
-date_middle <- function(dates){
-  foo <- function(x){
-    if(is.na(x)) return(NA)
-    year = suppressWarnings(
-      as.numeric(stringi::stri_sub(x, from = 1, to = 4))
-    )
-    if (is.na(year)) {
-      return(NA)
-    }
-    date_elements <- strsplit(x, split = "-")[[1]]
-    year <- date_elements[1]
-    if (length(date_elements) == 1){
-      date <- paste(year, "06","15", sep = "-")
-    }
-    if (length(date_elements) == 2){
-      month <- date_elements[2]
-      date <- paste(year, month, "15", sep = "-")
-    }
-    if (length(date_elements) == 3){
-      date <- x
-    }
-    return(date)
-  }
-  out <- as.Date(sapply(dates, foo))
-  return(out)
-}
 
 # add new temporal variables
 assemblies$date <- date_middle(assemblies$collection_date)
@@ -218,16 +151,23 @@ assemblies$lower <- date_lower(assemblies$collection_date)
 assemblies$upper <- date_upper(assemblies$collection_date)
 
 # define range for dates which are not known exactly
-index_uncertain <- which(is.na(assemblies$collection_day))
-uncertain_dates <- assemblies[index_uncertain, c("lower", "upper")]
-rownames(uncertain_dates) <- assemblies$assembly[index_uncertain]
+index_uncertain <- which(is.na(assemblies$date))
+if (length(index_uncertain) > 0) {
+  uncertain_dates <- assemblies[index_uncertain, c("lower", "upper")]
+  rownames(uncertain_dates) <- assemblies$assembly[index_uncertain]
+} else {
+  uncertain_dates <- NULL
+}
 
 # drop tips where a range cannot be defined
 index <- which(is.na(uncertain_dates$lower) | is.na(uncertain_dates$upper))
 tips_to_drop <- rownames(uncertain_dates)[index]
 if (length(index) > 0) {
   # drop from tree
-  tree <- ape::drop.tip(tree, tips_to_drop)
+  trees <- lapply(trees, function(tree) {
+    tree <- ape::drop.tip(tree, tips_to_drop)
+    return(tree)
+  })
   # drop from assemblies
   assemblies <- assemblies[-which(assemblies$assembly %in% tips_to_drop), ]
   # drop from uncertain dates
@@ -242,10 +182,14 @@ if (length(index) > 0) {
 }
 
 # rename tips to include dates
-tree$tip.label <- sapply(tree$tip.label, function(x) {
+for (i in 1:length(trees)) {
+  tree <- trees[[i]]
+  tree$tip.label <- sapply(tree$tip.label, function(x) {
   index <- which(assemblies$assembly == x)
   paste(x, assemblies$date[index], sep = "|")
-}, USE.NAMES = FALSE)
+  }, USE.NAMES = FALSE)
+  trees[[i]] <- tree
+}
 
 # rename rownames in uncertain dates to include dates
 row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
@@ -254,60 +198,80 @@ row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
 }, USE.NAMES = FALSE)
 
 # extract dates from tip labels in appropriate format
-sts <- sampleYearsFromLabels(tree$tip.label, delimiter = "|")
+sts <- sampleYearsFromLabels(trees[[1]]$tip.label, delimiter = "|")
 
-# if reroot == TRUE and tree is rooted unroot tree
-if (reroot) {
-  if (ape::is.rooted(tree)) tree <- ape::unroot(tree)
+if (as.logical(args$reroot)) {
+  trees <- lapply(trees, function(tree) {
+    if (ape::is.rooted(tree)) {
+      tree <- ape::unroot(tree)
+    }
+  })
+  return(tree)
 }
 
-# if there are no uncertain dates, replace the object with NULL
-if (nrow(uncertain_dates) == 0) {
-  uncertain_dates <- NULL
+# date trees
+dtr <- list()
+for (i in 1:length(trees)) {
+  dtr[i] <- treedater::dater(
+    trees[[i]],
+    sts,
+    s = alignment_length,
+    estimateSampleTimes = uncertain_dates,
+    clock = 'strict', 
+    ncpu =  args$threads)
 }
 
-# date tree
-dtr <- dater(tree,
-             sts,
-             s = alignment_length,
-             estimateSampleTimes = uncertain_dates,
-             clock = 'strict', 
-             ncpu =  ncpu)
+# link dated trees with rooting methods
+names(dtr) <- names(trees)
 
 # rescale non-dated branch lengths from per site to per genome (more intuitive)
-dtr$intree$edge.length <- dtr$intree$edge.length*alignment_length
-
-# export plots
-try(dev.off(), silent = TRUE)
-try(dev.off(), silent = TRUE)
-
-pdf(file = "treedater_root_to_tip.pdf")
-rootToTipRegressionPlot(dtr)
-dev.off()
-
-try(dev.off(), silent = TRUE)
-try(dev.off(), silent = TRUE)
-
-png(file = "treedater_root_to_tip.png")
-rootToTipRegressionPlot(dtr)
-dev.off()
+dtr <- lapply(dtr, function(tree)) {
+  tree$intree$edge.length <- tree$intree$edge.length * alignment_length
+  return(tree)
+}
 
 # rename internal nodes
-dtr %<>% makeNodeLabel(., method = "number", prefix = "Node_")
+dtr <- lapply(dtr, function(tree)) {
+  tree %<>% makeNodeLabel(., method = "number", prefix = "Node_")
+  return(tree)
+}
 
-dtr_class <- class(dtr)
+# add root method to dated tree objects
+dtr_class <- class(dtr[[1]])
 
-dtr$root_method <- root_method
-class(dtr) <- dtr_class
+for (i in 1:length(dtr)) {
+  dtr[[i]]$root_method <- names(dtr)[i]
+  class(dtr[[i]]) <- dtr_class
+}
 
-saveRDS(dtr, file = paste0("dated_tree_", root_method, ".rds"))
+# export RTT plots
+if (!dir.exists("rtt_plots")) dir.create("rtt_plots")
 
-dtr$tip.label <- unname(sapply(dtr$tip.label, function(x) {
-  strsplit(x, "\\|")[[1]][1]
-}))
+for (i in 1:length(dtr)) {
+  try(dev.off(), silent = TRUE)
+  try(dev.off(), silent = TRUE)
+  pdf(file = paste0("rtt_plots/",names(dtr)[i],".pdf"))
+  rootToTipRegressionPlot(dtr[[i]])
+  dev.off()
+}
 
-ape::write.tree(dtr, file = "treedater_tree_with_time.nwk")
+for (i in 1:length(dtr)) {
+  dtr[[i]]$tip.label <- unname(sapply(dtr[[i]]$tip.label, function(x) {
+    strsplit(x, "\\|")[[1]][1]
+  }))
+}
 
+# export dated trees
+if (!dir.exists("dated_trees")) dir.create("dated_trees")
+
+for (i in 1:length(dtr)) {
+  write.tree(dtr[[i]], file = paste0("dated_trees/",names(dtr)[i],".tre"))
+}
+
+# export dated_trees object as rds
+saveRDS(dtr, file = "dated_trees.rds")
+
+# end logging
 if (!interactive()) {
   # end logging
   sink(con)
