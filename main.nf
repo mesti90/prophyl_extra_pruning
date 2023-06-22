@@ -157,7 +157,7 @@ process choose_dated_tree {
 
     script:
     """
-    Rscript $projectDir/bin/choose_dated_tree.R $dated_trees
+    Rscript $projectDir/bin/choose_dated_tree.R --trees $dated_trees
     """
 }
 
@@ -249,28 +249,27 @@ process date_subset_tree {
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_tree/$root_method"
+    storeDir "$launchDir/results/date_tree"
 
     input:
-    tuple val(root_method), path(rooted_tree), path(snps)
+    tuple path(snps), path(rooted_trees)
 
     output:
-    path "treedater_tree_with_time.nwk"
-    path "dated_tree_${root_method}.rds", emit: dated_tree_rds
-    path "treedater_log.txt"
-    path "treedater_root_to_tip.pdf"
-    path "treedater_root_to_tip.png"
+    path "dated_trees.rds", emit: dated_trees
+    path "rtt_plots/*.pdf"
+    path "dated_trees/*.tre"
+    path "log.txt"
 
     script:
     """
     Rscript $projectDir/bin/date_tree.R \
-    $rooted_tree \
-    $snps \
-    $params.assemblies \
-    ${task.cpus} \
-    snp_per_genome \
-    $params.reroot_tree \
-    $root_method
+    --project_dir $projectDir \
+    --trees $rooted_trees \
+    --snps $snps \
+    --assemblies $params.assemblies \
+    --threads ${task.cpus} \
+    --branch_dimension snp_per_genome \
+    --reroot false
     """
 }
 
@@ -459,98 +458,32 @@ process root_subset_tree {
     """
 }
 
-mad_ch = Channel.of("mad")
-process root_tree_mad {
+process root_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/root_tree_mad"
-
-    input:
-    tuple path(shrinked_snps), path(shrinked_tree)
-    val root_method
-
-    output:
-    tuple val(root_method), path("rooted_tree_mad.tre"), path(shrinked_snps)
-    path("rooted_tree_mad.rds")
-    path("distmat_t.rds")
-    path("distmat_t2.rds")
-    path("log.txt")
-
-    script:
-    """
-    Rscript $projectDir/bin/root_tree_mad.R \
-    $projectDir \
-    $shrinked_tree \
-    $task.cpus
-    """
-}
-
-mp_ch = Channel.of("midpoint")
-process root_tree_mp {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/root_tree_mp"
-
-    input:
-    tuple path(shrinked_snps), path(shrinked_tree)
-    val root_method
-
-    output:
-    tuple val(root_method), path("rooted_tree_mp.tre"), path(shrinked_snps)
-    path("rooted_tree_mp.rds")
-    path("log.txt")
-
-    script:
-    """
-    Rscript $projectDir/bin/root_tree_mp.R $projectDir $shrinked_tree
-    """
-}
-
-process root_tree_rd {
-    container "$root_digger_container"
     storeDir "$launchDir/results/root_tree"
 
     input:
-    tuple path(shrinked_snps), path(shrinked_tree)
+    tuple path(snps), path(shrinked_tree)
 
     output:
-    tuple path(shrinked_snps), \
-          path("rooted_tree.rooted.tree"), \
-          path("rooted_tree.ckp")
+    tuple path(snps), path(rooted_trees), emit: rooted_trees
+    path "rooted_trees/*.tre"
+    path "bad.rds"
+    path "distmat_t.rds"
+    path "distmat_t2.rds"
+    path "rho.rds"
+    path "rtt_metrics.rds"
+    path "rtt_plots.pdf"
+    path "log.txt"
 
     script:
     """
-    rd \
-    --msa $shrinked_snps \
+    Rscript $projectDir/bin/root_tree.R \
+    --project_dir $projectDir \
     --tree $shrinked_tree \
-    --prefix rooted_tree \
-    --threads ${task.cpus} \
-    --seed 0
-    """
-}
-
-process root_tree_rtt {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/root_tree_rtt"
-
-    input:
-    tuple path(shrinked_snps), path(shrinked_tree)
-
-    output:
-    path("rooted_trees/*.tre")
-    path("rooted_trees.rds")
-    path("rtt_metrics.rds")
-    path("rtt_plots.pdf")
-    path("log.txt")
-
-    script:
-    """
-    Rscript $projectDir/bin/root_tree_rtt.R \
-    $projectDir \
-    $shrinked_tree \
-    $params.assemblies \
-    $task.cpus
+    --assemblies $params.assemblies \
+    --threads ${task.cpus}
     """
 }
 
@@ -807,24 +740,12 @@ workflow {
     remove_duplicates.out.chromosomes_nodup | build_tree | shrink_tree //| bootstrap_tree | tidy_bootstrap_tree
 
     // Root shrinked tree using mad, midpoint, rtt
-    root_tree_mad(shrink_tree.out.shrinked_tree, mad_ch)
-    root_tree_mp(shrink_tree.out.shrinked_tree, mp_ch)
-    shrink_tree.out.shrinked_tree | root_tree_rtt
-    
-    // Combine rooted trees
-    rtt_trees_ch = root_tree_rtt.out[0].flatten()
-    rtt_trees_ch = rtt_trees_ch | map { [it.getBaseName().split("_tree_")[1], it] }  
-    rtt_trees_ch = rtt_trees_ch.combine(shrink_tree.out.snps)
-
-    rooted_trees_ch = root_tree_mad.out[0].mix(
-        root_tree_mp.out[0],
-        rtt_trees_ch
-    )
+    shrink_tree.out.shrinked_tree | root_tree
 
     // Date all rooted trees
-    date_tree(rooted_trees_ch)
+    date_tree(root_tree.out.rooted_trees)
 
-    date_tree.out.dated_tree_rds.collect() | choose_dated_tree
+    date_tree.out.dated_trees | choose_dated_tree
 
     // Date shrinked tree with BactDating
     // shrink_snp_cols.out[0] | date_tree_bactdating

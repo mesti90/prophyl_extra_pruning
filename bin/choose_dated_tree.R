@@ -1,6 +1,23 @@
-rm (list = ls())
+library(optparse)
+rm(list = ls())
 
-args <- commandArgs(trailingOnly = TRUE)
+args_list <- list(
+  make_option(
+    c("-t", "--trees"),
+    type = "character",
+    help = "A list of dated trees in rds format."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    trees = "dated_trees.rds"
+  )
+}
 
 # create log file and start logging
 if (!interactive()) {
@@ -8,13 +25,7 @@ if (!interactive()) {
   sink(con, split = TRUE)
 }
 
-tree_paths <- args[1:length(args)]
-
-trees <- list()
-for (i in seq_along(tree_paths)) {
-    trees[[i]] <- readRDS(tree_paths[i])
-}
-names(trees) <- sapply(trees, function(x) x$root_method)
+trees <- readRDS(args$trees)
 
 ll <- sapply(trees, function(x) x$loglik)
 
