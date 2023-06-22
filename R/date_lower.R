@@ -5,17 +5,21 @@
 #' function returns the lower end of the interval.
 #' @param dates character; a full or partial date in "YYYY-MM_DD" like format.
 #' @examples
-#' date_lower("2021-18-11")
+#' date_lower("2021-08-11")
 #' date_lower("1988-03")
 #' date_lower("2000")
+#' date_lower("1900/1948")
+#' date_lower("2003-03/2005-02")
 #' @export
 date_lower <- function(dates) {
-foo <- function(x) {
+  foo <- function(x) {
   if (is.na(x)) return(NA)
   year = suppressWarnings(
     as.numeric(stringi::stri_sub(x, from = 1, to = 4))
   )
   if (is.na(year)) {
+    msg <- paste0("Date conversion failed: '", x, "'. Returning NA.")
+    warning(msg)
     return(NA)
   }
   date_elements <- strsplit(x, split = "-")[[1]]
@@ -44,8 +48,15 @@ foo <- function(x) {
   date_out <- paste0(year, ".", date_out)
 
   return(date_out)
-}
-out <- unname(sapply(dates, function(x) try(foo(x), silent = TRUE)))
+  }
+  
+  bar <- function(x) {
+    candidates <- strsplit(x, split = "/")[[1]]
+    lows <- sapply(candidates, foo)
+    return(min(lows))
+  }
+  
+out <- unname(sapply(dates, function(x) try(bar(x), silent = TRUE)))
 out <- as.numeric(out)
 return(out)
 }
