@@ -72,7 +72,7 @@ if (!interactive()) {
   )
 }
 
-load_all(project_dir)
+load_all(args$project_dir)
 
 if (!interactive()) {
   # create log file and start logging
@@ -82,7 +82,7 @@ if (!interactive()) {
 
 # Input validation
 branch_dimension <- match.arg(
-  branch_dimension,
+  args$branch_dimension,
   choices = c("snp_per_genome", "snp_per_site")
 )
 
@@ -92,12 +92,12 @@ trees <- readRDS(args$trees)
 # consistency checks
 
 # check that all trees have the same number of tips
-ntips <- sapply(rooted_trees, function(x) length(x$tip.label))
+ntips <- sapply(trees, function(x) length(x$tip.label))
 testthat::expect_equal(length(unique(ntips)), 1)
 
 # check that all trees have the same tip labels
-for (i in 1:ntips) {
-  tiplabs <- sapply(rooted_trees, function(x) x$tip.label[i])
+for (i in 1:unique(ntips)) {
+  tiplabs <- sapply(trees, function(x) x$tip.label[i])
   testthat::expect_equal(length(unique(tiplabs)), 1)
 }
 
@@ -118,7 +118,7 @@ if (branch_dimension == "snp_per_genome") {
 assemblies <- read.csv(args$assemblies, sep = "\t", header = TRUE)
 
 # drop tips which cannot be found in assembly table and give a warning
-index <- which(tree[[1]]$tip.label %in% assemblies$assembly == FALSE)
+index <- which(trees[[1]]$tip.label %in% assemblies$assembly == FALSE)
 if (length(index) > 0) {
   tips_to_drop <- trees[[1]]$tip.label[index]
   tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
@@ -191,11 +191,13 @@ for (i in 1:length(trees)) {
   trees[[i]] <- tree
 }
 
-# rename rownames in uncertain dates to include dates
-row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
-  index <- which(assemblies$assembly == x)
-  paste(x, assemblies$date[index], sep = "|")
-}, USE.NAMES = FALSE)
+if (!is.null(uncertain_dates)) {
+  # rename rownames in uncertain dates to include dates
+  row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
+    index <- which(assemblies$assembly == x)
+    paste(x, assemblies$date[index], sep = "|")
+  }, USE.NAMES = FALSE)
+}
 
 # extract dates from tip labels in appropriate format
 sts <- sampleYearsFromLabels(trees[[1]]$tip.label, delimiter = "|")
@@ -212,7 +214,7 @@ if (as.logical(args$reroot)) {
 # date trees
 dtr <- list()
 for (i in 1:length(trees)) {
-  dtr[i] <- treedater::dater(
+  dtr[[i]] <- treedater::dater(
     trees[[i]],
     sts,
     s = alignment_length,
@@ -225,16 +227,16 @@ for (i in 1:length(trees)) {
 names(dtr) <- names(trees)
 
 # rescale non-dated branch lengths from per site to per genome (more intuitive)
-dtr <- lapply(dtr, function(tree)) {
+dtr <- lapply(dtr, function(tree) {
   tree$intree$edge.length <- tree$intree$edge.length * alignment_length
   return(tree)
-}
+})
 
 # rename internal nodes
-dtr <- lapply(dtr, function(tree)) {
+dtr <- lapply(dtr, function(tree) {
   tree %<>% makeNodeLabel(., method = "number", prefix = "Node_")
   return(tree)
-}
+})
 
 # add root method to dated tree objects
 dtr_class <- class(dtr[[1]])

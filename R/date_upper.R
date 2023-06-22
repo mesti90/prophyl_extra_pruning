@@ -5,9 +5,11 @@
 #' function returns the upper end of the interval.
 #' @param dates character; a full or partial date in "YYYY-MM_DD" like format.
 #' @examples
-#' date_upper("2021-18-11")
+#' date_upper("2021-08-11")
 #' date_upper("1988-03")
 #' date_upper("2000")
+#' date_upper("1900/1948")
+#' date_upper("2003-03/2005-02")
 #' @export
 date_upper <- function(dates) {
   foo <- function(x) {
@@ -16,6 +18,8 @@ date_upper <- function(dates) {
     as.numeric(stringi::stri_sub(x, from = 1, to = 4))
     )
     if (is.na(year)) {
+      msg <- paste0("Date conversion failed: '", x, "'. Returning NA.")
+      warning(msg)
       return(NA)
     }
     date_elements <- strsplit(x, split = "-")[[1]]
@@ -55,7 +59,13 @@ date_upper <- function(dates) {
 
     return(date_out)
   }
-  out <- unname(sapply(dates, function(x) try(foo(x), silent = TRUE)))
+  bar <- function(x) {
+    candidates <- strsplit(x, split = "/")[[1]]
+    highs <- sapply(candidates, foo)
+    return(max(highs))
+  }
+  
+  out <- unname(sapply(dates, function(x) try(bar(x), silent = TRUE)))
   out <- as.numeric(out)
   return(out)
 }
