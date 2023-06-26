@@ -12,7 +12,7 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 // meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 // Containers
-gubbins_container = "mesti90/gubbins:2.11"
+gubbins_container = "mesti90/hgttree:2.11"
 hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
