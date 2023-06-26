@@ -80,7 +80,7 @@ process build_tree {
     script:
     """
     run_gubbins.py \
-    --model-fitter raxml \
+    --model-fitter raxmlng \
     --tree-builder fasttree \
     --threads ${task.cpus} \
     --iterations $params.gubbins_iterations\
