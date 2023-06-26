@@ -33,7 +33,7 @@ process bootstrap_tree {
 
     script:
     """
-    iqtree \StaPH-B/docker-builds
+    iqtree \
     -t $shrinked_tree \
     -s $shrinked_snps \
     -nt ${task.cpus} \
