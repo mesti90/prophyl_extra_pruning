@@ -80,6 +80,9 @@ RUN apt-get install -y r-cran-optparse
 # Install Gubbins dependencies - FastTree, IQTree, RAxML
 RUN apt-get install -y fasttree iqtree raxml 
 
+RUN mkdir iqtree2 && ln -s /bin/iqtree2 /iqtree2/iqtree
+ENV PATH="${PATH}:/iqtree2"
+
 # Install Gubbins dependencies - RAxML-NG 
 RUN apt-get install -y bison clang-tidy cmake flex git libgmp3-dev libgtest-dev make mpi-default-dev
 
@@ -87,12 +90,10 @@ RUN git clone --recursive https://github.com/amkozlov/raxml-ng && \
   cd raxml-ng && \
   mkdir build && \
   cd build && \
-  cmake -DUSE_MPI=ON .. && \
-  make -j 8 && \
-  cd .. && \
-  mv bin/raxml-ng-mpi /usr/bin/raxml-ng-mpi  && \
-  cd .. && \
-  rm -rf raxml-ng
+  cmake .. && \
+  make
+
+ENV PATH="${PATH}:/raxml-ng/bin"
 
 # Install Gubbins dependencies - Rapidnj
 RUN git clone https://github.com/somme89/rapidNJ.git && \
@@ -113,5 +114,15 @@ RUN apt-get install -y \
   python3-numpy \
   python3-scipy
 
-# Install Gubbins
-RUN apt-get install gubbins
+# Install Gubbins dependencies
+# autoconf automake build_essential libtool pkg-config zlib1g-dev
+RUN apt-get install -y \
+  autoconf-archive \
+  check \
+  curl \
+  gcc \
+  libmpich-dev \
+  libtool \
+  mpich
+
+RUN git clone https://github.com/nickjcroucher/gubbins && cd gubbins && autoreconf -i && ./configure && make && make install
