@@ -12,12 +12,12 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 // meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 // Containers
-gubbins_container = "mesti90/hgttree:2.11"
+gubbins_container = "stitam/prophyl:0.8"
 hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-prophyl:0.7"
+r_container = "stitam/prophyl:0.8"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
