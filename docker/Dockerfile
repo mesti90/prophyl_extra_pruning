@@ -115,7 +115,6 @@ RUN apt-get install -y \
   python3-scipy
 
 # Install Gubbins dependencies
-# autoconf automake build_essential libtool pkg-config zlib1g-dev
 RUN apt-get install -y \
   autoconf-archive \
   check \
@@ -126,3 +125,6 @@ RUN apt-get install -y \
   mpich
 
 RUN git clone https://github.com/nickjcroucher/gubbins && cd gubbins && autoreconf -i && ./configure && make && make install
+
+ENV OPENBLAS_NUM_THREADS=2
+ENV LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
