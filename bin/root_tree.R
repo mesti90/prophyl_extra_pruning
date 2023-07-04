@@ -60,7 +60,6 @@ if (!interactive()) {
 
 # read tree
 tree <- ape::read.tree(args$tree)
-tree <- ape::keep.tip(tree, tree$tip.label[sample(1:length(tree$tip.label), 25)])
 
 # if tree is rooted, unroot
 if (ape::is.rooted(tree)) {
@@ -103,14 +102,21 @@ tip_dates <- as.numeric(as.Date(tip_dates))
 objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
 objective_rlm_rms <- function(x,y) -summary(MASS::rlm(y ~ x))$sigma^2
 
+# Remove custom objectives for now
+# objective <- list(
+#   "correlation" = NULL,
+#   "rsquared" = NULL,
+#   "rms" = NULL,
+#   "rlm_slope" = objective_rlm_slope,
+#   "rlm_rms" = objective_rlm_rms
+# )
+
 objective <- list(
   "correlation" = NULL,
   "rsquared" = NULL,
-  "rms" = NULL,
-  "rlm_slope" = objective_rlm_slope,
-  "rlm_rms" = objective_rlm_rms
+  "rms" = NULL
 )
-  
+
 # return the top_n trees for each objective
 top_n = 3
 
