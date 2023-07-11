@@ -469,7 +469,7 @@ process root_tree {
     tuple path(snps), path(shrinked_tree)
 
     output:
-    tuple path(snps), path(rooted_trees), emit: rooted_trees
+    tuple path(snps), path("rooted_trees.rds"), emit: rooted_trees
     path "rooted_trees/*.tre"
     path "bad.rds"
     path "distmat_t.rds"
