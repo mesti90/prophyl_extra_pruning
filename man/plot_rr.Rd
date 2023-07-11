@@ -4,10 +4,12 @@
 \alias{plot_rr}
 \title{Plot Relative Risks}
 \usage{
-plot_rr(res)
+plot_rr(res, labels)
 }
 \arguments{
 \item{res}{rrlist; an object of class \code{"rrlist"} containing risk ratios.}
+
+\item{labels}{character; a character vector of x axis labels.}
 }
 \value{
 The function returns a plot.

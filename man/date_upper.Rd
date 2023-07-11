@@ -15,7 +15,9 @@ format is commonly used in phylogenetic dating. If date is incomplete the
 function returns the upper end of the interval.
 }
 \examples{
-date_upper("2021-18-11")
+date_upper("2021-08-11")
 date_upper("1988-03")
 date_upper("2000")
+date_upper("1900/1948")
+date_upper("2003-03/2005-02")
 }
