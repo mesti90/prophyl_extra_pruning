@@ -462,7 +462,7 @@ process root_tree {
     container "$r_container"
     // Binding required because TreeTools wants to use /home
     // TODO eliminate "username"
-    containerOptions "--no-home --bind ${launchDir}/results:/home/${username}"
+    containerOptions "--no-home --bind ${launchDir}/results:/home/$params.username"
     storeDir "$launchDir/results/root_tree"
 
     input:

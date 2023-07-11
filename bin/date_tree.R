@@ -40,7 +40,7 @@ args_list <- list(
     help = "Path to assemblies file."
   ),
   make_option(
-    c("-t", "--threads"),
+    c("-T", "--threads"),
     type = "integer",
     help = "Number of threads to use."
   ),
