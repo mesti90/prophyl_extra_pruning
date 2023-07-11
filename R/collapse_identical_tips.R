@@ -35,6 +35,6 @@ collapse_identical_tips <- function(tree, seed = 0) {
   
   return(list(
     tree = tree,
-    droped_tips = drop_tbl
+    dropped_tips = drop_tbl
   ))
 }

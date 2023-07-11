@@ -50,8 +50,8 @@ root_mad <- function(unrooted_newick,
     warning("Input tree is not binary! Internal multifurcations will be converted to branches of length zero and identical OTUs will be collapsed!")
     t <- ape::multi2di(t)
   }
-  tf <- t$edge.length<0
-  if(any(tf)){
+  tf <- t$edge.length < 0
+  if (any(tf)) {
     warning("Input tree contains negative branch lengths. They will be converted to zeros!")
     t$edge.length[tf]<-0
   }
@@ -59,6 +59,7 @@ root_mad <- function(unrooted_newick,
   #### non-recursive alternative to collapse identical OTUs, if present
   collapsed_tree <- collapse_identical_tips(t)
   t <- collapsed_tree$tree
+  dropped_tips <- collapsed_tree$dropped_tips
   #### End of non-recursive alternative
   
   notu <- length(t$tip.label)
@@ -248,7 +249,7 @@ root_mad <- function(unrooted_newick,
     }
     else if(output_mode=='full'){ #Rooted newick,stats, unrooted tree object, index of the branch root, ancestor deviations, rooted tree object
       root_stats <- data.frame(ambiguity_index=rai,clock_cv=ccv,ancestor_deviation=badr,n_roots=nroots)
-      return(list(rooted_newick,root_stats,t,madr,bad,rt))
+      return(list(rooted_newick,root_stats,t,madr,bad,rt, dropped_tips))
     }
     else{
       return(rooted_newick)

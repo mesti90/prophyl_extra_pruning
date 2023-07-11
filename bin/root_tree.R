@@ -76,13 +76,28 @@ rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
 # OPTION 2: MINIMUM ANCESTOR DEVIATION (MAD)
 
 # root tree
-rooted_trees[["mad"]] <- root_mad(
+mad <- root_mad(
   tree,
   output_mode = "full",
   cache = TRUE,
   threads = args$threads,
   verbose = TRUE
-)[[3]]
+)
+
+# add tips that were collapsed
+
+mad_tree <- mad[[3]]
+collapsed_tips <- mad[[7]]
+
+for (i in 1:nrow(collapsed_tips)) {
+  mad_tree <- TreeTools::AddTip(
+    mad_tree,
+    where = collapsed_tips$keep[i],
+    label = collapsed_tips$drop[i]
+  )
+}
+
+rooted_trees[["mad"]] <- mad_tree
 
 # OPTION 3: ROOT-TO-TIP REGRESSION
 
