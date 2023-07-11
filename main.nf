@@ -79,7 +79,7 @@ process build_tree {
 
     script:
     """
-    run_gubbins.py \
+    nohup run_gubbins.py \
     --model-fitter raxmlng \
     --tree-builder fasttree \
     --threads ${task.cpus} \
