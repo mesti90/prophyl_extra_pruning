@@ -128,3 +128,6 @@ RUN git clone https://github.com/nickjcroucher/gubbins && cd gubbins && autoreco
 
 ENV OPENBLAS_NUM_THREADS=2
 ENV LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
+
+# Install TreeTools
+RUN R -e 'options(warn = 2); install.packages("TreeTools", dependencies = TRUE)'

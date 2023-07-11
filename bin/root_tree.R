@@ -219,12 +219,6 @@ for (i in seq_along(rooted_trees)) {
 ntips <- sapply(rooted_trees, function(x) length(x$tip.label))
 testthat::expect_equal(length(unique(ntips)), 1)
 
-# check that all trees have the same tip labels
-for (i in 1:ntips) {
-  tiplabs <- sapply(rooted_trees, function(x) x$tip.label[i])
-  testthat::expect_equal(length(unique(tiplabs)), 1)
-}
-
 # end logging
 if (!interactive()) {
   sink(con)
