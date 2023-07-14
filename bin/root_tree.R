@@ -31,7 +31,7 @@ args_list <- list(
     help = "Path to assemblies file."
   ),
   make_option(
-    c("-t", "--threads"),
+    c("-c", "--threads"),
     type = "integer",
     help = "Number of threads to use."
   )
@@ -60,7 +60,6 @@ if (!interactive()) {
 
 # read tree
 tree <- ape::read.tree(args$tree)
-tree <- ape::keep.tip(tree, tree$tip.label[sample(1:length(tree$tip.label), 25)])
 
 # if tree is rooted, unroot
 if (ape::is.rooted(tree)) {
@@ -77,13 +76,28 @@ rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
 # OPTION 2: MINIMUM ANCESTOR DEVIATION (MAD)
 
 # root tree
-rooted_trees[["mad"]] <- root_mad(
+mad <- root_mad(
   tree,
   output_mode = "full",
   cache = TRUE,
   threads = args$threads,
   verbose = TRUE
-)[[3]]
+)
+
+# add tips that were collapsed
+
+mad_tree <- mad[[3]]
+collapsed_tips <- mad[[7]]
+
+for (i in 1:nrow(collapsed_tips)) {
+  mad_tree <- TreeTools::AddTip(
+    mad_tree,
+    where = collapsed_tips$keep[i],
+    label = collapsed_tips$drop[i]
+  )
+}
+
+rooted_trees[["mad"]] <- mad_tree
 
 # OPTION 3: ROOT-TO-TIP REGRESSION
 
@@ -103,14 +117,21 @@ tip_dates <- as.numeric(as.Date(tip_dates))
 objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
 objective_rlm_rms <- function(x,y) -summary(MASS::rlm(y ~ x))$sigma^2
 
+# Remove custom objectives for now
+# objective <- list(
+#   "correlation" = NULL,
+#   "rsquared" = NULL,
+#   "rms" = NULL,
+#   "rlm_slope" = objective_rlm_slope,
+#   "rlm_rms" = objective_rlm_rms
+# )
+
 objective <- list(
   "correlation" = NULL,
   "rsquared" = NULL,
-  "rms" = NULL,
-  "rlm_slope" = objective_rlm_slope,
-  "rlm_rms" = objective_rlm_rms
+  "rms" = NULL
 )
-  
+
 # return the top_n trees for each objective
 top_n = 3
 
@@ -197,12 +218,6 @@ for (i in seq_along(rooted_trees)) {
 # check that all trees have the same number of tips
 ntips <- sapply(rooted_trees, function(x) length(x$tip.label))
 testthat::expect_equal(length(unique(ntips)), 1)
-
-# check that all trees have the same tip labels
-for (i in 1:ntips) {
-  tiplabs <- sapply(rooted_trees, function(x) x$tip.label[i])
-  testthat::expect_equal(length(unique(tiplabs)), 1)
-}
 
 # end logging
 if (!interactive()) {

@@ -15,7 +15,9 @@ format is commonly used in phylogenetic dating. If date is incomplete the
 function returns the lower end of the interval.
 }
 \examples{
-date_lower("2021-18-11")
+date_lower("2021-08-11")
 date_lower("1988-03")
 date_lower("2000")
+date_lower("1900/1948")
+date_lower("2003-03/2005-02")
 }

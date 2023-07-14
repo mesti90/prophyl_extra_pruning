@@ -12,12 +12,12 @@ ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
 // meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
 // Containers
-gubbins_container = "mesti90/gubbins:latest"
+gubbins_container = "stitam/prophyl:0.9"
 hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 pastml = "evolbioinfo/pastml"
-r_container = "stitam/r-prophyl:0.7"
+r_container = "stitam/prophyl:0.9"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
@@ -79,8 +79,8 @@ process build_tree {
 
     script:
     """
-    run_gubbins.py \
-    --model-fitter raxml \
+    nohup run_gubbins.py \
+    --model-fitter raxmlng \
     --tree-builder fasttree \
     --threads ${task.cpus} \
     --iterations $params.gubbins_iterations\
@@ -460,14 +460,16 @@ process root_subset_tree {
 
 process root_tree {
     container "$r_container"
-    containerOptions "--no-home"
+    // Binding required because TreeTools wants to use /home
+    // TODO eliminate "username"
+    containerOptions "--no-home --bind ${launchDir}/results:/home/$params.username"
     storeDir "$launchDir/results/root_tree"
 
     input:
     tuple path(snps), path(shrinked_tree)
 
     output:
-    tuple path(snps), path(rooted_trees), emit: rooted_trees
+    tuple path(snps), path("rooted_trees.rds"), emit: rooted_trees
     path "rooted_trees/*.tre"
     path "bad.rds"
     path "distmat_t.rds"

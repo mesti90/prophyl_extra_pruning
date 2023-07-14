@@ -1,4 +1,4 @@
-FROM debian:testing-20230411
+FROM debian:stable-20230612
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -76,3 +76,58 @@ RUN dpkg -i quarto-1.3.336-linux-amd64.deb
 
 # Install optparse
 RUN apt-get install -y r-cran-optparse
+
+# Install Gubbins dependencies - FastTree, IQTree, RAxML
+RUN apt-get install -y fasttree iqtree raxml 
+
+RUN mkdir iqtree2 && ln -s /bin/iqtree2 /iqtree2/iqtree
+ENV PATH="${PATH}:/iqtree2"
+
+# Install Gubbins dependencies - RAxML-NG 
+RUN apt-get install -y bison clang-tidy cmake flex git libgmp3-dev libgtest-dev make mpi-default-dev
+
+RUN git clone --recursive https://github.com/amkozlov/raxml-ng && \
+  cd raxml-ng && \
+  mkdir build && \
+  cd build && \
+  cmake .. && \
+  make
+
+ENV PATH="${PATH}:/raxml-ng/bin"
+
+# Install Gubbins dependencies - Rapidnj
+RUN git clone https://github.com/somme89/rapidNJ.git && \
+  cd rapidNJ && \
+  make -j 8 && \
+  mv bin/rapidnj /usr/bin/rapidnj && \
+  cd .. && \
+  rm -rf rapidNJ
+
+# Install Gubbins dependencies - Python modules
+RUN apt-get install -y python3 python3-dev python3-pip python3-tk python3-yaml
+
+RUN apt-get install -y \
+  python3-biopython \
+  python3-dendropy \
+  python3-multiprocess \
+  python3-numba \
+  python3-numpy \
+  python3-scipy
+
+# Install Gubbins dependencies
+RUN apt-get install -y \
+  autoconf-archive \
+  check \
+  curl \
+  gcc \
+  libmpich-dev \
+  libtool \
+  mpich
+
+RUN git clone https://github.com/nickjcroucher/gubbins && cd gubbins && autoreconf -i && ./configure && make && make install
+
+ENV OPENBLAS_NUM_THREADS=2
+ENV LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
+
+# Install TreeTools
+RUN R -e 'options(warn = 2); install.packages("TreeTools", dependencies = TRUE)'

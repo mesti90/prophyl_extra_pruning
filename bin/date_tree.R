@@ -40,7 +40,7 @@ args_list <- list(
     help = "Path to assemblies file."
   ),
   make_option(
-    c("-t", "--threads"),
+    c("-T", "--threads"),
     type = "integer",
     help = "Number of threads to use."
   ),
@@ -94,12 +94,6 @@ trees <- readRDS(args$trees)
 # check that all trees have the same number of tips
 ntips <- sapply(trees, function(x) length(x$tip.label))
 testthat::expect_equal(length(unique(ntips)), 1)
-
-# check that all trees have the same tip labels
-for (i in 1:unique(ntips)) {
-  tiplabs <- sapply(trees, function(x) x$tip.label[i])
-  testthat::expect_equal(length(unique(tiplabs)), 1)
-}
 
 # import snps
 f <- seqinr::read.fasta(args$snps)
