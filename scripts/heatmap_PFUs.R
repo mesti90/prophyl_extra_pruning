@@ -10,9 +10,9 @@ library(tidyverse)
 
 rm(list=ls())
 
-aci <- read_tsv("aci_in_lab_20230628.tsv")
+aci <- read.csv("aci_in_lab.tsv", sep = "\t")
 
-aci_all <- read_csv("Acinetobacter baumannii strains_Phages_20230802.csv")
+aci_all <- read.csv("Acinetobacter baumannii strains_Phages - Acinetobacter baumannii strains_Phages.tsv", sep = "\t")
 
 # merge without adding space
 aci_all$Strain <- paste(aci_all$Name, aci_all$`Identifier of the strain`, sep="")
@@ -20,7 +20,11 @@ aci_all$Strain <- paste(aci_all$Name, aci_all$`Identifier of the strain`, sep=""
 #Left  join in R:  merge() function takes df1 and df2 as argument along with all.x=TRUE  
 #there by returns all rows from the left table, and any rows with matching keys from the right table.
 
-Aci_comb = merge(x=aci_all,y=aci,by="Strain",all.x=TRUE) 
+Aci_comb= dplyr::left_join(
+  aci_all,
+  aci,
+  by = c("Assembly" = "assembly")
+)
 
 #Aci_comb %>% distinct(country)
 
@@ -38,7 +42,34 @@ Aci_comb <- Aci_comb %>% filter (ST_KL != "NA - NA")
 
 # make the table shorter
 
-ACI  <- Aci_comb %>% select(c(1, 5:21, 31, 33, 85, 86))
+#ACI  <- Aci_comb %>% select(c(1, 5:21, 31, 33, 85, 86))
+
+ACI <- Aci_comb %>% select(
+  "Assembly",
+  "MLST",
+  "KL",
+  "Highwayman",
+  "Silvergun",
+  "Dino",
+  "Fishpie",
+  "Margaret",
+  "Rocket",
+  "KissB",
+  "PhT2_Hun",
+  "Navy4_Hun",
+  "Fanak",
+  "Tama",
+  "Porter",
+  "ABW132",
+  "ABW311",
+  "Konradin_Hun",
+  "country",
+  "city",
+  "strain_city",
+  "ST_KL"
+  
+  
+)
 
 ###### filter for the 5 countries from the region we got samples
 
@@ -59,10 +90,9 @@ ctry3_F <- ctry3 %>% filter (if_all(c(Highwayman,Silvergun,Fanak,PhT2_Hun,Porter
 # I could do it like this for each phage separately
 # filter(! Silvergun %in% c("YES", "Yes", "yes"), ! Highwayman %in% c("YES", "Yes", "yes"))
 
-
-ctry3_F %>% distinct(country) #5
-ctry3_F %>% distinct(ST_KL) #11
-
+# consistency checks
+testthat::expect_equal(ctry3_F %>% distinct(country) %>% nrow(), 5)
+testthat::expect_equal(ctry3_F %>% distinct(ST_KL) %>% nrow(), 11)
 
 ACI_long <- pivot_longer(data = ctry3_F, cols = 4:18, values_to = "value")
 
@@ -157,3 +187,5 @@ plot <- ggplot(ACI_long)+
 
 ggsave("heatmap_phages_PFU_0802.pdf", device = "pdf", dpi = 800, units = "mm", width = 400, height = 120, 
        bg = "transparent")
+
+saveRDS(plot, "heatmap_phages_PFU.rds")
