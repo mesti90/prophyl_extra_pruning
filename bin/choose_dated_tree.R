@@ -27,10 +27,14 @@ if (!interactive()) {
 
 trees <- readRDS(args$trees)
 
-ll <- sapply(trees, function(x) x$loglik)
+# choose tree with highest log likelihood
+# ll <- sapply(trees, function(x) x$loglik)
+# index <- which(ll == max(ll))[1]
+# tree <- trees[[index]]
 
-index <- which(ll == max(ll))[1]
-
+# choose first tree where rooting approach was RTT RMS
+root_method <- sapply(trees, function(x) x$root_method)
+index <- which(root_method == "rtt_rms_1")
 tree <- trees[[index]]
 
 if (grepl("_[0-9]$", tree$root_method)) {
