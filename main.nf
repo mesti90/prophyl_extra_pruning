@@ -21,20 +21,20 @@ r_container = "stitam/prophyl:0.9"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
 
-process add_tips {
-    container "r_container"
-    storeDir "$launchDir/results/add_tips"
+process add_duplicates {
+    container "$r_container"
+    storeDir "$launchDir/results/add_duplicates"
 
     input:
     path tree
     path duplicates
 
     output:
-    path tree
+    path "dated_tree.rds"
 
     script:
     """
-    Rscript $projectDir/bin/add_tips.R \
+    Rscript $projectDir/bin/add_duplicates.R \
     --tree $tree \
     --duplicates $duplicates
     """
@@ -769,7 +769,10 @@ workflow {
     date_tree.out.dated_trees | choose_dated_tree
 
     // Add tips that were removed as duplicates to final dated tree
-    add_tips(choose_dated_tree.out.dated_big_tree, remove_duplicates.out.duplicates)
+    add_duplicates(
+        choose_dated_tree.out.dated_big_tree,
+        remove_duplicates.out.duplicates
+    )
 
     // Date shrinked tree with BactDating
     // shrink_snp_cols.out[0] | date_tree_bactdating
