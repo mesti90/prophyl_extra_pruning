@@ -147,8 +147,8 @@ for (i in seq_along(objective)) {
     objective_fn = objective[[i]]
   )
   names(rtree) <- paste0("rtt_", names(objective)[i], "_", 1:top_n)
-  index_from = (i-1)*top_n + 3
-  index_to = i*top_n + 2
+  index_from = (i-1)*top_n + 2
+  index_to = i*top_n + 1
   rooted_trees[index_from:index_to] <- rtree
   names(rooted_trees)[index_from:index_to] <- names(rtree)
 }
