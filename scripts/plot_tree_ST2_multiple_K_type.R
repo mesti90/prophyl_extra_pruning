@@ -51,18 +51,6 @@ meta$city <- gsub("Győr", "Gyor", meta$city)
 meta$city <- gsub("Targu_mures", "Targu Mures", meta$city)
 meta$city <- gsub("Banja_luka", "Banja Luka", meta$city)
 
-# drop tips which do not have related metadata
-if (all(tree$tip.label %in% meta$assembly) == FALSE) {
-  labels <- tree$tip.label[which(tree$tip.label %in% meta$assembly == FALSE)]
-  msg <- paste(labels, collapse = ", ")
-  warning("One or more tip labels cannot be found in metadata table: ", msg)
-  # drop tips that are not in the table
-  tree <- ape::drop.tip(tree, tip = labels)
-}
-
-# only keep metadata for assemblies that are on the tree
-meta <- meta[which(meta$assembly %in% tree$tip.label),]
-
 # path to the file which contains assemblies that should be highlighted
 labres_path <- "heatmap_phages_PFU.rds"
 labres <- readRDS(labres_path)
@@ -78,6 +66,38 @@ if (length(ST) > 1) {
 }
 
 labres <- labres[which(labres$MLST == ST),]
+
+# Throw a message if tested assemblies are missing from the tree
+
+# missing assemblies
+missing_assemblies <- labres$Assembly[which(
+  labres$Assembly %in% meta$assembly == FALSE
+)]
+
+# print informative message
+if (length(missing_assemblies) > 0) {
+  missing_assemblies_collapsed <- paste(
+    missing_assemblies, collapse = ", "
+  )
+  msg <- paste0(
+    "Some assemlies are missing from the tree: ",
+    missing_assemblies_collapsed, "."
+  )
+  message(msg)
+}
+
+# drop tips which do not have related metadata
+if (all(tree$tip.label %in% meta$assembly) == FALSE) {
+  labels <- tree$tip.label[which(tree$tip.label %in% meta$assembly == FALSE)]
+  msg <- paste(labels, collapse = ", ")
+  warning("One or more tip labels cannot be found in metadata table: ", msg)
+  # drop tips that are not in the table
+  tree <- ape::drop.tip(tree, tip = labels)
+}
+
+# only keep metadata for assemblies that are on the tree
+meta <- meta[which(meta$assembly %in% tree$tip.label),]
+
 k_types <- unique(labres$KL)
 
 # prepare a tree for each K type
@@ -148,6 +168,10 @@ for (k in k_types) {
     city = sort(selected_cities),
     color = selected_cities_colors
   )
+  # for ST492 use
+  # - heatmap_width = 0.75
+  # for all other STs, use
+  # - heatmap_width = 2.5
   g <- plot_tree_fan(
     small_tree_tbl,
     highlight_var = "tested",
