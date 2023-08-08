@@ -490,10 +490,6 @@ process root_tree {
     output:
     tuple path(snps), path("rooted_trees.rds"), emit: rooted_trees
     path "rooted_trees/*.tre"
-    path "bad.rds"
-    path "distmat_t.rds"
-    path "distmat_t2.rds"
-    path "rho.rds"
     path "rtt_metrics.rds"
     path "rtt_plots.pdf"
     path "log.txt"
