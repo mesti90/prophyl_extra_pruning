@@ -93,7 +93,8 @@ for (i in 1:nrow(collapsed_tips)) {
   mad_tree <- TreeTools::AddTip(
     mad_tree,
     where = collapsed_tips$keep[i],
-    label = collapsed_tips$drop[i]
+    label = collapsed_tips$drop[i],
+    edgeLength = 0
   )
 }
 
