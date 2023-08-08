@@ -4,21 +4,22 @@
 # that were included in phage-host laboratory tests.
 #
 # The script takes
-# - a dated phylogenetic tree
-# - a text file which contains a list of assemblies that were removed during
-#   tree building because they were duplicates of other assemblies
-# - a metadata table which contains typing results for aci strains
-# - a file which contains a list of assembly IDs that should be highlighted on
-#   the plot
+# - a dated phylogenetic tree which was created by the Nextflow pipeline and
+#   which includes any duplicates that were removed during tree building
+# - a metadata table which contains typing results and geographical locations
+#   for aci strains
+# - an rds file which contains a heatmap abour phage-host laboratory test
+#   results
 # 
 # It is expected that this script will be run after the Nextflow pipeline which
 # creates the dated phylogenetic trees. The working directory for running this
 # script should be the directory from which the Nextflow pipeline that build the
 # phylogenetic tree was executed.
 #
-# The dated phylogenetic tree and the text file containing removed assemblies
-# will be automatically created by the Nextflow pipeline. The rest of the files
-# must be supplied manually, i.e. they must be present in the working directory.
+# The dated phylogenetic tree will be automatically created by the Nextflow
+# pipeline and will be located in the results/add_duplicates directory. The rest
+# of the files must be supplied manually, i.e. they must be present in the
+# working directory.
 
 rm(list = ls())
 
@@ -29,9 +30,6 @@ library(treeio)
 load_all("~/Methods/prophyl")
 
 # path to the phylogenetic tree
-# note that this points to one of many trees created by the pipeline
-# it was agreed that this is the tree we are going to progress because the 
-# tree looks good and the rooting approach is widely used.
 tree_path <- "./results/add_duplicates/dated_tree.rds"
 tree <- readRDS(tree_path)
 
