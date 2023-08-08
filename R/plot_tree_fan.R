@@ -3,7 +3,7 @@
 #' This function plots a phylogenetic tree using the fan layout and optionally
 #' adds a number of heatmaps.
 #' @param tree_tbl tibble; the phylogenetic tree in tibble format.
-#' @param drop_tip character; a vector of tip labels to exclude from the tree.
+#' @param highlight_var character; a variable name used for highlighting tips.
 #' @param open_angle numeric; open angle for the fan layout.
 #' @param heatmap_var character; a vector or variable names used for creating
 #' heatmaps. If \code{NULL} the plot will not contain any heatmaps.
@@ -19,10 +19,6 @@
 #' By default, all variables are included.
 #' @param legend_box character; arrangement of multiple legends. Can be either
 #' \code{"horizontal"} or \code{"vertical"}.
-#' @param file_name character; export file path. If \code{NULL}, the function
-#' will not export anything but print the tree to the console. Otherwise the
-#' function will interpret the path, create directories if they do not already
-#' exist and export the file. The file extension must be .pdf. 
 #' @param verbose logical; should verbose messages be printed to the console?
 #' @details When one or more heatmaps are added to the plot, it is possible to
 #' define heatmap colors manually, using the \code{heatmap_colors} argument.
@@ -58,7 +54,7 @@
 #' @importFrom qualpalr qualpal
 #' @export
 plot_tree_fan <- function(tree_tbl,
-                          drop_tip = NULL,
+                          highlight_var = NULL,
                           open_angle = 10,
                           heatmap_var = NULL,
                           heatmap_colors = NULL,
@@ -75,13 +71,26 @@ plot_tree_fan <- function(tree_tbl,
   if (!is.null(file_name) && !grepl("\\.pdf$", file_name)) {
     stop("'filename' must be pdf.")
   }
-  tree <-  treeio::as.treedata(tree_tbl)
-  tree <- ape::as.phylo(tree)
-  if (!is.null(drop_tip)) {
-    tree <- ape::drop.tip(tree, tip = drop_tip)
-  }
+  tree_db <-  treeio::as.treedata(tree_tbl)
+  tree <- ape::as.phylo(tree_db)
   options(ignore.negative.edge=TRUE)
-  p <- ggtree(tree, layout = "fan", open.angle = open_angle)
+  if (is.null(highlight_var)) {
+    p <- ggtree(
+      tree_db,
+      layout = "fan",
+      open.angle = open_angle
+    )
+  } else {
+    p <- ggtree(
+      tree_db,
+      aes(color = get(highlight_var)),
+      layout = "fan",
+      open.angle = open_angle
+    ) + 
+    labs(
+      color = highlight_var
+    )
+  }
   if (!is.null(heatmap_var)) {
     idx_x <- which(tree_tbl$label %in% tree$tip.label)
     for (i in 1:length(heatmap_var)) {
@@ -150,31 +159,9 @@ plot_tree_fan <- function(tree_tbl,
         values = hmdf_colors,
         breaks = names(hmdf_colors),
         na.translate = FALSE
-      )+
-      scale_color_manual(
-        name = heatmap_var[i],
-        values = hmdf_colors,
-        breaks = names(hmdf_colors),
-        na.translate = FALSE
       )
     }
   }
   p <- p + theme(legend.box = legend_box)
-  if (!is.null(file_name)) {
-    if (!dir.exists(dirname(file_name))) {
-      dir.create(dirname(file_name), recursive = TRUE)
-    }
-    ggsave(
-      filename = file_name,
-      limitsize = FALSE,
-      width = 32,
-      height = 20,
-      units = "cm"
-    )
-    if (verbose) {
-      message(paste0("Plot exported to ", file_name, "."))
-    }
-  } else {
-    p
-  }
+  p
 }
