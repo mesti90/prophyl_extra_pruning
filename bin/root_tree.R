@@ -73,31 +73,33 @@ rooted_trees <- list()
 # root tree
 rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
 
-# OPTION 2: MINIMUM ANCESTOR DEVIATION (MAD)
+# Note: OPTION 2  is removed until Issue #73 is fixed.
+# # OPTION 2: MINIMUM ANCESTOR DEVIATION (MAD)
 
-# root tree
-mad <- root_mad(
-  tree,
-  output_mode = "full",
-  cache = TRUE,
-  threads = args$threads,
-  verbose = TRUE
-)
+# # root tree
+# mad <- root_mad(
+#   tree,
+#   output_mode = "full",
+#   cache = TRUE,
+#   threads = args$threads,
+#   verbose = TRUE
+# )
 
-# add tips that were collapsed
+# # add tips that were collapsed
 
-mad_tree <- mad[[3]]
-collapsed_tips <- mad[[7]]
+# mad_tree <- mad[[3]]
+# collapsed_tips <- mad[[7]]
 
-for (i in 1:nrow(collapsed_tips)) {
-  mad_tree <- TreeTools::AddTip(
-    mad_tree,
-    where = collapsed_tips$keep[i],
-    label = collapsed_tips$drop[i]
-  )
-}
+# for (i in 1:nrow(collapsed_tips)) {
+#   mad_tree <- TreeTools::AddTip(
+#     mad_tree,
+#     where = collapsed_tips$keep[i],
+#     label = collapsed_tips$drop[i],
+#     edgeLength = 0
+#   )
+# }
 
-rooted_trees[["mad"]] <- mad_tree
+# rooted_trees[["mad"]] <- mad_tree
 
 # OPTION 3: ROOT-TO-TIP REGRESSION
 
@@ -145,8 +147,8 @@ for (i in seq_along(objective)) {
     objective_fn = objective[[i]]
   )
   names(rtree) <- paste0("rtt_", names(objective)[i], "_", 1:top_n)
-  index_from = (i-1)*top_n + 3
-  index_to = i*top_n + 2
+  index_from = (i-1)*top_n + 2
+  index_to = i*top_n + 1
   rooted_trees[index_from:index_to] <- rtree
   names(rooted_trees)[index_from:index_to] <- names(rtree)
 }
