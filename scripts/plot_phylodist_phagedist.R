@@ -1,0 +1,196 @@
+library(dplyr)
+library(ggplot2)
+library(optparse)
+rm(list = ls())
+
+args_list <- list(
+  make_option(
+    c("-t", "--trees"),
+    type = "character",
+    help = "All dated trees collected in a single rds file."
+  ),
+  make_option(
+    c("-s", "--sensitivity"),
+    type = "character",
+    help = "A table of phage-host sensitivity test results."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    trees = "all_dated_trees.rds",
+    sensitivity = "Acinetobacter baumannii strains_Phages - Acinetobacter baumannii strains_Phages.tsv"
+  )
+}
+
+# import trees
+trees <- readRDS(args$trees)
+
+# calculate cophenetic (patristic) distance matrix for each pair of genomes
+patrdist <- lapply(trees, ape::cophenetic.phylo)
+names(patrdist) <- names(trees)
+
+# import sensitivity test results
+phres <- read.csv(args$sensitivity, sep = "\t", na.strings = c("", "NA"))
+
+# only keep strains where sequences are available
+phres <- phres[which(!is.na(phres$Assembly)),]
+
+# only keep strains where tree for the MLST is available
+phres <- phres[which(phres$MLST %in% names(trees)),]
+
+# only keep strains which were tested against all phages
+phres <- phres[complete.cases(phres[,8:ncol(phres)]),]
+
+# only keep strains which are present on a tree
+# only keep strains which are present on a single tree
+remove <- vector()
+for (i in phres$Assembly) {
+  hit <- FALSE
+  for (j in names(trees)) {
+    if (i %in% trees[[j]]$tip.label) {
+      if (hit == FALSE) {
+        hit <- TRUE
+      } else {
+        msg <- paste0(i, " found on multiple trees!")
+        message(msg)
+      }
+    }
+  }
+  if (hit == FALSE) {
+    msg <- paste0(i, " not found!")
+    message(msg)
+    remove <- c(remove, i)
+  }
+}
+
+if (length(remove) > 0) {
+  phres <- phres[-which(phres$Assembly %in% remove),]
+}
+
+# format phres
+for (i in 1:nrow(phres)) {
+  for (j in 8:ncol(phres)) {
+    # Count partial sensitivity to a phage as no sensitivity
+    if (!is.na(phres[i,j]) && phres[i,j] == "1") {
+      phres[i,j] <- "0"
+    }
+    if (!is.na(phres[i,j]) && phres[i,j] %in% c("YES", "Yes")) {
+      phres[i,j] <- "1"
+    }
+    if (!is.na(phres[i,j]) && phres[i,j] == "NO") {
+      phres[i,j] <- "0"
+    }
+  }
+}
+
+for (j in 8:ncol(phres)) {
+  phres[,j] <- as.numeric(phres[,j])
+  phres[,j] <- ifelse(
+    phres[,j] > 1,
+    1,
+    phres[,j]
+  )
+}
+
+# only keep strains which were sensitive to at least one phage
+effective_phage_count <- apply(phres[,8:ncol(phres)], 1, sum)
+phres <- phres[which(effective_phage_count > 0),]
+
+comp <- combn(phres$Assembly, 2) %>% t() %>% as.data.frame()
+names(comp) <- c("A1", "A2")
+comp$A1_mlst <- sapply(comp$A1, function(x) {
+  index <- which(phres$Assembly == x)
+  phres$MLST[index]
+})
+comp$A2_mlst <- sapply(comp$A2, function(x) {
+  index <- which(phres$Assembly == x)
+  phres$MLST[index]
+})
+comp$A1_KL <- sapply(comp$A1, function(x) {
+  index <- which(phres$Assembly == x)
+  phres$KL[index]
+})
+comp$A2_KL <- sapply(comp$A2, function(x) {
+  index <- which(phres$Assembly == x)
+  phres$KL[index]
+})
+# only compare strains which had the same MLST and K type
+comp <- comp[which(comp$A1_mlst == comp$A2_mlst & comp$A1_KL == comp$A2_KL),]
+
+# copy patristic distances from distance matrix
+comp$patristic <- NA
+for (i in 1:nrow(comp)) {
+  ST <- comp$A1_mlst[i]
+  index_x <- which(rownames(patrdist[[ST]]) == comp$A1[i])
+  index_y <- which(colnames(patrdist[[ST]]) == comp$A2[i])
+  comp$patristic[i] <- patrdist[[ST]][index_x, index_y]
+}
+
+# since distance is in years, divide by two to relate to divergence times.
+comp$patristic <- comp$patristic/2
+
+# calculate phage sensitivity distance matrix
+eudist <- as.matrix(vegan::vegdist(phres[8:ncol(phres)], "euclidean", na.rm = TRUE))
+rownames(eudist) <- phres$Assembly
+colnames(eudist) <- phres$Assembly
+
+# copy phage sensitivity distances from distance matrix
+comp$phagedist <- NA
+for (i in 1:nrow(comp)) {
+  index_x <- which(rownames(eudist) == comp$A1[i])
+  index_y <- which(colnames(eudist) == comp$A2[i])
+  comp$phagedist[i] <- eudist[index_x, index_y]
+}
+
+comp$patristic <- signif(comp$patristic, 4)
+comp$phagedist <- signif(comp$phagedist, 4)
+
+write.table(
+  comp,
+  file = "phylodist_phagedist.tsv",
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
+)
+
+set.seed(0)
+comp$patristic <- jitter(comp$patristic)
+comp$phagedist <- jitter(comp$phagedist)
+
+g1 <- ggplot(comp, aes(patristic, phagedist)) + 
+  geom_point(alpha = 0.5) +
+  xlab("Patristic (half) distance (years)") + 
+  ylab("Euclidean distance of phage sensitivity")
+
+ggsave(
+  filename = "phylodist_sensdist_1.pdf",
+  plot = g1,
+  units = "cm",
+  height = 20,
+  width = 20
+)
+
+g2 <- g1 + facet_grid(A1_mlst~.)
+
+ggsave(
+  filename = "phylodist_sensdist_2.pdf",
+  plot = g2,
+  units = "cm",
+  height = 20,
+  width = 20
+)
+
+g3 <- g1 + facet_grid(A1_KL~A1_mlst)
+
+ggsave(
+  filename = "phylodist_sensdist_3.pdf",
+  plot = g3,
+  units = "cm",
+  height = 20,
+  width = 20
+)
