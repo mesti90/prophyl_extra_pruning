@@ -97,10 +97,6 @@ for (j in 8:ncol(phres)) {
   )
 }
 
-# only keep strains which were sensitive to at least one phage
-effective_phage_count <- apply(phres[,8:ncol(phres)], 1, sum)
-phres <- phres[which(effective_phage_count > 0),]
-
 comp <- combn(phres$Assembly, 2) %>% t() %>% as.data.frame()
 names(comp) <- c("A1", "A2")
 comp$A1_mlst <- sapply(comp$A1, function(x) {
@@ -121,6 +117,7 @@ comp$A2_KL <- sapply(comp$A2, function(x) {
 })
 # only compare strains which had the same MLST and K type
 comp <- comp[which(comp$A1_mlst == comp$A2_mlst & comp$A1_KL == comp$A2_KL),]
+# & comp$A1_KL == comp$A2_KL
 
 # copy patristic distances from distance matrix
 comp$patristic <- NA
@@ -158,11 +155,13 @@ write.table(
   quote = FALSE
 )
 
-set.seed(0)
-comp$patristic <- jitter(comp$patristic)
-comp$phagedist <- jitter(comp$phagedist)
+comp_jitter <- comp
 
-g1 <- ggplot(comp, aes(patristic, phagedist)) + 
+set.seed(0)
+comp_jitter$patristic <- jitter(comp$patristic)
+comp_jitter$phagedist <- jitter(comp$phagedist)
+
+g1 <- ggplot(comp_jitter, aes(patristic, phagedist)) + 
   geom_point(alpha = 0.5) +
   xlab("Patristic (half) distance (years)") + 
   ylab("Euclidean distance of phage sensitivity")
@@ -193,4 +192,39 @@ ggsave(
   units = "cm",
   height = 20,
   width = 20
+)
+
+# ANALYSE PAIRS WHICH HAD IDENTICAL PHAGE SENSITIVITY PROFILES
+
+# Assign strains with identical phage sensitivity profiles to the same cluster
+d <- dist(phres[,8:ncol(phres)])
+h <- hclust(d)
+phres$cluster <- cutree(h, h = 0)
+
+# tidy cluster names
+nchar_max <- max(nchar(phres$cluster))
+phres$cluster <- sapply(phres$cluster, function(x) {
+  x <- as.character(x)
+  n <- nchar(x)
+  zeros <- nchar_max - n
+  if(zeros == 0) {
+    out2 <- paste0("cluster_", x)
+  }
+  if (zeros > 0) {
+    out <- strsplit(x, "")[[1]]
+    out2 <- rep(NA, times = nchar_max + 8)
+    out2[1:8] <- c("c","l","u","s","t","e","r","_")
+    out2[9:(9+zeros-1)] <- "0"
+    out2[(9+zeros):length(out2)] <- out
+    out2 <- paste(out2, collapse = "")
+  }
+  return(out2)
+})
+
+write.table(
+  phres,
+  file = "phage_host_resistance_profiles.tsv",
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
 )
