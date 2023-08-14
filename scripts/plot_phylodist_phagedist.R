@@ -132,7 +132,7 @@ for (i in 1:nrow(comp)) {
 comp$patristic <- comp$patristic/2
 
 # calculate phage sensitivity distance matrix
-eudist <- as.matrix(vegan::vegdist(phres[8:ncol(phres)], "euclidean", na.rm = TRUE))
+eudist <- as.matrix(vegan::vegdist(phres[8:ncol(phres)], "euclidean", na.rm = FALSE))
 rownames(eudist) <- phres$Assembly
 colnames(eudist) <- phres$Assembly
 
