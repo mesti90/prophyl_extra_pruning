@@ -101,6 +101,16 @@ for (j in 8:ncol(phres)) {
 # effective_phage_count <- apply(phres[,8:ncol(phres)], 1, sum)
 # phres <- phres[which(effective_phage_count > 0),]
 
+# only keep strains that belong to KL types against which at least one phage
+# was found. e.g. if there was an effective phage against KL3 then keep all KL3
+# strains, regardless of their phage profile.
+
+infection_count <- sapply(unique(phres$KL), function(x) {
+  sum(phres[which(phres$KL == x),8:ncol(phres)])
+})
+kl_to_keep <- names(infection_count)[which(infection_count > 0)]
+phres <- phres[which(phres$KL %in% kl_to_keep),]
+
 comp <- combn(phres$Assembly, 2) %>% t() %>% as.data.frame()
 names(comp) <- c("A1", "A2")
 comp$A1_mlst <- sapply(comp$A1, function(x) {
