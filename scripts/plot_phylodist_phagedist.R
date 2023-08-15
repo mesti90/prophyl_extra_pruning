@@ -97,6 +97,10 @@ for (j in 8:ncol(phres)) {
   )
 }
 
+# only keep strains which were sensitive to at least one phage
+# effective_phage_count <- apply(phres[,8:ncol(phres)], 1, sum)
+# phres <- phres[which(effective_phage_count > 0),]
+
 comp <- combn(phres$Assembly, 2) %>% t() %>% as.data.frame()
 names(comp) <- c("A1", "A2")
 comp$A1_mlst <- sapply(comp$A1, function(x) {
@@ -163,11 +167,11 @@ comp_jitter$phagedist <- jitter(comp$phagedist)
 # define combined serotype to use with facet wrap
 comp_jitter$serotype <- paste0(comp_jitter$A1_mlst, " - ", comp_jitter$A1_KL)
 
-# filter to serotypes with at least 10 comparisons (5 strains)
+# filter to serotypes with at least 15 comparisons (6 strains)
 serotypes <- comp_jitter %>% 
   group_by(serotype) %>% 
   summarise(count = n()) %>% 
-  filter(count >= 10)
+  filter(count >= 15)
 comp_jitter <- comp_jitter[which(comp_jitter$serotype %in% serotypes$serotype),]
 
 # define limits for plotting
@@ -178,7 +182,7 @@ ymax <- max(comp_jitter$phagedist, na.rm = TRUE)
 
 g1 <- ggplot(comp_jitter, aes(patristic, phagedist)) + 
   geom_point(alpha = 0.5) +
-  geom_smooth(method = "loess") +
+  geom_smooth(method = "loess", span = 5) +
   xlim(xmin, xmax) +
   ylim(ymin, ymax) +
   xlab("Time to most recent common ancestor (years)") + 
