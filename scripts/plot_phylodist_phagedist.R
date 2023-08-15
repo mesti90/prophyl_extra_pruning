@@ -117,7 +117,6 @@ comp$A2_KL <- sapply(comp$A2, function(x) {
 })
 # only compare strains which had the same MLST and K type
 comp <- comp[which(comp$A1_mlst == comp$A2_mlst & comp$A1_KL == comp$A2_KL),]
-# & comp$A1_KL == comp$A2_KL
 
 # copy patristic distances from distance matrix
 comp$patristic <- NA
@@ -161,9 +160,28 @@ set.seed(0)
 comp_jitter$patristic <- jitter(comp$patristic)
 comp_jitter$phagedist <- jitter(comp$phagedist)
 
+# define combined serotype to use with facet wrap
+comp_jitter$serotype <- paste0(comp_jitter$A1_mlst, " - ", comp_jitter$A1_KL)
+
+# filter to serotypes with at least 10 comparisons (5 strains)
+serotypes <- comp_jitter %>% 
+  group_by(serotype) %>% 
+  summarise(count = n()) %>% 
+  filter(count >= 10)
+comp_jitter <- comp_jitter[which(comp_jitter$serotype %in% serotypes$serotype),]
+
+# define limits for plotting
+xmin <- min(comp_jitter$patristic, na.rm = TRUE)
+xmax <- max(comp_jitter$patristic, na.rm = TRUE)
+ymin <- min(comp_jitter$phagedist, na.rm = TRUE)
+ymax <- max(comp_jitter$phagedist, na.rm = TRUE)
+
 g1 <- ggplot(comp_jitter, aes(patristic, phagedist)) + 
   geom_point(alpha = 0.5) +
-  xlab("Patristic (half) distance (years)") + 
+  geom_smooth(method = "loess") +
+  xlim(xmin, xmax) +
+  ylim(ymin, ymax) +
+  xlab("Time to most recent common ancestor (years)") + 
   ylab("Euclidean distance of phage sensitivity")
 
 ggsave(
@@ -174,21 +192,11 @@ ggsave(
   width = 20
 )
 
-g2 <- g1 + facet_grid(A1_mlst~.)
+g2 <- g1 + facet_wrap(serotype~.)
 
 ggsave(
   filename = "phylodist_sensdist_2.pdf",
   plot = g2,
-  units = "cm",
-  height = 20,
-  width = 20
-)
-
-g3 <- g1 + facet_grid(A1_KL~A1_mlst)
-
-ggsave(
-  filename = "phylodist_sensdist_3.pdf",
-  plot = g3,
   units = "cm",
   height = 20,
   width = 20
