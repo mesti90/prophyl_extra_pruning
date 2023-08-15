@@ -190,27 +190,18 @@ xmax <- max(comp_jitter$patristic, na.rm = TRUE)
 ymin <- min(comp_jitter$phagedist, na.rm = TRUE)
 ymax <- max(comp_jitter$phagedist, na.rm = TRUE)
 
-g1 <- ggplot(comp_jitter, aes(patristic, phagedist)) + 
+g <- ggplot(comp_jitter, aes(patristic, phagedist)) + 
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", span = 5) +
   xlim(xmin, xmax) +
   ylim(ymin, ymax) +
   xlab("Time to most recent common ancestor (years)") + 
-  ylab("Euclidean distance of phage sensitivity")
+  ylab("Euclidean distance of phage sensitivity") +
+  facet_wrap(serotype~.)
 
 ggsave(
-  filename = "phylodist_sensdist_1.pdf",
-  plot = g1,
-  units = "cm",
-  height = 20,
-  width = 20
-)
-
-g2 <- g1 + facet_wrap(serotype~.)
-
-ggsave(
-  filename = "phylodist_sensdist_2.pdf",
-  plot = g2,
+  filename = "phylodist_phagedist.pdf",
+  plot = g,
   units = "cm",
   height = 20,
   width = 20
