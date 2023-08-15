@@ -131,16 +131,16 @@ for (i in 1:nrow(comp)) {
 comp$patristic <- comp$patristic/2
 
 # calculate phage sensitivity distance matrix
-eudist <- as.matrix(vegan::vegdist(phres[8:ncol(phres)], "euclidean", na.rm = FALSE))
-rownames(eudist) <- phres$Assembly
-colnames(eudist) <- phres$Assembly
+phagedist <- as.matrix(vegan::vegdist(phres[8:ncol(phres)], "jaccard", na.rm = FALSE))
+rownames(phagedist) <- phres$Assembly
+colnames(phagedist) <- phres$Assembly
 
 # copy phage sensitivity distances from distance matrix
 comp$phagedist <- NA
 for (i in 1:nrow(comp)) {
-  index_x <- which(rownames(eudist) == comp$A1[i])
-  index_y <- which(colnames(eudist) == comp$A2[i])
-  comp$phagedist[i] <- eudist[index_x, index_y]
+  index_x <- which(rownames(phagedist) == comp$A1[i])
+  index_y <- which(colnames(phagedist) == comp$A2[i])
+  comp$phagedist[i] <- phagedist[index_x, index_y]
 }
 
 comp$patristic <- signif(comp$patristic, 4)
