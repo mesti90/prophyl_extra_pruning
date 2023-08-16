@@ -98,18 +98,18 @@ for (j in 8:ncol(phres)) {
 }
 
 # only keep strains which were sensitive to at least one phage
-# effective_phage_count <- apply(phres[,8:ncol(phres)], 1, sum)
-# phres <- phres[which(effective_phage_count > 0),]
+effective_phage_count <- apply(phres[,8:ncol(phres)], 1, sum)
+phres <- phres[which(effective_phage_count > 0),]
 
 # only keep strains that belong to KL types against which at least one phage
 # was found. e.g. if there was an effective phage against KL3 then keep all KL3
 # strains, regardless of their phage profile.
 
-infection_count <- sapply(unique(phres$KL), function(x) {
-  sum(phres[which(phres$KL == x),8:ncol(phres)])
-})
-kl_to_keep <- names(infection_count)[which(infection_count > 0)]
-phres <- phres[which(phres$KL %in% kl_to_keep),]
+#infection_count <- sapply(unique(phres$KL), function(x) {
+#  sum(phres[which(phres$KL == x),8:ncol(phres)])
+#})
+#kl_to_keep <- names(infection_count)[which(infection_count > 0)]
+#phres <- phres[which(phres$KL %in% kl_to_keep),]
 
 comp <- combn(phres$Assembly, 2) %>% t() %>% as.data.frame()
 names(comp) <- c("A1", "A2")
@@ -160,6 +160,9 @@ for (i in 1:nrow(comp)) {
 comp$patristic <- signif(comp$patristic, 4)
 comp$phagedist <- signif(comp$phagedist, 4)
 
+# Some phage distances may be NaN depending on the distance metric. Remove these.
+comp <- comp[complete.cases(comp),]
+
 write.table(
   comp,
   file = "phylodist_phagedist.tsv",
@@ -168,21 +171,66 @@ write.table(
   quote = FALSE
 )
 
+# define combined serotype
+phres$serotype <- paste0(phres$MLST, " - ", phres$KL)
+comp$serotype <- paste0(comp$A1_mlst, " - ", comp$A1_KL)
+
+# filter to serotypes with at least 15 comparisons (6 strains)
+serotypes <- comp %>% 
+  group_by(serotype) %>% 
+  summarise(count = n()) %>% 
+  filter(count >= 15)
+comp <- comp[which(comp$serotype %in% serotypes$serotype),]
+
+# PERFORM MANTEL TEST
+mantel <- list()
+for (i in unique(comp$serotype)) {
+  ST <- strsplit(i, " - ")[[1]][1]
+  assembly_sub <- phres$Assembly[which(phres$serotype == i)]
+  # PATRISTIC DISTANCES
+  # select the distance matrix for the ST
+  patrdist_sub <- patrdist[[ST]]
+  # subset the distance matrix to ST-K serotype
+  index_x <- which(rownames(patrdist_sub) %in% assembly_sub)
+  index_y <- which(colnames(patrdist_sub) %in% assembly_sub)
+  patrdist_sub <- patrdist_sub[index_x, index_y]
+  # sort by row and column names
+  patrdist_sub <- patrdist_sub[order(rownames(patrdist_sub)),]
+  patrdist_sub <- patrdist_sub[,order(colnames(patrdist_sub))]
+  # PHAGE DISTANCES
+  index_x <- which(rownames(phagedist) %in% assembly_sub)
+  index_y <- which(colnames(phagedist) %in% assembly_sub)
+  phagedist_sub <- phagedist[index_x, index_y]
+  # sort by row and column names
+  phagedist_sub <- phagedist_sub[order(rownames(phagedist_sub)),]
+  phagedist_sub <- phagedist_sub[,order(colnames(phagedist_sub))]
+  # CONSISTENCY CHECKS
+  testthat::expect_true(all(rownames(patrdist_sub) == colnames(patrdist_sub)))
+  testthat::expect_true(all(rownames(phagedist_sub) == colnames(phagedist_sub)))
+  testthat::expect_true(all(rownames(patrdist_sub) == rownames(phagedist_sub)))
+  testthat::expect_true(all(colnames(patrdist_sub) == colnames(phagedist_sub)))
+  # convert to dist
+  patrdist_sub <- as.dist(patrdist_sub, diag = TRUE)
+  phagedist_sub <- as.dist(phagedist_sub, diag = TRUE)
+  # perform mantel test
+  if (any(is.nan(phagedist_sub))) next()
+  mantel[[i]] <- vegan::mantel(patrdist_sub, phagedist_sub, method = "spearman")
+}
+comp$mantel_spearman <- sapply(comp$serotype, function(x) {
+  if (x %in% names(mantel)) {
+    mantel[[x]]$signif
+  } else {
+    return(NA)
+  }
+})
+
+# Prepare Plot
+
 comp_jitter <- comp
 
 set.seed(0)
 comp_jitter$patristic <- jitter(comp$patristic)
 comp_jitter$phagedist <- jitter(comp$phagedist)
-
-# define combined serotype to use with facet wrap
-comp_jitter$serotype <- paste0(comp_jitter$A1_mlst, " - ", comp_jitter$A1_KL)
-
-# filter to serotypes with at least 15 comparisons (6 strains)
-serotypes <- comp_jitter %>% 
-  group_by(serotype) %>% 
-  summarise(count = n()) %>% 
-  filter(count >= 15)
-comp_jitter <- comp_jitter[which(comp_jitter$serotype %in% serotypes$serotype),]
 
 # define limits for plotting
 xmin <- min(comp_jitter$patristic, na.rm = TRUE)
@@ -198,6 +246,24 @@ g <- ggplot(comp_jitter, aes(patristic, phagedist)) +
   xlab("Time to most recent common ancestor (years)") + 
   ylab("Jaccard distance of phage sensitivity") +
   facet_wrap(serotype~.)
+
+# add mantel test p values
+mantel_df <- data.frame(
+  patristic = 22,
+  phagedist = 0.1,
+  serotype = unique(comp$serotype)
+)
+mantel_df$mantel_spearman <- sapply(mantel_df$serotype, function(x) {
+  paste0(
+    "Mantel test significance: \n",
+    if (x %in% names(mantel)) {
+      mantel[[x]]$signif
+    } else {
+      return(NA)
+    }
+  )})
+
+g <- g + geom_text(data = mantel_df, aes(label = mantel_spearman))
 
 ggsave(
   filename = "phylodist_phagedist.pdf",
