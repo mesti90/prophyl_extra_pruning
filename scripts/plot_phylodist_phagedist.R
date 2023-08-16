@@ -196,7 +196,7 @@ g <- ggplot(comp_jitter, aes(patristic, phagedist)) +
   xlim(xmin, xmax) +
   ylim(ymin, ymax) +
   xlab("Time to most recent common ancestor (years)") + 
-  ylab("Euclidean distance of phage sensitivity") +
+  ylab("Jaccard distance of phage sensitivity") +
   facet_wrap(serotype~.)
 
 ggsave(
