@@ -244,7 +244,7 @@ g <- ggplot(comp_jitter, aes(patristic, phagedist)) +
   xlim(xmin, xmax) +
   ylim(ymin, ymax) +
   xlab("Time to most recent common ancestor (years)") + 
-  ylab("Jaccard distance of phage sensitivity") +
+  ylab("Dissimilarity of phage susceptibility profiles (Jaccard distance)") +
   facet_wrap(serotype~.)
 
 # add mantel test p values
