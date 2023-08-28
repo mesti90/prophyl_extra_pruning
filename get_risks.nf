@@ -2,13 +2,34 @@
 
 nextflow.enable.dsl=2
 
-// Containers
+// CONTAINERS
 fasttree_container = "staphb/fasttree:latest"
 r_container = "stitam/r-prophyl:0.6"
 
-// Parameters
+// PARAMETERS
+
+// Input files
 params.tree = "${launchDir}/results/shrink_snp_cols/treeshrink.tre"
 params.snps = "${launchDir}/results/shrink_snp_cols/shrinked_snp_cols.fasta"
+
+// Number and size of subsampled trees
+params.subsample_count = 25
+params.subsample_tipcount = 500
+
+// Number of trees to simulate from each subsampled tree
+// Simulated trees will have the same topology but different branch lengths
+// Branch lengths will be simulated based on tree dating results
+params.simtrees = 1
+
+// Number of bootstrap events to perform on each tree
+// Used for calculating relative risks
+params.nboot_on_simtree = 1
+
+// Variable in the assembly table to focus risk analysis on
+params.focus_by = "continent"
+
+// Value of the variable chosen above to focus on
+params.focus_on = "europe"
 
 // Processes 
 
