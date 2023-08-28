@@ -9,8 +9,9 @@ r_container = "stitam/r-prophyl:0.6"
 // PARAMETERS
 
 // Input files
-params.tree = "${launchDir}/results/shrink_snp_cols/treeshrink.tre"
-params.snps = "${launchDir}/results/shrink_snp_cols/shrinked_snp_cols.fasta"
+params.assemblies = "${launchDir}/assemblies.tsv"
+params.tree = "${launchDir}/results/shrink_tree/treeshrink.tre"
+params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
 
 // Number and size of subsampled trees
 params.subsample_count = 25
@@ -73,25 +74,6 @@ process calculate_distances {
     $simtree_paths \
     $params.focus_by \
     $params.focus_on
-    """
-}
-
-process collapse_outbreaks {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/collapse_outbreaks"
-
-    input:
-    path assemblies
-
-    output:
-    path "assemblies_collapsed_outbreaks.rds"
-
-    script:
-    """
-    Rscript $projectDir/bin/collapse_outbreaks.R \
-    $assemblies \
-    geo_date
     """
 }
 
@@ -243,8 +225,8 @@ process validate_input {
 
 workflow {
     validate_input() 
-    // collapse outbreaks prepare random subsamples from assemblies
-    validate_input.out | collapse_outbreaks | subsample_input
+    // prepare random subsamples from assemblies
+    validate_input.out | subsample_input
     // create a channel from random subsamples
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
     // build subset trees, date subset trees, simulate new trees using the dated trees
