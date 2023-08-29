@@ -227,10 +227,10 @@ process subsample_input {
     script:
     """
     Rscript $projectDir/bin/subsample_input.R \
-    $assemblies \
-    $params.tree \
-    $params.subsample_count \
-    $params.subsample_tipcount
+    --assemblies $assemblies \
+    --tree $params.tree \
+    --subsample_count $params.subsample_count \
+    --subsample_tipcount $params.subsample_tipcount
     """
 }
 

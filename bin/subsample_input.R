@@ -3,30 +3,53 @@
 # subset tree. Each subset tree will be used to calculate a number of data
 # points for the relative risk plots.
 
+library(optparse)
 rm(list=ls())
 
+args_list <- list(
+  make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "Path to assemblies file."
+  ),
+  make_option(
+    c("-t", "--tree"),
+    type = "character",
+    help = "A dated tree in rds format."
+  ),
+  make_option(
+    c("-c", "--subsample_count"),
+    type = "character",
+    help = "Number of subsample sets to draw."
+  ),
+  make_option(
+    c("-C", "--subsample_tipcount"),
+    type = "character",
+    help = "Number of tips to draw in each subsample set."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
 if (!interactive()) {
-  args <- commandArgs(trailingOnly = TRUE)
-  assemblies_path <- args[1]
-  tree_path <- args[2]
-  # number of subsampled trees 
-  subsample_count <- as.numeric(args[3])
-  # number of tips to include in each subsampled tree
-  subsample_tipcount <- as.numeric(args[4])
+  args  <- parse_args(args_parser)
 } else {
-  test_dir <- "~/Methods/prophyl-tests/test-subsample_input"
-  assemblies_path <- paste0(
-    test_dir, "/results/collapse_outbreaks/assemblies_collapsed_outbreaks.rds")
-  tree_path <- paste0(
-    test_dir, "/results/shrink_tree/treeshrink.tre")
-  subsample_count = 10
-  subsample_tipcount = 10
+  args <- list(
+    assemblies = "assemblies.tsv",
+    tree = "dated_tree.rds",
+    subsample_count = 10,
+    subsample_tipcount = 10
+  )
 }
 
 # read assemblies
-assemblies <- read.csv(assemblies_path, sep = "\t")
+assemblies <- read.csv(args$assemblies, sep = "\t")
 # read tree
-tree <- ape::read.tree(tree_path)
+tree <- ape::read.tree(args$tree)
+# number of subsample sets to draw
+subsample_count <- as.numeric(args$subsample_count)
+# number of tips to draw in each subsample set
+subsample_tipcount <- as.numeric(args$subsample_tipcount)
 
 # The shrinked tree may contain less tips than the original tree
 # Only sample assemblies that are included in the shrinked tree
