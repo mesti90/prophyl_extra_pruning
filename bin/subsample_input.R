@@ -45,7 +45,7 @@ if (!interactive()) {
 # read assemblies
 assemblies <- read.csv(args$assemblies, sep = "\t")
 # read tree
-tree <- ape::read.tree(args$tree)
+tree <- readRDS(args$tree)
 # number of subsample sets to draw
 subsample_count <- as.numeric(args$subsample_count)
 # number of tips to draw in each subsample set

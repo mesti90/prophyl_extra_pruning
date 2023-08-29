@@ -10,9 +10,8 @@ r_container = "stitam/prophyl:0.10"
 
 // Input files
 params.assemblies = "${launchDir}/assemblies.tsv"
-params.tree = "${launchDir}/results/shrink_tree/treeshrink.tre"
+params.tree = "${launchDir}/results/add_duplicates/dated_tree.rds"
 params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
-params.dated_tree = "${launchDir}/results/choose_dated_tree/final_dated_tree.rds"
 
 // Number and size of subsampled trees
 params.subsample_count = 25
@@ -145,7 +144,7 @@ process date_subset_tree {
     --snps $subset_snps \
     --assemblies $params.assemblies \
     --threads ${task.cpus} \
-    --branch_dimension snp_per_genome \
+    --branch_dimension snp_per_site \
     --reroot false
     """
 }
@@ -184,7 +183,7 @@ process root_subset_tree {
     Rscript $projectDir/bin/root_subset_tree.R \
     --project_dir $projectDir \
     --assemblies $params.assemblies \
-    --dated_tree $params.dated_tree \
+    --dated_tree $params.tree \
     --subset_tree $subset_tree \
     --threads ${task.cpus}
     """
@@ -288,5 +287,5 @@ workflow {
         name: "simtree_paths.txt",
         storeDir: "$launchDir/results/"
     )
-    simtree_paths | calculate_distances | calculate_relative_risks
+    // simtree_paths | calculate_distances | calculate_relative_risks
 }
