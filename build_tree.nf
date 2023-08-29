@@ -7,7 +7,7 @@ gubbins_container = "stitam/prophyl:0.9"
 hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
-r_container = "stitam/prophyl:0.9"
+r_container = "stitam/prophyl:0.10"
 snippy_container = "staphb/snippy"
 
 // Parameters

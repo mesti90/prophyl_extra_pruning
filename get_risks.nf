@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 // CONTAINERS
 fasttree_container = "staphb/fasttree:latest"
-r_container = "stitam/r-prophyl:0.6"
+r_container = "stitam/prophyl:0.10"
 
 // PARAMETERS
 
@@ -12,6 +12,7 @@ r_container = "stitam/r-prophyl:0.6"
 params.assemblies = "${launchDir}/assemblies.tsv"
 params.tree = "${launchDir}/results/shrink_tree/treeshrink.tre"
 params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
+params.dated_tree = "${launchDir}/results/choose_dated_tree/final_dated_tree.rds"
 
 // Number and size of subsampled trees
 params.subsample_count = 25
@@ -104,28 +105,50 @@ process calculate_relative_risks {
     """
 }
 
-process date_subset_tree {
+process choose_dated_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_subset_tree"
+    storeDir "$launchDir/results/choose_dated_subset_tree/${subset_id}"
 
     input:
-    tuple val(subset_id), path(subset_snps), path(subset_tree)
+    tuple val(subset_id), path(dated_trees)
 
     output:
-    tuple val(subset_id),
-          path("${subset_id}/dated_tree.rds"), \
-          path("${subset_id}/treedater_log.txt"), \
-          path("${subset_id}/treedater_root_to_tip.pdf"), \
-          path("${subset_id}/treedater_root_to_tip.png"), \
-          path("${subset_id}/treedater_tree_with_time.nwk") 
+    tuple val(subset_id), path("final_dated_tree.rds"), emit: dated_tree
+    path "log.txt"
 
     script:
     """
-    Rscript $projectDir/bin/date_subset_tree.R $subset_id $subset_tree $subset_snps $params.assemblies ${task.cpus}
+    Rscript $projectDir/bin/choose_dated_tree.R --trees $dated_trees
     """
 }
 
+process date_subset_tree {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/date_subset_tree/${subset_id}"
+
+    input:
+    tuple val(subset_id), path(subset_snps), path(subset_trees)
+
+    output:
+    tuple val(subset_id), path("dated_trees.rds"), emit: dated_trees
+    path "rtt_plots/*.pdf"
+    path "dated_trees/*.tre"
+    path "log.txt"
+
+    script:
+    """
+    Rscript $projectDir/bin/date_tree.R \
+    --project_dir $projectDir \
+    --trees $subset_trees \
+    --snps $subset_snps \
+    --assemblies $params.assemblies \
+    --threads ${task.cpus} \
+    --branch_dimension snp_per_genome \
+    --reroot false
+    """
+}
 
 process filter_snps {
     //TODO create container from scratch
@@ -144,13 +167,36 @@ process filter_snps {
     """
 }
 
+process root_subset_tree {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/root_subset_tree"
+
+    input:
+    tuple val(subset_id), path(subset_snps), path(subset_tree)
+
+    output:
+    tuple val(subset_id), path(subset_snps), path("rooted_trees_${subset_id}.rds"), emit: rooted_trees
+    path "log.txt"
+
+    script:
+    """
+    Rscript $projectDir/bin/root_subset_tree.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --dated_tree $params.dated_tree \
+    --subset_tree $subset_tree \
+    --threads ${task.cpus}
+    """
+}
+
 process simulate_subset_trees {
     container "$r_container"
     containerOptions "--no-home"
     storeDir "$launchDir/results/simulate_subset_trees"
 
     input:
-    tuple val(subset_id), path(subset_tree_rds), path(B), path(C), path(D), path(E)
+    tuple val(subset_id), path(subset_tree_rds)
 
     output:
     path "${subset_id}.txt"
@@ -224,13 +270,19 @@ process validate_input {
 // Workflow
 
 workflow {
-    validate_input() 
+    validate_input()
     // prepare random subsamples from assemblies
     validate_input.out | subsample_input
     // create a channel from random subsamples
     subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
-    // build subset trees, date subset trees, simulate new trees using the dated trees
-    subsample_ch | subset_snps | filter_snps | build_subset_tree | date_subset_tree | simulate_subset_trees
+    // build subset trees, root them
+    subsample_ch | subset_snps | filter_snps | build_subset_tree | root_subset_tree 
+    // date rooted subset trees
+    root_subset_tree.out.rooted_trees | date_subset_tree
+    // choose a single dated tree for each subset
+    date_subset_tree.out.dated_trees | choose_dated_subset_tree
+    // simulate trees from each subset tree
+    choose_dated_subset_tree.out.dated_tree |simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",

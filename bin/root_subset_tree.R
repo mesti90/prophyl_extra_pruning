@@ -49,7 +49,7 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    project_dir = "~/Methods/prophyl",
+    project_dir = "~/Methods/aci/prophyl",
     assemblies = "assemblies.tsv",
     dated_tree = "final_dated_tree.rds",
     subset_tree = "subsample_004.nwk",
@@ -59,6 +59,12 @@ if (!interactive()) {
 
 # load custom functions from the project directory
 load_all(args$project_dir)
+
+# create log file and start logging
+if (!interactive()) {
+  con <- file("log.txt")
+  sink(con, split = TRUE)
+}
 
 # read big tree
 big_tree <- readRDS(args$dated_tree)
@@ -134,9 +140,12 @@ root_tree <- function(tree, root_method, tip_dates) {
 }
 
 rooted_tree <- root_tree(tree, root_method, tip_dates = tip_dates)
+names(rooted_tree) <- paste0(root_method, "_", 1:5)
+
+subset_id <- strsplit(basename(args$subset_tree), "\\.")[[1]][1]
 
 # export rooted tree object
-saveRDS(rooted_tree, file = "rooted_subset_tree.rds")
+saveRDS(rooted_tree, file = paste0("rooted_trees_", subset_id, ".rds"))
 
 # end logging
 if (!interactive()) {
