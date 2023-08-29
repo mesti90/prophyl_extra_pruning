@@ -35,6 +35,25 @@ params.focus_on = "europe"
 
 // Processes 
 
+process add_subset_duplicates {
+    container "$r_container"
+    storeDir "$launchDir/results/add_subset_duplicates/${subset_id}"
+
+    input:
+    tuple val(subset_id), path(dated_tree), path(duplicates)
+
+    output:
+    tuple val(subset_id), path("dated_tree.rds")
+
+    script:
+    """
+    Rscript $projectDir/bin/add_duplicates.R \
+    --project_dir $projectDir \
+    --tree $dated_tree \
+    --duplicates $duplicates
+    """
+}
+
 process build_subset_tree {
     container "$fasttree_container"
     storeDir "$launchDir/results/build_subset_tree"
@@ -287,7 +306,7 @@ workflow {
     // choose a single dated tree for each subset
     date_subset_tree.out.dated_trees | choose_dated_subset_tree
     // simulate trees from each subset tree
-    choose_dated_subset_tree.out.dated_tree |simulate_subset_trees
+    choose_dated_subset_tree.out.dated_tree |add_subset_duplicates | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",
