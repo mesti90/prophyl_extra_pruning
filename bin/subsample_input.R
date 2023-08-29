@@ -8,6 +8,11 @@ rm(list=ls())
 
 args_list <- list(
   make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
+  ),
+  make_option(
     c("-a", "--assemblies"),
     type = "character",
     help = "Path to assemblies file."
@@ -16,6 +21,11 @@ args_list <- list(
     c("-t", "--tree"),
     type = "character",
     help = "A dated tree in rds format."
+  ),
+  make_option(
+    c("-d", "--duplicates"),
+    type = "character",
+    help = "A text file which contains tip labels for identical tips."
   ),
   make_option(
     c("-c", "--subsample_count"),
@@ -35,17 +45,24 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
+    project_dir = "~/Methods/prophyl",
     assemblies = "assemblies.tsv",
     tree = "dated_tree.rds",
+    duplicates = "duplicates.txt",
     subsample_count = 10,
     subsample_tipcount = 10
   )
 }
 
+library(devtools)
+load_all(args$project_dir)
+
 # read assemblies
 assemblies <- read.csv(args$assemblies, sep = "\t")
 # read tree
 tree <- readRDS(args$tree)
+# import duplicates
+duplicates <- parse_duplicates(args$duplicates)
 # number of subsample sets to draw
 subsample_count <- as.numeric(args$subsample_count)
 # number of tips to draw in each subsample set
@@ -81,13 +98,24 @@ if (type == "random") {
   for (i in 1:subsample_count) {
     zeroes <- digits - floor(log10(i))
     filename = paste0(c("subsample_", rep(0, times = zeroes), i, ".tsv"), collapse = "")
+    dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
+    # remove any duplicate tips before exporting
+    # these will be added back after tree building
+    subset <- assemblies[sample(1:nrow(assemblies), subsample_tipcount, replace = FALSE), ]
+    # manage duplicates
+    tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
+    subset <- tidydbs$subset
+    duplist <- tidydbs$duplist
+    # export subset
     write.table(
-      assemblies[sample(1:nrow(assemblies), subsample_tipcount, replace = FALSE), ],
+      subset,
       file = filename,
       sep = "\t",
       row.names = FALSE,
       quote = FALSE
     )
+    # export duplicates
+    saveRDS(duplist, dupfile)
   }
 }
 
@@ -135,13 +163,24 @@ if (type == "balanced") {
       }
       zeroes <- digits - floor(log10(h))
       filename = paste0(c("subsample_", rep(0, times = zeroes), h, ".tsv"), collapse = "")
+      dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
+      # remove any duplicate tips before exporting
+      # these will be added back after tree building
+      subset <- assemblies[index, ]
+      # manage duplicates
+      tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
+      subset <- tidydbs$subset
+      duplist <- tidydbs$duplist
+       # export subset
       write.table(
-        assemblies[index, ],
+        subset,
         file = filename,
         sep = "\t",
         row.names = FALSE,
         quote = FALSE
       )
+      # export duplicates
+      saveRDS(duplist, dupfile)
     }
   }
 }
@@ -158,6 +197,7 @@ if (type == "focused") {
     zeroes <- digits - floor(log10(i))
     filename = paste0(
       c("subsample_", rep(0, times = zeroes), i, ".tsv"), collapse = "")
+    dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
     focus_index <- which(assemblies[[focus_by]] == focus_on)
     if (length(focus_index) >= focus_count) {
       focus <- sample(
@@ -179,12 +219,41 @@ if (type == "focused") {
     } else {
       stop("Not enough assemblies in non-focus group to subsample")
     }
+    
+    # remove any duplicate tips before exporting
+    # these will be added back after tree building
+    subset <- assemblies[c(focus, no_focus), ]
+    # manage duplicates
+    tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
+    subset <- tidydbs$subset
+    duplist <- tidydbs$duplist
+    # export subset
     write.table(
-      assemblies[c(focus, no_focus), ],
+      subset,
       file = filename,
       sep = "\t",
       row.names = FALSE,
       quote = FALSE
     )
+    # export duplicates
+    saveRDS(duplist, dupfile)
   }
 }
+
+# consistency checks
+
+# subset has correct number of rows
+if (length(duplist) == 0) {
+  testthat::expect_true(nrow(subset) == subsample_tipcount)
+} else {
+  ndups <- length(unlist(duplist))-length(duplist)
+  testthat::expect_true(nrow(subset) == subsample_tipcount - ndups)
+}
+
+# all assemblies have been replaced with reference assemblies where necessary
+# this is relevant when there are duplicates in the assembly data set
+if (length(duplicates) > 0) {
+  dupnames <- unname(unlist(sapply(duplicates, function(x) x[-1])))
+  testthat::expect_false(any(subset$assembly %in% dupnames))
+}
+
