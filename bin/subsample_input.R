@@ -24,7 +24,7 @@ if (!interactive()) {
 }
 
 # read assemblies
-assemblies <- readRDS(assemblies_path)
+assemblies <- read.csv(assemblies_path, sep = "\t")
 # read tree
 tree <- ape::read.tree(tree_path)
 
@@ -37,7 +37,7 @@ if (length(index) > 0) {
 
 # sampling strategy
 # can be either "random", "balanced" or "focused".
-type <- "focused"
+type <- "random"
 # a variable within the input table used for balancing.
 # only used if the sampling strategy is "balanced"
 balance_by <- NULL
