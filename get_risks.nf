@@ -97,38 +97,6 @@ process calculate_distances {
     """
 }
 
-process calculate_relative_risks {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/calculate_relative_risks"
-
-    input:
-    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
-
-    output:
-    path "counts.rds"
-    path "relative_risks_type1.rds"
-    path "relative_risks_type1.pdf"
-    path "relative_risks_type1.png"
-    path "relative_risks_type2.rds"
-    path "relative_risks_type2.pdf"
-    path "relative_risks_type2.png"
-
-    script:
-    """
-    Rscript $projectDir/bin/calculate_relative_risks.R \
-    --project_dir $projectDir \
-    --assemblies $params.assemblies \
-    --colldist $colldist \
-    --same_country $same_country \
-    --neighbors $neighbors \
-    --same_continent $same_continent \
-    --geodist $geodist \
-    --phylodist $phylodist_list \
-    --nboot $params.nboot_on_simtree
-    """
-}
-
 process choose_dated_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
@@ -211,6 +179,54 @@ process root_subset_tree {
     --dated_tree $params.tree \
     --subset_tree $subset_tree \
     --threads ${task.cpus}
+    """
+}
+
+process rr_calc_counts {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/rr_calc_counts"
+
+    input:
+    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
+
+    output:
+    path "countlist.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/rr_calc_counts.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --colldist $colldist \
+    --same_country $same_country \
+    --neighbors $neighbors \
+    --same_continent $same_continent \
+    --geodist $geodist \
+    --phylodist $phylodist_list \
+    --nboot $params.nboot_on_simtree
+    """
+}
+
+process rr_plot_risks {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/rr_plot_risks"
+
+    input:
+    path countlist
+
+    output:
+    path "relative_risks_type1.rds"
+    path "relative_risks_type1.pdf"
+    path "relative_risks_type1.png"
+    path "relative_risks_type2.rds"
+    path "relative_risks_type2.pdf"
+    path "relative_risks_type2.png"
+
+    script:
+    """
+    Rscript $projectDir/bin/rr_plot_risks.R --countlist $countlist
     """
 }
 
@@ -317,5 +333,5 @@ workflow {
         name: "simtree_paths.txt",
         storeDir: "$launchDir/results/"
     )
-    simtree_paths | calculate_distances | calculate_relative_risks
+    simtree_paths | calculate_distances | rr_calc_counts | rr_plot_risks
 }
