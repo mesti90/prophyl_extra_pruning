@@ -3,30 +3,70 @@
 # subset tree. Each subset tree will be used to calculate a number of data
 # points for the relative risk plots.
 
+library(optparse)
 rm(list=ls())
 
+args_list <- list(
+  make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
+  ),
+  make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "Path to assemblies file."
+  ),
+  make_option(
+    c("-t", "--tree"),
+    type = "character",
+    help = "A dated tree in rds format."
+  ),
+  make_option(
+    c("-d", "--duplicates"),
+    type = "character",
+    help = "A text file which contains tip labels for identical tips."
+  ),
+  make_option(
+    c("-c", "--subsample_count"),
+    type = "character",
+    help = "Number of subsample sets to draw."
+  ),
+  make_option(
+    c("-C", "--subsample_tipcount"),
+    type = "character",
+    help = "Number of tips to draw in each subsample set."
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+
 if (!interactive()) {
-  args <- commandArgs(trailingOnly = TRUE)
-  assemblies_path <- args[1]
-  tree_path <- args[2]
-  # number of subsampled trees 
-  subsample_count <- as.numeric(args[3])
-  # number of tips to include in each subsampled tree
-  subsample_tipcount <- as.numeric(args[4])
+  args  <- parse_args(args_parser)
 } else {
-  test_dir <- "~/Methods/prophyl-tests/test-subsample_input"
-  assemblies_path <- paste0(
-    test_dir, "/results/collapse_outbreaks/assemblies_collapsed_outbreaks.rds")
-  tree_path <- paste0(
-    test_dir, "/results/shrink_tree/treeshrink.tre")
-  subsample_count = 10
-  subsample_tipcount = 10
+  args <- list(
+    project_dir = "~/Methods/prophyl",
+    assemblies = "assemblies.tsv",
+    tree = "dated_tree.rds",
+    duplicates = "duplicates.txt",
+    subsample_count = 10,
+    subsample_tipcount = 10
+  )
 }
 
+library(devtools)
+load_all(args$project_dir)
+
 # read assemblies
-assemblies <- read.csv(assemblies_path, sep = "\t")
+assemblies <- read.csv(args$assemblies, sep = "\t")
 # read tree
-tree <- ape::read.tree(tree_path)
+tree <- readRDS(args$tree)
+# import duplicates
+duplicates <- parse_duplicates(args$duplicates)
+# number of subsample sets to draw
+subsample_count <- as.numeric(args$subsample_count)
+# number of tips to draw in each subsample set
+subsample_tipcount <- as.numeric(args$subsample_tipcount)
 
 # The shrinked tree may contain less tips than the original tree
 # Only sample assemblies that are included in the shrinked tree
@@ -58,13 +98,24 @@ if (type == "random") {
   for (i in 1:subsample_count) {
     zeroes <- digits - floor(log10(i))
     filename = paste0(c("subsample_", rep(0, times = zeroes), i, ".tsv"), collapse = "")
+    dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
+    # remove any duplicate tips before exporting
+    # these will be added back after tree building
+    subset <- assemblies[sample(1:nrow(assemblies), subsample_tipcount, replace = FALSE), ]
+    # manage duplicates
+    tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
+    subset <- tidydbs$subset
+    duplist <- tidydbs$duplist
+    # export subset
     write.table(
-      assemblies[sample(1:nrow(assemblies), subsample_tipcount, replace = FALSE), ],
+      subset,
       file = filename,
       sep = "\t",
       row.names = FALSE,
       quote = FALSE
     )
+    # export duplicates
+    saveRDS(duplist, dupfile)
   }
 }
 
@@ -112,13 +163,24 @@ if (type == "balanced") {
       }
       zeroes <- digits - floor(log10(h))
       filename = paste0(c("subsample_", rep(0, times = zeroes), h, ".tsv"), collapse = "")
+      dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
+      # remove any duplicate tips before exporting
+      # these will be added back after tree building
+      subset <- assemblies[index, ]
+      # manage duplicates
+      tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
+      subset <- tidydbs$subset
+      duplist <- tidydbs$duplist
+       # export subset
       write.table(
-        assemblies[index, ],
+        subset,
         file = filename,
         sep = "\t",
         row.names = FALSE,
         quote = FALSE
       )
+      # export duplicates
+      saveRDS(duplist, dupfile)
     }
   }
 }
@@ -135,6 +197,7 @@ if (type == "focused") {
     zeroes <- digits - floor(log10(i))
     filename = paste0(
       c("subsample_", rep(0, times = zeroes), i, ".tsv"), collapse = "")
+    dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
     focus_index <- which(assemblies[[focus_by]] == focus_on)
     if (length(focus_index) >= focus_count) {
       focus <- sample(
@@ -156,12 +219,41 @@ if (type == "focused") {
     } else {
       stop("Not enough assemblies in non-focus group to subsample")
     }
+    
+    # remove any duplicate tips before exporting
+    # these will be added back after tree building
+    subset <- assemblies[c(focus, no_focus), ]
+    # manage duplicates
+    tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
+    subset <- tidydbs$subset
+    duplist <- tidydbs$duplist
+    # export subset
     write.table(
-      assemblies[c(focus, no_focus), ],
+      subset,
       file = filename,
       sep = "\t",
       row.names = FALSE,
       quote = FALSE
     )
+    # export duplicates
+    saveRDS(duplist, dupfile)
   }
 }
+
+# consistency checks
+
+# subset has correct number of rows
+if (length(duplist) == 0) {
+  testthat::expect_true(nrow(subset) == subsample_tipcount)
+} else {
+  ndups <- length(unlist(duplist))-length(duplist)
+  testthat::expect_true(nrow(subset) == subsample_tipcount - ndups)
+}
+
+# all assemblies have been replaced with reference assemblies where necessary
+# this is relevant when there are duplicates in the assembly data set
+if (length(duplicates) > 0) {
+  dupnames <- unname(unlist(sapply(duplicates, function(x) x[-1])))
+  testthat::expect_false(any(subset$assembly %in% dupnames))
+}
+

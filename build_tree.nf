@@ -33,6 +33,7 @@ process add_duplicates {
     script:
     """
     Rscript $projectDir/bin/add_duplicates.R \
+    --project_dir $projectDir \
     --tree $tree \
     --duplicates $duplicates
     """

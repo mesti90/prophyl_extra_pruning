@@ -10,9 +10,9 @@ r_container = "stitam/prophyl:0.10"
 
 // Input files
 params.assemblies = "${launchDir}/assemblies.tsv"
-params.tree = "${launchDir}/results/shrink_tree/treeshrink.tre"
+params.tree = "${launchDir}/results/add_duplicates/dated_tree.rds"
 params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
-params.dated_tree = "${launchDir}/results/choose_dated_tree/final_dated_tree.rds"
+params.duplicates = "${launchDir}/results/remove_duplicates/duplicates.txt"
 
 // Number and size of subsampled trees
 params.subsample_count = 25
@@ -35,15 +35,34 @@ params.focus_on = "europe"
 
 // Processes 
 
+process add_subset_duplicates {
+    container "$r_container"
+    storeDir "$launchDir/results/add_subset_duplicates/${subset_id}"
+
+    input:
+    tuple val(subset_id), path(dated_tree), path(duplicates)
+
+    output:
+    tuple val(subset_id), path("dated_tree.rds")
+
+    script:
+    """
+    Rscript $projectDir/bin/add_duplicates.R \
+    --project_dir $projectDir \
+    --tree $dated_tree \
+    --duplicates $duplicates
+    """
+}
+
 process build_subset_tree {
     container "$fasttree_container"
     storeDir "$launchDir/results/build_subset_tree"
 
     input:
-    tuple val(subset_id), path(subset_snps)
+    tuple val(subset_id), path(subset_snps), path(duplicates)
 
     output:
-    tuple val(subset_id), path(subset_snps), path("${subset_id}.nwk")         
+    tuple val(subset_id), path(subset_snps), path("${subset_id}.nwk"), path(duplicates)      
 
     script:
     """
@@ -111,10 +130,10 @@ process choose_dated_subset_tree {
     storeDir "$launchDir/results/choose_dated_subset_tree/${subset_id}"
 
     input:
-    tuple val(subset_id), path(dated_trees)
+    tuple val(subset_id), path(dated_trees), path(duplicates)
 
     output:
-    tuple val(subset_id), path("final_dated_tree.rds"), emit: dated_tree
+    tuple val(subset_id), path("final_dated_tree.rds"), path(duplicates), emit: dated_tree
     path "log.txt"
 
     script:
@@ -129,10 +148,10 @@ process date_subset_tree {
     storeDir "$launchDir/results/date_subset_tree/${subset_id}"
 
     input:
-    tuple val(subset_id), path(subset_snps), path(subset_trees)
+    tuple val(subset_id), path(subset_snps), path(subset_trees), path(duplicates)
 
     output:
-    tuple val(subset_id), path("dated_trees.rds"), emit: dated_trees
+    tuple val(subset_id), path("dated_trees.rds"), path(duplicates), emit: dated_trees
     path "rtt_plots/*.pdf"
     path "dated_trees/*.tre"
     path "log.txt"
@@ -145,7 +164,7 @@ process date_subset_tree {
     --snps $subset_snps \
     --assemblies $params.assemblies \
     --threads ${task.cpus} \
-    --branch_dimension snp_per_genome \
+    --branch_dimension snp_per_site \
     --reroot false
     """
 }
@@ -156,10 +175,10 @@ process filter_snps {
     storeDir "$launchDir/results/filter_snps"
 
     input:
-    tuple val(subsample_id), path(alignment)
+    tuple val(subsample_id), path(alignment), path(duplicates)
 
     output:
-    tuple val(subsample_id), path("${subsample_id}_filtered.fasta")
+    tuple val(subsample_id), path("${subsample_id}_filtered.fasta"), path(duplicates)
 
     script:
     """
@@ -173,10 +192,10 @@ process root_subset_tree {
     storeDir "$launchDir/results/root_subset_tree"
 
     input:
-    tuple val(subset_id), path(subset_snps), path(subset_tree)
+    tuple val(subset_id), path(subset_snps), path(subset_tree), path(duplicates)
 
     output:
-    tuple val(subset_id), path(subset_snps), path("rooted_trees_${subset_id}.rds"), emit: rooted_trees
+    tuple val(subset_id), path(subset_snps), path("rooted_trees_${subset_id}.rds"), path(duplicates), emit: rooted_trees
     path "log.txt"
 
     script:
@@ -184,7 +203,7 @@ process root_subset_tree {
     Rscript $projectDir/bin/root_subset_tree.R \
     --project_dir $projectDir \
     --assemblies $params.assemblies \
-    --dated_tree $params.dated_tree \
+    --dated_tree $params.tree \
     --subset_tree $subset_tree \
     --threads ${task.cpus}
     """
@@ -222,15 +241,18 @@ process subsample_input {
     path assemblies
 
     output:
-    path "subsample_*.tsv"
+    path "subsample_*.tsv", emit: subsample
+    path "subsample_*.rds", emit: duplicates
 
     script:
     """
     Rscript $projectDir/bin/subsample_input.R \
-    $assemblies \
-    $params.tree \
-    $params.subsample_count \
-    $params.subsample_tipcount
+    --project_dir $projectDir \
+    --assemblies $assemblies \
+    --tree $params.tree \
+    --duplicates $params.duplicates \
+    --subsample_count $params.subsample_count \
+    --subsample_tipcount $params.subsample_tipcount
     """
 }
 
@@ -240,10 +262,10 @@ process subset_snps {
     storeDir "$launchDir/results/subset_snps"
 
     input:
-    tuple val(subsample_id), path(subsample)
+    tuple val(subsample_id), path(subsample), path(duplicates)
 
     output:
-    tuple val(subsample_id), path("${subsample_id}.fasta")
+    tuple val(subsample_id), path("${subsample_id}.fasta"), path(duplicates)
 
     script:
     """
@@ -274,19 +296,21 @@ workflow {
     // prepare random subsamples from assemblies
     validate_input.out | subsample_input
     // create a channel from random subsamples
-    subsample_ch = subsample_input.out.flatten() | map { [it.getBaseName(), it] }
+    subsample_ch = subsample_input.out.subsample.flatten() | map { [it.getBaseName(), it] }
+    duplicate_ch = subsample_input.out.duplicates.flatten() | map { [it.getBaseName(), it] }
+    subsample_tuple_ch = subsample_ch.join(duplicate_ch)
     // build subset trees, root them
-    subsample_ch | subset_snps | filter_snps | build_subset_tree | root_subset_tree 
+    subsample_tuple_ch | subset_snps | filter_snps | build_subset_tree | root_subset_tree 
     // date rooted subset trees
     root_subset_tree.out.rooted_trees | date_subset_tree
     // choose a single dated tree for each subset
     date_subset_tree.out.dated_trees | choose_dated_subset_tree
     // simulate trees from each subset tree
-    choose_dated_subset_tree.out.dated_tree |simulate_subset_trees
+    choose_dated_subset_tree.out.dated_tree |add_subset_duplicates | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",
         storeDir: "$launchDir/results/"
     )
-    simtree_paths | calculate_distances | calculate_relative_risks
+    // simtree_paths | calculate_distances | calculate_relative_risks
 }

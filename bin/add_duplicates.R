@@ -5,6 +5,11 @@ rm(list = ls())
 
 args_list <- list(
   make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
+  ),
+  make_option(
     c("-t", "--tree"),
     type = "character",
     help = "A dated tree in rds format."
@@ -22,34 +27,49 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
+    project_dir = "~/Methods/prophyl",
     tree = "final_dated_tree.rds",
     duplicates = "duplicates.txt"
   )
 }
 
+library(devtools)
+load_all(args$project_dir)
+
 # import tree
 tree <- readRDS(args$tree)
 
 # import duplicates
-duplicates <- readLines(args$duplicates)
+if (grepl("\\.txt$", args$duplicates)) {
+  duplicates <- parse_duplicates(args$duplicates)
+} else if (grepl("\\.rds", args$duplicates)) {
+  duplicates <- readRDS(args$duplicates)
+}
 
 if (length(duplicates) > 0) {
   
-  # format duplicates
-  duplicates <- duplicates %>%
-    gsub("^[0-9]+\\\t", "", .) %>%
-    strsplit(., ", ")
-  names(duplicates) <- sapply(duplicates, function(x) x[1])
-  
   # add duplicates to tree
-  for (i in duplicates) {
-    for (j in 2:length(i)) {
-      tree <- TreeTools::AddTip(
-        tree,
-        where = i[1],
-        label = i[j],
-        edgeLength = 0
-      )
+  for (i in seq_along(duplicates)) {
+    for (j in 1:length(duplicates[[i]])) {
+      if (duplicates[[i]][j] != names(duplicates)[i]) {
+        tree <- TreeTools::AddTip(
+          tree,
+          where = names(duplicates)[i],
+          label = duplicates[[i]][j],
+          edgeLength = 0
+        )
+      }
+    }
+  }
+  
+  # remove tips which were used as reference for duplicates but were not in tree
+  # this is relevant when tree is a subset tree.
+  for (i in seq_along(duplicates)) {
+    # if the name of the list entry (reference) is not identical with its first
+    # element then the reference was not part of the subset and should be
+    # removed. 
+    if (names(duplicates)[i] != duplicates[[i]][1]) {
+      tree <- ape::drop.tip(tree, names(duplicates)[i])
     }
   }
   
