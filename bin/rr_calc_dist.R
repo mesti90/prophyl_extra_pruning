@@ -51,8 +51,8 @@ if (!interactive()) {
     project_dir = "~/Methods/prophyl",
     assemblies = "assemblies.tsv",
     simtrees = "simtree_paths.txt",
-    focus_by = "continent",
-    focus_on = "europe"
+    focus_by = "none",
+    focus_on = "none"
   )
 }
 
@@ -68,6 +68,9 @@ assemblies <- assemblies[order(assemblies$assembly),]
 
 focus_by <- args$focus_by
 focus_on <- args$focus_on
+
+if (focus_by == "none") focus_by <- NULL
+if (focus_on == "none") focus_on <- NULL
 
 # TODO maybe this should be checked at input validation as well?
 # TODO maybe only character variables should be allowed?

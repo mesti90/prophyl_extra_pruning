@@ -28,9 +28,13 @@ params.simtrees = 1
 params.nboot_on_simtree = 1
 
 // Variable in the assembly table to focus risk analysis on
+// Can be either "none" in which case there will be no focus
+// or a variable of the assembly table e.g. "continent"
 params.focus_by = "continent"
 
 // Value of the variable chosen above to focus on
+// Can be either "none" in which case there will be no focus
+// or a value of the variable chosen above e.g. "europe"
 params.focus_on = "europe"
 
 // Processes 
