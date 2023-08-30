@@ -70,33 +70,6 @@ process build_subset_tree {
     """
 }
 
-process calculate_distances {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/calculate_distances"
-
-    input:
-    path simtree_paths
-
-    output:
-    tuple path("same_country.rds"),
-          path("neighbors.rds"),
-          path("same_continent.rds"),
-          path("geodist.rds"),
-          path("colldist.rds"),
-          path("phylodist_list.rds")
-
-    script:
-    """
-    Rscript $projectDir/bin/calculate_distances.R \
-    $projectDir \
-    $params.assemblies \
-    $simtree_paths \
-    $params.focus_by \
-    $params.focus_on
-    """
-}
-
 process choose_dated_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
@@ -188,7 +161,14 @@ process rr_calc_counts {
     storeDir "$launchDir/results/rr_calc_counts"
 
     input:
-    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
+    tuple \
+      path(same_city),
+      path(same_country),
+      path(neighbors),
+      path(same_continent),
+      path(geodist),
+      path(colldist),
+      path(phylodist_list)
 
     output:
     path "countlist.rds"
@@ -199,12 +179,42 @@ process rr_calc_counts {
     --project_dir $projectDir \
     --assemblies $params.assemblies \
     --colldist $colldist \
+    --same_city $same_city \
     --same_country $same_country \
     --neighbors $neighbors \
     --same_continent $same_continent \
     --geodist $geodist \
     --phylodist $phylodist_list \
     --nboot $params.nboot_on_simtree
+    """
+}
+
+process rr_calc_dist {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/rr_calc_dist"
+
+    input:
+    path simtree_paths
+
+    output:
+    tuple \
+      path("same_city.rds"),
+      path("same_country.rds"),
+      path("neighbors.rds"),
+      path("same_continent.rds"),
+      path("geodist.rds"),
+      path("colldist.rds"),
+      path("phylodist_list.rds")
+
+    script:
+    """
+    Rscript $projectDir/bin/rr_calc_dist.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --simtrees $simtree_paths \
+    --focus_by $params.focus_by \
+    --focus_on $params.focus_on
     """
 }
 
@@ -223,6 +233,9 @@ process rr_plot_risks {
     path "relative_risks_type2.rds"
     path "relative_risks_type2.pdf"
     path "relative_risks_type2.png"
+    path "relative_risks_type3.rds"
+    path "relative_risks_type3.pdf"
+    path "relative_risks_type3.png"
 
     script:
     """
@@ -333,5 +346,5 @@ workflow {
         name: "simtree_paths.txt",
         storeDir: "$launchDir/results/"
     )
-    simtree_paths | calculate_distances | rr_calc_counts | rr_plot_risks
+    simtree_paths | rr_calc_dist | rr_calc_counts | rr_plot_risks
 }

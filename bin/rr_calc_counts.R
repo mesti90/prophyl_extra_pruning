@@ -18,6 +18,11 @@ args_list <- list(
     help = "Matrix of pairs, distances between sample collection dates."
   ),
   make_option(
+    c("-y", "--same_city"),
+    type = "character",
+    help = "Matrix of pairs, are samples from the same city."
+  ),
+  make_option(
     c("-r", "--same_country"),
     type = "character",
     help = "Matrix of pairs, are samples from the same country."
@@ -58,6 +63,7 @@ if (!interactive()) {
     project_dir = "~/Methods/prophyl",
     assemblies = "assemblies.tsv",
     colldist = "colldist.rds",
+    same_city = "same_city.rds",
     same_country = "same_country.rds",
     neighbors = "neighbors.rds",
     same_continent = "same_continent.rds",
@@ -72,6 +78,7 @@ load_all(args$project_dir)
 
 assemblies <- read.csv(args$assemblies, sep = "\t")
 colldist <- readRDS(args$colldist)
+same_city <- readRDS(args$same_city)
 same_country <- readRDS(args$same_country)
 neighbors <- readRDS(args$neighbors)
 same_continent <- readRDS(args$same_continent)
@@ -140,6 +147,7 @@ for (i in 1:length(phylodist_list)) {
     }
     # shrink comparison matrices to phylodist rows and columns
     colldist_sub <- shrink_matrix(colldist, phylodist)
+    same_city_sub <- shrink_matrix(same_city, phylodist)
     same_country_sub <- shrink_matrix(same_country, phylodist)
     neighbors_sub <- shrink_matrix(neighbors, phylodist)
     close_countries_sub <- shrink_matrix(close_countries, phylodist)
@@ -150,8 +158,21 @@ for (i in 1:length(phylodist_list)) {
     for (k in mrca_cat_char) {
       phylodist_k <- 1 * (phylodist == k)
       ## CALCULATE BOOLEAN MATRICES
+      # same city
+      same_city_sub2 <- same_city_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # different city, same country
+      different_city_sub2 <- (1*!same_city_sub) *
+        same_country_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
       # same country
       same_country_sub2 <- same_country_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # different country
+      different_country_sub2 <- (1*!same_country_sub2) *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       # neighbors, same continent
@@ -234,9 +255,19 @@ for (i in 1:length(phylodist_list)) {
         distant_countries_sub2,
         different_continent_sub2
       ))
-      
+
+      # type3 - same city, differenct city, different country
+      testthat::expect_false(matrix_overlap(
+        same_city_sub2,
+        different_city_sub2,
+        different_country_sub2
+      ))
+
       ddf <- data.frame(
+        same_city = sum(same_city_sub2, na.rm = TRUE) / 2,
+        different_city = sum(different_city_sub2, na.rm = TRUE) / 2,
         same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+        different_country = sum(different_country_sub2, na.rm = TRUE) / 2,
         neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
         not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
         close_countries = sum(close_countries_sub2, na.rm = TRUE) / 2,
@@ -258,8 +289,15 @@ for (i in 1:length(phylodist_list)) {
         ddf$distant_countries,
         ddf$different_continent
       )
+
+      type3_sumcount <- sum(
+        ddf$same_city,
+        ddf$different_city,
+        ddf$different_country
+      )
       
       testthat::expect_true(type1_sumcount == type2_sumcount)
+      testthat::expect_true(type2_sumcount == type3_sumcount)
       
       # fill up rows of the data frame
       # TODO subsample should contain the real name of the subsample

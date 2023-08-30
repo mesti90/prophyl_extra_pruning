@@ -69,6 +69,24 @@ probdf_type2 <- dplyr::bind_cols(
   )
 )
 
+probdf_type3 <- dplyr::bind_cols(
+  countdf[,c(
+    "subsample",
+    "bootstrap",
+    "mrca"
+  )],
+  as.data.frame(
+    t(
+      apply(countdf[,c(
+        "same_city",
+        "different_city",
+        "different_country")], 1, function(x) {
+          signif(x/sum(x), 4)
+        })
+    )
+  )
+)
+
 # convert probabilities to relative risks
 
 rrdf_type1 <- dplyr::bind_cols(
@@ -111,6 +129,25 @@ rrdf_type2 <- dplyr::bind_cols(
   )
 )
 
+rrdf_type3 <- dplyr::bind_cols(
+  countdf[,c(
+    "subsample",
+    "bootstrap",
+    "mrca"
+  )],
+  as.data.frame(
+    t(
+      apply(probdf_type3[,c(
+        "same_city",
+        "different_city",
+        "different_country")], 1, function(x) {
+          # this is where we hardcode "different_country" as the reference
+          signif(x/x[3], 4)
+        })
+    )
+  )
+)
+
 rrdf_type1_long <- tidyr::pivot_longer(
   rrdf_type1,
   cols = same_country:different_continent,
@@ -142,6 +179,20 @@ rrdf_type2_long$rr <- ifelse(
   NA,
   rrdf_type2_long$rr)
 
+rrdf_type3_long <- tidyr::pivot_longer(
+  rrdf_type3,
+  cols = same_city:different_country,
+  names_to = "geo",
+  values_to = "rr"
+)
+rrdf_type3_long$geo <- factor(rrdf_type3_long$geo, levels = c(
+  "same_city", "different_city", "different_country"
+))
+rrdf_type3_long$mrca <- factor(rrdf_type3_long$mrca, levels = mrca_cat_char)
+rrdf_type3_long$rr <- ifelse(
+  rrdf_type3_long$rr %in% c(NA, NaN, Inf, -Inf),
+  NA,
+  rrdf_type3_long$rr)
 
 point_and_whiskers <- function(x) {
   y <- median(x)
@@ -256,3 +307,36 @@ ggsave(
 )
 
 saveRDS(g2, "relative_risks_type2.rds")
+
+g3 <- plot_rr(rrdf_type3_long) +
+  scale_x_discrete(labels = c(
+    "same_country" = "Within \n countries",
+    "close_countries" = close_countries_label,
+    "distant_countries" = distant_countries_label,
+    "different_continent" = "Between \n continents"
+  ))
+
+try_g3 <- try(print(g3), silent = TRUE)
+if (inherits(try_g3, "try-error")) {
+  g3 <- ggplot()
+}
+
+ggsave(
+  filename = "relative_risks_type3.pdf",
+  plot = g3,
+  units = "cm",
+  width = 8,
+  height = 6,
+  device = cairo_pdf
+)
+
+ggsave(
+  filename = "relative_risks_type3.png",
+  plot = g3,
+  units = "cm",
+  width = 8,
+  height = 6
+)
+
+saveRDS(g3, "relative_risks_type3.rds")
+
