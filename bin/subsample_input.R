@@ -75,6 +75,15 @@ if (length(index) > 0) {
   assemblies <- assemblies[-index, ]
 }
 
+# The number of tips in each subsample must be smaller than the overall number
+# of tips. If not, stop with an informative error.
+if (subsample_tipcount >=  length(tree$tip.label)) {
+  stop(paste0(
+    "Parameter 'subsample_tipcount' must be lower than ",
+    "the overall number of tips."
+  ))
+}
+
 # sampling strategy
 # can be either "random", "balanced" or "focused".
 type <- "random"
