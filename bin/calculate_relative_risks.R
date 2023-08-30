@@ -1,249 +1,512 @@
-# Original script from:
-# https://github.com/noemielefrancq/Global_spread_Listeria_monocytogenes_CC1
-
-#######################################################
-## Figure 4A: Relative risk by interval, across different location
-#######################################################
-### Author: Noemie Lefrancq
-### Date creation: 03/02/2020
-### Last modification: 17/10/2021
-#######################################################
-
-# This script has been modified to fit in the analysis pipeline
-
+library(optparse)
 rm(list = ls())
 
-if (!interactive()) {
-  args <- commandArgs(trailingOnly = TRUE)
-  data_seq_path <- args[1]
-  time_mat_path <- args[2]
-  geo_mat_country_path <- args[3]
-  geo_mat_continent_path <- args[4]
-  geo_mat_km_centroids_path <- args[5]
-  sim_mats_path <- args[6]
-  nboot <- as.numeric(args[7])
-  project_dir <- args[8]
-  geo_mat_neighbor_path <- args[9]
-} else {
-  data_seq_path <- "assemblies.tsv"
-  time_mat_path <- "colldist.rds"
-  geo_mat_country_path <- "same_country.rds"
-  geo_mat_continent_path <- "same_continent.rds"
-  geo_mat_km_centroids_path <- "geodist.rds"
-  sim_mats_path <- "phylodist_list.rds"
-  nboot <- 1
-  project_dir <- "~/Methods/prophyl"
-  geo_mat_neighbor_path <- "neighbors.rds"
-}
-
-library(devtools)
-load_all(project_dir)
-
-#####################################################################
-## Load relevant datasets and matrices
-#####################################################################
-## Metadata
-data.seq = read.csv(data_seq_path, sep = "\t")
-## Time
-time_mat = readRDS(time_mat_path)
-## Geography
-geo_mat_country = readRDS(geo_mat_country_path)
-geo_mat_continent = readRDS(geo_mat_continent_path)
-geo_mat_km_centroids = readRDS(geo_mat_km_centroids_path)
-geo_mat_neighbor = readRDS(geo_mat_neighbor_path)
-## Genetic distances
-sim.mats <- readRDS(sim_mats_path)
-nsim = length(sim.mats)
-
-#####################################################################
-## Parameters for the computation of the relative risks
-#####################################################################
-## Number of bootstrap event to perform, of each tree
-nboot = nboot
-
-# MRCA windows on which to compute the relative risk
-# This will define categories on the risk plot
-int <- c(0, 4, 8, 16)
-
-Pmin <- int[-length(int)]
-Pmax <- int[-1]
-pmid <- (Pmin+Pmax)/2 ## mid-point <- int[-1]
-l = length(Pmax) ## number of intervals
-
-# Define a data frame of all geo categories
-# The variable "category" will be used below to dispatch calculations
-# The variable "label" will be used as plot label
-# same_country: same country
-# close_country: different countries <1000km in the same continent
-# distant_country: different countries >1000 km in the same continent (reference)
-# other_continent: different continents
-all_geo_categories <- data.frame(
-  category = c(
-    "same_country",
-    "neighbor",
-    "close_country",
-    "distant_country",
-    "other_continent"
+args_list <- list(
+  make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
   ),
-  label = c(
-    "Within countries",
-    "Between neighbors",
-    "Between countries \n <1000km",
-    "Between countries \n >1000km (ref)",
-    "Between continents"
+  make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "Path to the assemblies file."
+  ),
+  make_option(
+    c("-c", "--colldist"),
+    type = "character",
+    help = "Matrix of pairs, distances between sample collection dates."
+  ),
+  make_option(
+    c("-r", "--same_country"),
+    type = "character",
+    help = "Matrix of pairs, are samples from the same country."
+  ),
+  make_option(
+    c("-n", "--neighbors"),
+    type = "character",
+    help = "Matrix of pairs, are samples from the neighboring countries."
+  ),
+  make_option(
+    c("-t", "--same_continent"),
+    type = "character",
+    help = "Matrix of pairs, are samples from the same continent."
+  ),
+  make_option(
+    c("-g", "--geodist"),
+    type = "character",
+    help = "Matrix of pairs, geographical distances between samples."
+  ),
+  make_option(
+    c("-d", "--phylodist"),
+    type = "character",
+    help = "List of matrices, matrices of pairs, phylogenetic distances."
+  ),
+  make_option(
+    c("-b", "--nboot"),
+    type = "character",
+    help = "Number of bootstrap replicates for each simulated tree."
   )
 )
 
-# Subset all geo categories
-# Only include these categories in the analysis
+args_parser  <- OptionParser(option_list = args_list)
 
-geo_order <- c(
-  "same_country", "neighbor", "distant_country", "other_continent")
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    project_dir = "~/Methods/prophyl",
+    assemblies = "assemblies.tsv",
+    colldist = "colldist.rds",
+    same_country = "same_country.rds",
+    neighbors = "neighbors.rds",
+    same_continent = "same_continent.rds",
+    geodist = "geodist.rds",
+    phylodist = "phylodist_list.rds",
+    nboot = 1
+  )
+}
 
-geo_categories <- all_geo_categories[unname(sapply(geo_order, function(x) {
-  which(all_geo_categories$category == x)
-})),]
+library(devtools)
+load_all(args$project_dir)
 
-n_steps = nrow(geo_categories) ## Number of location matrix to consider, here:
+assemblies <- read.csv(args$assemblies, sep = "\t")
+colldist <- readRDS(args$colldist)
+same_country <- readRDS(args$same_country)
+neighbors <- readRDS(args$neighbors)
+same_continent <- readRDS(args$same_continent)
+geodist <- readRDS(args$geodist)
+phylodist_list <- readRDS(args$phylodist)
+nboot <- as.numeric(args$nboot)
 
-## Set the boot matrix to save the results
-rr = matrix(NA,l*n_steps, nboot*nsim)
+# MRCA windows on which to compute the relative risk
+# This will define categories on the risk plot
+mrca_categories <- c(0, 4, 8, 16, Inf)
 
-#####################################################################
-## Compute relative risks, for each location
-#####################################################################
-for (ii in 1:nsim) {
-  # Choose isolates
-  a <- unname(sapply(colnames(sim.mats[[ii]]), function(x) {
-    which(data.seq$assembly == x)
+mrca_cat_char <- paste0(
+  "(",
+  mrca_categories[-length(mrca_categories)],
+  ",",
+  mrca_categories[-1],
+  "]")
+
+# convert phylogenetic distances to MRCA categories
+phylodist_list <- lapply(phylodist_list, function(x) {
+  out <- cut(x, breaks = mrca_categories)
+  out <- matrix(out, ncol = ncol(x))
+  row.names(out) <- row.names(x)
+  colnames(out) <- colnames(x)
+  return(out)
+})
+
+# Maximum collection date distance between samples
+colldist_max <- 2
+# Convert collection date distance matrix to boolean matrix
+colldist <- 1 * (colldist < colldist_max)
+
+# Threshold between close and distant countries
+geodist_threshold <- 1000
+# Close countries are different countries within threshold
+geodist_close <- 1 * (geodist < geodist_threshold)
+close_countries <- (1*!same_country) * geodist_close
+# Distant countries are different countries beyond threshold
+distant_countries <- (1*!same_country) * (1*!geodist_close)
+
+# Define function for shrinking a matrix to have the same rows and columns as
+# the smaller matrix
+shrink_matrix <- function(matrix, small_matrix) {
+  index <- unname(sapply(colnames(small_matrix), function(x) {
+    which(colnames(matrix) == x)
   }))
-  ## Time between isolates: max 2 years
-  time_mat2 = time_mat[a,a]<=2  
-  # Choose MRCA matrix
-  MRCA_mat = sim.mats[[ii]]
-  MRCA_mat2 <- MRCA_mat
-  nseq = length(a)
-  # Reference: different countries >1000 km in the same continent
-  ref <- unname(sapply(colnames(sim.mats[[ii]]), function(x) {
-    which(data.seq$assembly == x)
-  }))
-  geo_mat_ref = (1-geo_mat_country[ref,ref])*(geo_mat_km_centroids[a,a]>1000)*(geo_mat_continent[ref,ref])
-  geo_mat_ref[which(geo_mat_ref == 0)] = NA
-  ## Time between isolates: max 2 years
-  time_mat2_ref = time_mat[ref,ref]<=2
-  ## Choose MRCA matrix
-  MRCA_mat2_ref = MRCA_mat
-  nseq_ref = length(ref)
-  
-  for (j in 1:n_steps) {
-    if (geo_categories$category[j] == "same_country") {
-      # same country
-      geo_mat = geo_mat_country[a,a]
-      ##Bootstrap to create the ci
-      for (i in (1:nboot)){
-        if (nboot == 1) {
-          tmp <- 1:nseq
-          tmp_ref <- 1:nseq_ref
-        } else {
-          tmp = sample(nseq, nseq, replace = T)
-          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
-        rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
-      }
+  shrinked_matrix <- matrix[index, index]
+  return(shrinked_matrix)
+}
+
+countdf <- data.frame()
+# for each subsample
+for (i in 1:length(phylodist_list)) {
+  # for each bootstrap replicate
+  for (j in 1:nboot) {
+    # use the respective phylodist matrix or generate a bootstrapped matrix
+    if (nboot == 1) {
+      phylodist <- phylodist_list[[i]]
+    } else {
+      index <- sample(
+        1:ncol(phylodist_list[[i]]),
+        ncol(phylodist_list[[i]]),
+        replace = TRUE
+      )
+      phylodist <- phylodist_list[[i]][index,index]
     }
-    if (geo_categories$category[j] == "close_country") {
-      # different countries in the same continent, less than 1000km apart
-      geo_mat = (1-geo_mat_country[a,a])*(geo_mat_km_centroids[a,a]<=1000)*(geo_mat_continent[a,a])
-      geo_mat[which(geo_mat == 0)] = NA
-      ##Bootstrap to create the ci
-      for (i in (1:nboot)){
-        if (nboot == 1) {
-          tmp <- 1:nseq
-          tmp_ref <- 1:nseq_ref
-        } else {
-          tmp = sample(nseq, nseq, replace = T)
-          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
-        rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
-      }
-    }
-    if (geo_categories$category[j] == "distant_country") {
-      # different countries in the same continent, more than 1000km apart (reference), not neighbors
-      geo_mat = (1-geo_mat_country[a,a])*(geo_mat_km_centroids[a,a]>1000)*(geo_mat_continent[a,a])*(1-geo_mat_neighbor[a,a])
-      geo_mat[which(geo_mat == 0)] = NA
-      ##Bootstrap to create the ci
-      for (i in (1:nboot)){
-        if (nboot == 1) {
-          tmp <- 1:nseq
-          tmp_ref <- 1:nseq_ref
-        } else {
-          tmp = sample(nseq, nseq, replace = T)
-          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
-        rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
-      }
-    }
-    if (geo_categories$category[j] == "other_continent") {
-      # different continents, not neighbors
-      geo_mat = (1-geo_mat_continent[a,a])*(1-geo_mat_neighbor[a,a])
-      ##Bootstrap to create the ci
-      for (i in (1:nboot)){
-        if (nboot == 1) {
-          tmp <- 1:nseq
-          tmp_ref <- 1:nseq_ref
-        } else {
-          tmp = sample(nseq, nseq, replace = T)
-          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
-        rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
-      }
-    }
-    if (geo_categories$category[j] == "neighbor") {
-      # neighbors, regardless of continent
-      geo_mat = geo_mat_neighbor[a,a]
-      ##Bootstrap to create the ci
-      for (i in (1:nboot)){
-        if (nboot == 1) {
-          tmp <- 1:nseq
-          tmp_ref <- 1:nseq_ref
-        } else {
-          tmp = sample(nseq, nseq, replace = T)
-          tmp_ref = sample(nseq_ref, nseq_ref, replace = T)
-        }
-        rr.out = ratio_bootstrap_dist_discrete_auto(tmp, tmp_ref, geo_mat, time_mat2, MRCA_mat2, geo_mat_ref, time_mat2_ref, MRCA_mat2_ref, Pmax, Pmin)
-        rr[((j*l-(l-1)):(j*l)),((ii-1)*nboot + i)] = rr.out
-      }
-    }
+    # shrink comparison matrices to phylodist rows and columns
+    colldist_sub <- shrink_matrix(colldist, phylodist)
+    same_country_sub <- shrink_matrix(same_country, phylodist)
+    neighbors_sub <- shrink_matrix(neighbors, phylodist)
+    close_countries_sub <- shrink_matrix(close_countries, phylodist)
+    distant_countries_sub <- shrink_matrix(distant_countries, phylodist)
+    same_continent_sub <- shrink_matrix(same_continent, phylodist)
     
+    # for each MRCA category
+    for (k in mrca_cat_char) {
+      phylodist_k <- 1 * (phylodist == k)
+      ## CALCULATE BOOLEAN MATRICES
+      # same country
+      same_country_sub2 <- same_country_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # neighbors, same continent
+      neighbors_sub2 <- (1*!same_country_sub) *
+        neighbors_sub *
+        same_continent_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # different countries, not neighbors, same continent
+      not_neighbors_sub2 <- (1*!same_country_sub) *
+        (1*!neighbors_sub2) *
+        same_continent_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # close_countries, same continent
+      close_countries_sub2 <- close_countries_sub *
+        same_continent_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # distant countries, same continent
+      distant_countries_sub2 <- distant_countries_sub * 
+        same_continent_sub *
+        colldist_sub *  # within colldist timeframe
+        phylodist_k # within MRCA range
+      # different continent
+      different_continent_sub2 <- (1*!same_continent_sub) * 
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      
+      # consistency checks - no overlaps between exlusive categories
+      
+      matrix_overlap <- function(...) {
+        args <- list(...)
+        if (length(args) < 2) {
+          stop("At least two arguments are required")
+        }
+        smat <- args[[1]]
+        for (i in 2:length(args)) {
+          smat <- smat + args[[i]]
+        }
+        smat_tab <- table(smat)
+        all(names(smat_tab) %in% c("0", "1")) == FALSE
+      }
+      
+      # type 1 - same country, neighbor, not neighbor, different continent
+      testthat::expect_false(matrix_overlap(
+        same_country_sub2,
+        neighbors_sub2
+      ))
+      testthat::expect_false(matrix_overlap(
+        same_country_sub2,
+        not_neighbors_sub2
+      ))
+      testthat::expect_false(matrix_overlap(
+        same_country_sub2,
+        different_continent_sub2
+      ))
+      testthat::expect_false(matrix_overlap(
+        neighbors_sub2,
+        not_neighbors_sub2
+      ))
+      testthat::expect_false(matrix_overlap(
+        neighbors_sub2,
+        different_continent_sub2
+      ))
+      testthat::expect_false(matrix_overlap(
+        not_neighbors_sub2,
+        different_continent_sub2
+      ))
+      testthat::expect_false(matrix_overlap(
+        same_country_sub2,
+        neighbors_sub2,
+        not_neighbors_sub2,
+        different_continent_sub2
+      ))
+      # type 2- same country, close country, distant county, different continent
+      testthat::expect_false(matrix_overlap(
+        same_country_sub2,
+        close_countries_sub2,
+        distant_countries_sub2,
+        different_continent_sub2
+      ))
+      
+      ddf <- data.frame(
+        same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+        neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
+        not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
+        close_countries = sum(close_countries_sub2, na.rm = TRUE) / 2,
+        distant_countries = sum(distant_countries_sub2, na.rm = TRUE) / 2,
+        different_continent = sum(different_continent_sub2, na.rm = TRUE) / 2
+      )
+      
+      # consistency check - each type covers all pairs
+      type1_sumcount <- sum(
+        ddf$same_country, 
+        ddf$neighbors,
+        ddf$not_neighbors,
+        ddf$different_continent
+      )
+      
+      type2_sumcount <- sum(
+        ddf$same_country,
+        ddf$close_countries,
+        ddf$distant_countries,
+        ddf$different_continent
+      )
+      
+      testthat::expect_true(type1_sumcount == type2_sumcount)
+      
+      # fill up rows of the data frame
+      # TODO subsample should contain the real name of the subsample
+      # it is unclear in what order phylodist list contains the subsamples.
+      newdf <- dplyr::bind_cols(
+        data.frame(
+          subsample = i,
+          bootstrap = j,
+          mrca = k
+        ),
+        ddf
+      )
+      
+      countdf <- dplyr::bind_rows(
+        countdf,
+        newdf
+      )
+    }
   }
 }
 
-#####################################################################
+saveRDS(countdf, file = "counts.rds")
 
-#####################################################################
-## Write results
-#####################################################################
-res = list('rr' = rr,
-           'int' = int,
-           'nboot' = nboot,
-           'nsim' = nsim)
-class(res) <- "rrlist"
+# convert counts to probabilities
 
-  # export results
-  saveRDS(res, "relative_risks.rds")
-  # plot results - pdf
-  try(dev.off(), silent = TRUE)
-  try(dev.off(), silent = TRUE)
-  pdf(file = "relative_risks.pdf")
-  plot_rr(res, labels = geo_categories$label)
-  try(dev.off(), silent = TRUE)
-  try(dev.off(), silent = TRUE)
-  # plot results - png
-  png(file = "relative_risks.png")
-  plot_rr(res, labels = geo_categories$label)
-  try(dev.off(), silent = TRUE)
-try(dev.off(), silent = TRUE)
+probdf_type1 <- dplyr::bind_cols(
+  countdf[,c(
+    "subsample",
+    "bootstrap",
+    "mrca"
+  )],
+  as.data.frame(
+    t(
+      apply(countdf[,c(
+        "same_country",
+        "neighbors",
+        "not_neighbors",
+        "different_continent")], 1, function(x) {
+          signif(x/sum(x), 4)
+        })
+    )
+  )
+)
+
+probdf_type2 <- dplyr::bind_cols(
+  countdf[,c(
+    "subsample",
+    "bootstrap",
+    "mrca"
+  )],
+  as.data.frame(
+    t(
+      apply(countdf[,c(
+        "same_country",
+        "close_countries",
+        "distant_countries",
+        "different_continent")], 1, function(x) {
+          signif(x/sum(x), 4)
+        })
+    )
+  )
+)
+
+# convert probabilities to relative risks
+
+rrdf_type1 <- dplyr::bind_cols(
+  countdf[,c(
+    "subsample",
+    "bootstrap",
+    "mrca"
+  )],
+  as.data.frame(
+    t(
+      apply(probdf_type1[,c(
+        "same_country",
+        "neighbors",
+        "not_neighbors",
+        "different_continent")], 1, function(x) {
+          # this is where we hardcode "not neighbors" as the reference
+          signif(x/x[3], 4)
+        })
+    )
+  )
+)
+
+rrdf_type2 <- dplyr::bind_cols(
+  countdf[,c(
+    "subsample",
+    "bootstrap",
+    "mrca"
+  )],
+  as.data.frame(
+    t(
+      apply(probdf_type2[,c(
+        "same_country",
+        "close_countries",
+        "distant_countries",
+        "different_continent")], 1, function(x) {
+          # this is where we hardcode "distant_countries" as the reference
+          signif(x/x[3], 4)
+        })
+    )
+  )
+)
+
+rrdf_type1_long <- tidyr::pivot_longer(
+  rrdf_type1,
+  cols = same_country:different_continent,
+  names_to = "geo",
+  values_to = "rr"
+)
+rrdf_type1_long$geo <- factor(rrdf_type1_long$geo, levels = c(
+  "same_country", "neighbors", "not_neighbors", "different_continent"
+))
+rrdf_type1_long$mrca <- factor(rrdf_type1_long$mrca, levels = mrca_cat_char)
+rrdf_type1_long$rr <- ifelse(
+  rrdf_type1_long$rr %in% c(NA, NaN, Inf, -Inf),
+  NA,
+  rrdf_type1_long$rr)
+
+
+rrdf_type2_long <- tidyr::pivot_longer(
+  rrdf_type2,
+  cols = same_country:different_continent,
+  names_to = "geo",
+  values_to = "rr"
+)
+rrdf_type2_long$geo <- factor(rrdf_type2_long$geo, levels = c(
+  "same_country", "close_countries", "distant_countries", "different_continent"
+))
+rrdf_type2_long$mrca <- factor(rrdf_type2_long$mrca, levels = mrca_cat_char)
+rrdf_type2_long$rr <- ifelse(
+  rrdf_type2_long$rr %in% c(NA, NaN, Inf, -Inf),
+  NA,
+  rrdf_type2_long$rr)
+
+
+point_and_whiskers <- function(x) {
+  y <- median(x)
+  ymin <- quantile(x, 0.05)
+  ymax <- quantile(x, 0.95)
+  return(data.frame(
+    "y" = y,
+    "ymin" = ymin,
+    "ymax" = ymax
+  ))
+}
+
+plot_rr <- function(df) {
+  ggplot(df, aes(geo, rr)) + 
+    stat_summary(
+      geom = "point", 
+      fun.data = point_and_whiskers,
+      size = 0.3
+    ) +
+    stat_summary(
+      geom = "errorbar",
+      fun.data = point_and_whiskers,
+      width = 0.1,
+      linewidth = 0.1,
+      col = "#000000"
+    ) +
+    geom_hline(yintercept = 1, col = "#FF0000", linewidth = 0.1) +
+    facet_grid(mrca~.) +
+    scale_y_log10() +
+    ylab("Relative Risk") +
+    xlab("") +
+    theme_minimal() +
+    theme(
+      panel.background = element_rect(
+        colour = "#000000",
+        linewidth = 0.1
+      ),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.title = element_text(family = "helvetica", size = 5),
+      axis.text = element_text(family = "helvetica", size = 5),
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+      axis.ticks = element_line(colour = "#000000", linewidth = 0.1),
+      axis.ticks.length = unit(0.05, "cm"),
+      strip.text = element_text(family = "helvetica", size = 5)
+    ) 
+}
+
+g1 <- plot_rr(rrdf_type1_long) +
+  scale_x_discrete(labels = c(
+    "same_country" = "Within \n countries",
+    "neighbors" = "Between \n neighbors",
+    "not_neighbors" = "Between \n non-neighbors (ref)",
+    "different_continent" = "Between \n continents"
+  ))
+
+try_g1 <- try(print(g1), silent = TRUE)
+if (inherits(try_g1, "try-error")) {
+  g1 <- ggplot()
+}
+
+ggsave(
+  filename = "relative_risks_type1.pdf",
+  plot = g1,
+  units = "cm",
+  width = 8,
+  height = 6,
+  device = cairo_pdf
+)
+
+ggsave(
+  filename = "relative_risks_type1.png",
+  plot = g1,
+  units = "cm",
+  width = 8,
+  height = 6
+)
+
+saveRDS(g1, "relative_risks_type1.rds")
+
+close_countries_label <- paste0("Between countries \n <",geodist_threshold, "km")
+distant_countries_label <- paste0("Between countries \n >",geodist_threshold, "km (ref)")
+
+g2 <- plot_rr(rrdf_type2_long) +
+  scale_x_discrete(labels = c(
+    "same_country" = "Within \n countries",
+    "close_countries" = close_countries_label,
+    "distant_countries" = distant_countries_label,
+    "different_continent" = "Between \n continents"
+  ))
+
+try_g2 <- try(print(g2), silent = TRUE)
+if (inherits(try_g2, "try-error")) {
+  g2 <- ggplot()
+}
+
+ggsave(
+  filename = "relative_risks_type2.pdf",
+  plot = g2,
+  units = "cm",
+  width = 8,
+  height = 6,
+  device = cairo_pdf
+)
+
+ggsave(
+  filename = "relative_risks_type2.png",
+  plot = g2,
+  units = "cm",
+  width = 8,
+  height = 6
+)
+
+saveRDS(g2, "relative_risks_type2.rds")

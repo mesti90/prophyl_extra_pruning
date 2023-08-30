@@ -133,7 +133,9 @@ for (i in 1:nsim) {
     focus_on = focus_on
   )
   # subset colldist to relevant rows and columns
-  index <- which(colnames(colldist) %in% colnames(phylodist_subset))
+  index <- unname(sapply(colnames(phylodist_subset), function(x) {
+    which(colnames(colldist) == x)
+  }))
   colldist_subset <- colldist[index, index]
   # calculate mrca
   mrca <- mrca_matrix(

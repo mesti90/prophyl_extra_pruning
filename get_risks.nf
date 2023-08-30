@@ -106,21 +106,26 @@ process calculate_relative_risks {
     tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
 
     output:
-    path "relative_risks.rds"
-    path "relative_risks.pdf"
-    path "relative_risks.png"
+    path "counts.rds"
+    path "relative_risks_type1.rds"
+    path "relative_risks_type1.pdf"
+    path "relative_risks_type1.png"
+    path "relative_risks_type2.rds"
+    path "relative_risks_type2.pdf"
+    path "relative_risks_type2.png"
 
     script:
     """
     Rscript $projectDir/bin/calculate_relative_risks.R \
-    $params.assemblies \
-    $colldist \
-    $same_country \
-    $same_continent \
-    $geodist \
-    $phylodist_list \
-    $params.nboot_on_simtree \
-    $projectDir
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --colldist $colldist \
+    --same_country $same_country \
+    --neighbors $neighbors \
+    --same_continent $same_continent \
+    --geodist $geodist \
+    --phylodist $phylodist_list \
+    --nboot $params.nboot_on_simtree
     """
 }
 
@@ -312,5 +317,5 @@ workflow {
         name: "simtree_paths.txt",
         storeDir: "$launchDir/results/"
     )
-    // simtree_paths | calculate_distances | calculate_relative_risks
+    simtree_paths | calculate_distances | calculate_relative_risks
 }
