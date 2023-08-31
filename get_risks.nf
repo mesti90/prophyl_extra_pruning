@@ -290,7 +290,9 @@ process subsample_input {
     --tree $params.tree \
     --duplicates $params.duplicates \
     --subsample_count $params.subsample_count \
-    --subsample_tipcount $params.subsample_tipcount
+    --subsample_tipcount $params.subsample_tipcount \
+    --focus_by $params.focus_by \
+    --focus_on $params.focus_on
     """
 }
 
