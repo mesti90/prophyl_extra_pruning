@@ -6,7 +6,7 @@
 \usage{
 plot_tree_fan(
   tree_tbl,
-  drop_tip = NULL,
+  highlight_var = NULL,
   open_angle = 10,
   heatmap_var = NULL,
   heatmap_colors = NULL,
@@ -24,7 +24,7 @@ plot_tree_fan(
 \arguments{
 \item{tree_tbl}{tibble; the phylogenetic tree in tibble format.}
 
-\item{drop_tip}{character; a vector of tip labels to exclude from the tree.}
+\item{highlight_var}{character; a variable name used for highlighting tips.}
 
 \item{open_angle}{numeric; open angle for the fan layout.}
 
@@ -50,11 +50,6 @@ By default, all variables are included.}
 
 \item{legend_box}{character; arrangement of multiple legends. Can be either
 \code{"horizontal"} or \code{"vertical"}.}
-
-\item{file_name}{character; export file path. If \code{NULL}, the function
-will not export anything but print the tree to the console. Otherwise the
-function will interpret the path, create directories if they do not already
-exist and export the file. The file extension must be .pdf.}
 
 \item{verbose}{logical; should verbose messages be printed to the console?}
 }
