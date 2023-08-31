@@ -4,6 +4,8 @@
 #' format is commonly used in phylogenetic dating. If date is incomplete the
 #' function returns the upper end of the interval.
 #' @param dates character; a full or partial date in "YYYY-MM_DD" like format.
+#' @param out_format character; output format, either \code{"decimal"} or
+#' \code{"date"}.
 #' @examples
 #' date_upper("2021-08-11")
 #' date_upper("1988-03")
@@ -11,7 +13,10 @@
 #' date_upper("1900/1948")
 #' date_upper("2003-03/2005-02")
 #' @export
-date_upper <- function(dates) {
+date_upper <- function(dates, out_format = "decimal") {
+  
+  out_format <- match.arg(out_format, choices = c("decimal", "date"))
+  
   foo <- function(x) {
     if(is.na(x)) return(NA)
     year = suppressWarnings(
@@ -67,5 +72,10 @@ date_upper <- function(dates) {
   
   out <- unname(sapply(dates, function(x) try(bar(x), silent = TRUE)))
   out <- as.numeric(out)
+  
+  if (out_format == "date") {
+    out <- as.Date(lubridate::date_decimal(out), format = "%Y-%m-%d")
+  }
+  
   return(out)
 }

@@ -4,12 +4,17 @@
 #' format is commonly used in phylogenetic dating. If date is incomplete the
 #' function returns the middle of the interval.
 #' @param dates character; a full or partial date in "YYYY-MM_DD" like format.
+#' @param out_format character; output format, either \code{"decimal"} or
+#' \code{"date"}.
 #' @examples
 #' date_middle("2021-18-11")
 #' date_middle("1988-03")
 #' date_middle("2000")
 #' @export
-date_middle <- function(dates){
+date_middle <- function(dates, out_format = "date"){
+  
+  out_format <- match.arg(out_format, choices = c("decimal", "date"))
+  
   foo <- function(x){
     if(is.na(x)) return(NA)
     year = suppressWarnings(
@@ -33,5 +38,10 @@ date_middle <- function(dates){
     return(date)
   }
   out <- as.Date(sapply(dates, foo))
+  
+  if (out_format == "decimal") {
+    out <- unname(lubridate::decimal_date(out))
+  }
+  
   return(out)
 }

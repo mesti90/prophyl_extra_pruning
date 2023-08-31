@@ -36,6 +36,16 @@ args_list <- list(
     c("-C", "--subsample_tipcount"),
     type = "character",
     help = "Number of tips to draw in each subsample set."
+  ),
+  make_option(
+    c("-b", "--focus_by"),
+    type = "character",
+    help = "Variable to focus on."
+  ),
+  make_option(
+    c("-o", "--focus_on"),
+    type = "character",
+    help = "Value of the variable to focus on."
   )
 )
 
@@ -50,7 +60,9 @@ if (!interactive()) {
     tree = "dated_tree.rds",
     duplicates = "duplicates.txt",
     subsample_count = 10,
-    subsample_tipcount = 10
+    subsample_tipcount = 10,
+    focus_by = "none",
+    focus_on = "none"
   )
 }
 
@@ -68,6 +80,29 @@ subsample_count <- as.numeric(args$subsample_count)
 # number of tips to draw in each subsample set
 subsample_tipcount <- as.numeric(args$subsample_tipcount)
 
+# import focus variables
+# a variable within the input table used for focusing.
+# only used if sampling strategy is "focused".
+focus_by <- args$focus_by
+focus_on <- args$focus_on
+
+if (focus_by == "none") focus_by <- NULL
+if (focus_on == "none") focus_on <- NULL
+
+focus <- validate_focus(assemblies, focus_by, focus_on)
+focus_by <- focus$focus_by
+focus_on <- focus$focus_on
+
+# ratio of samples to take from focus group.
+focus_ratio <- 0.75
+
+# define sampling strategy, "random", or "focused"
+if (is.null(focus_by)) {
+  type <- "random"
+} else {
+  type <- "focused"
+}
+
 # The shrinked tree may contain less tips than the original tree
 # Only sample assemblies that are included in the shrinked tree
 index <- which(assemblies$assembly %in% tree$tip.label == FALSE)
@@ -75,21 +110,13 @@ if (length(index) > 0) {
   assemblies <- assemblies[-index, ]
 }
 
-# sampling strategy
-# can be either "random", "balanced" or "focused".
-type <- "random"
-# a variable within the input table used for balancing.
-# only used if the sampling strategy is "balanced"
-balance_by <- NULL
-# a variable within the input table used for focusing.
-# only used if sampling strategy is "focused".
-focus_by <- "continent"
-focus_on <- "europe"
-# ratio of samples to take from focus group.
-focus_ratio <- 0.75
-
-if (!is.null(balance_by) && balance_by %in% names(assemblies) == FALSE) {
-  stop("Subsampling failed, variable '", balance_by, "' not found.")
+# The number of tips in each subsample must be smaller than the overall number
+# of tips. If not, stop with an informative error.
+if (subsample_tipcount >=  length(tree$tip.label)) {
+  stop(paste0(
+    "Parameter 'subsample_tipcount' must be lower than ",
+    "the overall number of tips."
+  ))
 }
 
 if (type == "random") {
@@ -116,72 +143,6 @@ if (type == "random") {
     )
     # export duplicates
     saveRDS(duplist, dupfile)
-  }
-}
-
-if (type == "balanced") {
-  set.seed(0)
-  years_min <- min(assemblies$collection_year, na.rm = TRUE)
-  years_max <- max(assemblies$collection_year, na.rm = TRUE)
-  years <- years_min:years_max
-  
-  size = 0
-  k = 0
-  
-  while (size < subsample_tipcount & size < nrow(assemblies)) {
-    k = k + 1
-    index <- vector()
-    for (i in years) {
-      bins <- unique(assemblies[[balance_by]][which(assemblies$collection_year == i)])
-      for (j in bins) {
-        idx <- which(assemblies$collection_year == i & assemblies[[balance_by]] == j)
-        if (length(idx) >= k) {
-          index <- c(index, sample(idx, k))
-        } else {
-          index <- c(index, idx)
-        }
-      }
-    }
-    size <- length(index)
-  }
-  if (k == nrow(assemblies)) {
-    stop("Subsampling did not converge. Check.")
-  } else {
-    digits <- ceiling(log10(subsample_count+1))
-    for (h in 1:subsample_count) {
-      index <- vector()
-      for (i in years) {
-        bins <- unique(assemblies[[balance_by]][which(assemblies$collection_year == i)])
-        for (j in bins) {
-          idx <- which(assemblies$collection_year == i & assemblies[[balance_by]] == j)
-          if (length(idx) >= k) {
-            index <- c(index, sample(idx, k))
-          } else {
-            index <- c(index, idx)
-          }
-        }
-      }
-      zeroes <- digits - floor(log10(h))
-      filename = paste0(c("subsample_", rep(0, times = zeroes), h, ".tsv"), collapse = "")
-      dupfile = paste0(c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
-      # remove any duplicate tips before exporting
-      # these will be added back after tree building
-      subset <- assemblies[index, ]
-      # manage duplicates
-      tidydbs <- tidy_duplicates(assemblies, subset, duplicates)
-      subset <- tidydbs$subset
-      duplist <- tidydbs$duplist
-       # export subset
-      write.table(
-        subset,
-        file = filename,
-        sep = "\t",
-        row.names = FALSE,
-        quote = FALSE
-      )
-      # export duplicates
-      saveRDS(duplist, dupfile)
-    }
   }
 }
 
@@ -256,4 +217,3 @@ if (length(duplicates) > 0) {
   dupnames <- unname(unlist(sapply(duplicates, function(x) x[-1])))
   testthat::expect_false(any(subset$assembly %in% dupnames))
 }
-

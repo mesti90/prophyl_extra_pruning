@@ -4,10 +4,13 @@
 \alias{date_upper}
 \title{Convert date to numeric format for phylogenetic dating}
 \usage{
-date_upper(dates)
+date_upper(dates, out_format = "decimal")
 }
 \arguments{
 \item{dates}{character; a full or partial date in "YYYY-MM_DD" like format.}
+
+\item{out_format}{character; output format, either \code{"decimal"} or
+\code{"date"}.}
 }
 \description{
 This is a utility function that converts a date to a numeric value. This

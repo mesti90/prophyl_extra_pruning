@@ -11,6 +11,10 @@ index <- which(names(snps) %in% assemblies$assembly)
 
 f <- snps[index]
 
+# consistency checks
+testthat::expect_true(all(names(f) %in% assemblies$assembly))
+testthat::expect_true(all(assemblies$assembly %in% names(f)))
+
 seqinr::write.fasta(
   sequences = f,
   names = names(f),

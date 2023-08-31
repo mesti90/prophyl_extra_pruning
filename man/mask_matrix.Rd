@@ -4,10 +4,13 @@
 \alias{mask_matrix}
 \title{Mask a distance matrix}
 \usage{
-mask_matrix(df, focus_by, focus_on)
+mask_matrix(df, id_var, focus_by = NULL, focus_on = NULL)
 }
 \arguments{
 \item{df}{data.frame; a data frame containing sample metadata}
+
+\item{id_var}{character; a variable of the df we want to use as row and
+column names. Must be unique for each row of the data frame.}
 
 \item{focus_by}{character; a variable of the df we want to focus on}
 
@@ -30,7 +33,17 @@ df <- data.frame(
   country = c("hungary", "croatia", "china", "serbia", "thailand")
 )
 # focus on European samples
-mask_matrix(df, focus_by = "continent", focus_on = "europe")
+mask_matrix(
+  df,
+  id_var = "assembly",
+  focus_by = "continent",
+  focus_on = "europe"
+)
 # focus on samples from Croatia or Thailand
-mask_matrix(df, focus_by = "country", focus_on = c("croatia", "thailand"))
+mask_matrix(
+  df,
+  id_var = "assembly",
+  focus_by = "country",
+  focus_on = c("croatia", "thailand")
+)
 }

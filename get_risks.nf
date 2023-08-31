@@ -28,10 +28,14 @@ params.simtrees = 1
 params.nboot_on_simtree = 1
 
 // Variable in the assembly table to focus risk analysis on
-params.focus_by = "continent"
+// Can be either "none" in which case there will be no focus
+// or a variable of the assembly table e.g. "continent"
+params.focus_by = "none"
 
 // Value of the variable chosen above to focus on
-params.focus_on = "europe"
+// Can be either "none" in which case there will be no focus
+// or a value of the variable chosen above e.g. "europe"
+params.focus_on = "none"
 
 // Processes 
 
@@ -67,60 +71,6 @@ process build_subset_tree {
     script:
     """
     FastTree -nt $subset_snps > "${subset_id}.nwk"
-    """
-}
-
-process calculate_distances {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/calculate_distances"
-
-    input:
-    path simtree_paths
-
-    output:
-    tuple path("same_country.rds"),
-          path("neighbors.rds"),
-          path("same_continent.rds"),
-          path("geodist.rds"),
-          path("colldist.rds"),
-          path("phylodist_list.rds")
-
-    script:
-    """
-    Rscript $projectDir/bin/calculate_distances.R \
-    $projectDir \
-    $params.assemblies \
-    $simtree_paths \
-    $params.focus_by \
-    $params.focus_on
-    """
-}
-
-process calculate_relative_risks {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/calculate_relative_risks"
-
-    input:
-    tuple path(same_country), path(neighbors), path(same_continent), path(geodist), path(colldist), path(phylodist_list)
-
-    output:
-    path "relative_risks.rds"
-    path "relative_risks.pdf"
-    path "relative_risks.png"
-
-    script:
-    """
-    Rscript $projectDir/bin/calculate_relative_risks.R \
-    $params.assemblies \
-    $colldist \
-    $same_country \
-    $same_continent \
-    $geodist \
-    $phylodist_list \
-    $params.nboot_on_simtree \
-    $projectDir
     """
 }
 
@@ -209,6 +159,94 @@ process root_subset_tree {
     """
 }
 
+process rr_calc_counts {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/rr_calc_counts"
+
+    input:
+    tuple \
+      path(same_city),
+      path(same_country),
+      path(neighbors),
+      path(same_continent),
+      path(geodist),
+      path(colldist),
+      path(phylodist_list)
+
+    output:
+    path "countlist.rds"
+
+    script:
+    """
+    Rscript $projectDir/bin/rr_calc_counts.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --colldist $colldist \
+    --same_city $same_city \
+    --same_country $same_country \
+    --neighbors $neighbors \
+    --same_continent $same_continent \
+    --geodist $geodist \
+    --phylodist $phylodist_list \
+    --nboot $params.nboot_on_simtree
+    """
+}
+
+process rr_calc_dist {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/rr_calc_dist"
+
+    input:
+    path simtree_paths
+
+    output:
+    tuple \
+      path("same_city.rds"),
+      path("same_country.rds"),
+      path("neighbors.rds"),
+      path("same_continent.rds"),
+      path("geodist.rds"),
+      path("colldist.rds"),
+      path("phylodist_list.rds")
+
+    script:
+    """
+    Rscript $projectDir/bin/rr_calc_dist.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies \
+    --simtrees $simtree_paths \
+    --focus_by $params.focus_by \
+    --focus_on $params.focus_on
+    """
+}
+
+process rr_plot_risks {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/results/rr_plot_risks"
+
+    input:
+    path countlist
+
+    output:
+    path "relative_risks_type1.rds"
+    path "relative_risks_type1.pdf"
+    path "relative_risks_type1.png"
+    path "relative_risks_type2.rds"
+    path "relative_risks_type2.pdf"
+    path "relative_risks_type2.png"
+    path "relative_risks_type3.rds"
+    path "relative_risks_type3.pdf"
+    path "relative_risks_type3.png"
+
+    script:
+    """
+    Rscript $projectDir/bin/rr_plot_risks.R --countlist $countlist
+    """
+}
+
 process simulate_subset_trees {
     container "$r_container"
     containerOptions "--no-home"
@@ -252,7 +290,9 @@ process subsample_input {
     --tree $params.tree \
     --duplicates $params.duplicates \
     --subsample_count $params.subsample_count \
-    --subsample_tipcount $params.subsample_tipcount
+    --subsample_tipcount $params.subsample_tipcount \
+    --focus_by $params.focus_by \
+    --focus_on $params.focus_on
     """
 }
 
@@ -312,5 +352,5 @@ workflow {
         name: "simtree_paths.txt",
         storeDir: "$launchDir/results/"
     )
-    // simtree_paths | calculate_distances | calculate_relative_risks
+    simtree_paths | rr_calc_dist | rr_calc_counts | rr_plot_risks
 }

@@ -4,12 +4,16 @@
 \alias{phylodist_matrix}
 \title{Temporal (cophenetic) distance matrix}
 \usage{
-phylodist_matrix(tree, df, focus_on = NULL, focus_by = NULL)
+phylodist_matrix(tree, df, id_var, focus_on = NULL, focus_by = NULL)
 }
 \arguments{
 \item{tree}{treedater; a dated phylogenetic tree}
 
 \item{df}{data.frame; a data frame containing sample metadata}
+
+\item{id_var}{character; a variable of the df we want to use as row and
+column names. Must be unique for each row of the data frame. Must match
+tree tip labels.}
 
 \item{focus_on}{character; one or more values of focus_by to focus on}
 
@@ -24,8 +28,13 @@ pairs of samples. This matrix is one of the "distance" matrices used in risk
 calculations.
 }
 \examples{
-# TODO write an example
+df <- data.frame(
+  assembly = LETTERS[1:5],
+  continent = c("europe", "europe", "asia", "europe", "asia"),
+  country = c("hungary", "hungary", "china", "serbia", "china"),
+  mlst = c("ST1", "ST2", "ST1", "ST2", "ST3")
+)
 set.seed(0)
-tr <- ape::rtree(10)
-# date tree, define df, calculate matrix
+tr <- ape::rtree(6, tip.label = df$assembly)
+phylodist_matrix(tree = tr, df = df,id_var = "assembly")
 }

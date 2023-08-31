@@ -4,10 +4,24 @@
 \alias{neighbors_matrix}
 \title{Neighbors matrix}
 \usage{
-neighbors_matrix(df, focus_on = NULL, focus_by = NULL)
+neighbors_matrix(
+  df,
+  id_var,
+  iso2c_var = "country_iso2c",
+  country_borders = "default",
+  focus_on = NULL,
+  focus_by = NULL
+)
 }
 \arguments{
 \item{df}{data.frame; a data frame containing sample metadata}
+
+\item{id_var}{character; a variable of the df we want to use as row and
+column names. Must be unique for each row of the data frame.}
+
+\item{iso2c_var}{character; a variable of the df that contains ISO 3166-1
+alpha-2 codes for countries. These can be found using e.g.
+\code{countrycode::countrycode()}.}
 
 \item{focus_on}{character; one or more values of focus_by to focus on}
 
@@ -21,22 +35,31 @@ This function calculates a matrix which tells whether pairs of samples were
 collected from neighboring countries. This matrix is one of the "distance"
 matrices used in risk calculations.
 }
-\note{
-The function requires ISO 3166-1 alpha-2 codes for countries. These 
-can be found using \code{countrycode::countrycode()}
-}
 \examples{
 # country code for china
 countrycode::countrycode(
   "china", origin = "country.name", destination = "iso2c")
 df <- data.frame(
-  assembly = LETTERS[1:5],
-  continent = c("europe", "europe", "asia", "europe", "asia"),
-  country = c("hungary", "germany", "china", "serbia", "laos"),
-  country_iso2c = c("HU", "DE", "CN", "RS", "LA")
+  assembly = LETTERS[1:7],
+  continent = c(
+    "europe", "europe", "asia", "europe", "asia", "europe", "europe"),
+  country = c(
+    "hungary", "germany", "china", "serbia", "laos", "albania", "kosovo"),
+  country_iso2c = c("HU", "DE", "CN", "RS", "LA", "AL", "XK")
 )
-# no focus
-neighbors_matrix(df)
+# no focus, use default borders
+neighbors_matrix(df, id_var = "assembly")
+# no focus, custom borders
+# load data set with requested changes to the default borders
+data(custom_country_borders)
+# update borders and calculate neighbors matrix 
+updated_borders <- edit_borders(custom_country_borders)
+neighbors_matrix(df, id_var = "assembly", country_borders = updated_borders)
 # focus on Asian samples
-neighbors_matrix(df, focus_by = "continent", focus_on = "asia")
+neighbors_matrix(
+  df,
+  id_var = "assembly",
+  focus_by = "continent", 
+  focus_on = "asia"
+)
 }

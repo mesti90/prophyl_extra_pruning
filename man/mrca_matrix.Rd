@@ -22,8 +22,21 @@ common ancestor (MRCA) between pairs of samples. This matrix is one of the
 "distance" matrices used in risk calculations.
 }
 \examples{
-# TODO
+df <- data.frame(
+  assembly = LETTERS[1:5],
+  continent = c("europe", "europe", "asia", "europe", "asia"),
+  country = c("hungary", "germany", "china", "hungary", "laos"),
+  collection_date = c(
+    "2000-01-01", "2001-01-01", "2005-01-01", "2000-06-15", "2005-06-15" 
+  )
+)
+colldist <- tempdist_matrix(
+  df, id_var = "assembly", date_var = "collection_date")
+set.seed(0)
+tr <- ape::rtree(5, tip.label = df$assembly)
+phylodist <- phylodist_matrix(tree = tr, df = df,id_var = "assembly")
+mrca_matrix(phylodist, colldist)
 }
 \seealso{
-[phylodist_matrix()], [colldist_matrix()]
+[phylodist_matrix()], [tempdist_matrix()]
 }
