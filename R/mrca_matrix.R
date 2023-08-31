@@ -7,25 +7,39 @@
 #' @param colldist colldist; a collection date distance matrix
 #' @param force_nonnegative logical; should negative values be converted to 0?
 #' @return a matrix
-#' @seealso [phylodist_matrix()], [colldist_matrix()] 
+#' @seealso [phylodist_matrix()], [tempdist_matrix()] 
 #' @examples
-#' # TODO
+#' df <- data.frame(
+#'   assembly = LETTERS[1:5],
+#'   continent = c("europe", "europe", "asia", "europe", "asia"),
+#'   country = c("hungary", "germany", "china", "hungary", "laos"),
+#'   collection_date = c(
+#'     "2000-01-01", "2001-01-01", "2005-01-01", "2000-06-15", "2005-06-15" 
+#'   )
+#' )
+#' colldist <- tempdist_matrix(
+#'   df, id_var = "assembly", date_var = "collection_date")
+#' set.seed(0)
+#' tr <- ape::rtree(5, tip.label = df$assembly)
+#' phylodist <- phylodist_matrix(tree = tr, df = df,id_var = "assembly")
+#' mrca_matrix(phylodist, colldist)
 mrca_matrix <- function(phylodist,
                         colldist,
                         force_nonnegative = TRUE) {
-  if (all(colnames(phylodist) %in% colnames(colldist)) == FALSE) {
-    stop()
+  if (any(row.names(phylodist) != row.names(colldist))) {
+    stop("Matrix row and/or columns are mixed up.")
   }
-  if (all(colnames(colldist) %in% colnames(phylodist)) == FALSE) {
-    stop()
+  if (any(colnames(phylodist) != colnames(colldist))) {
+    stop("Matrix row and/or columns are mixed up.")
   }
-  # reorder colldist rows and columns to match phylodist rows and columns
-  index_colldist <- unname(sapply(colnames(phylodist), function(x) {
-    which(colnames(colldist) == x)
-  }))
-  colldist_ordered <- colldist[index_colldist, index_colldist]
-  # applied mrca definition: distance from the older sample 
-  mrca <- (phylodist - colldist_ordered)/2
+  # definition:
+  # mrca is the distance of the common ancestor from the older sample
+  mrca <- (phylodist - colldist)/2
+  # alternative definition:
+  # mrca is the distance of the common ancestor from the more recent sample
+  # TODO discuss because the alternative makes more sense also we might be able
+  # to eliminated the sampling window with it?
+  # mrca <- (phylodist + colldist)/2
   if (force_nonnegative == TRUE) {
     index <- which(mrca < 0)
     if (length(index) > 0) {

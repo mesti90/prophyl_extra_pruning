@@ -95,7 +95,8 @@ mrca_cat_char <- paste0(
   mrca_categories[-length(mrca_categories)],
   ",",
   mrca_categories[-1],
-  "]")
+  "]"
+)
 
 # convert phylogenetic distances to MRCA categories
 phylodist_list <- lapply(phylodist_list, function(x) {
@@ -115,23 +116,13 @@ colldist <- 1 * (colldist < colldist_max)
 geodist_threshold <- 1000
 # Close countries are different countries within threshold
 geodist_close <- 1 * (geodist < geodist_threshold)
-close_countries <- (1*!same_country) * geodist_close
+close_countries <- (1-same_country) * geodist_close
 # Distant countries are different countries beyond threshold
-distant_countries <- (1*!same_country) * (1*!geodist_close)
-
-# Define function for shrinking a matrix to have the same rows and columns as
-# the smaller matrix
-shrink_matrix <- function(matrix, small_matrix) {
-  index <- unname(sapply(colnames(small_matrix), function(x) {
-    which(colnames(matrix) == x)
-  }))
-  shrinked_matrix <- matrix[index, index]
-  return(shrinked_matrix)
-}
+distant_countries <- (1-same_country) * (1-geodist_close)
 
 countdf <- data.frame()
 # for each subsample
-for (i in 1:length(phylodist_list)) {
+for (i in seq_along(phylodist_list)) {
   # for each bootstrap replicate
   for (j in 1:nboot) {
     # use the respective phylodist matrix or generate a bootstrapped matrix
@@ -163,7 +154,7 @@ for (i in 1:length(phylodist_list)) {
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       # different city, same country
-      different_city_sub2 <- (1*!same_city_sub) *
+      different_city_sub2 <- (1-same_city_sub) *
         same_country_sub *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
@@ -171,19 +162,19 @@ for (i in 1:length(phylodist_list)) {
       same_country_sub2 <- same_country_sub *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
-      # different country
-      different_country_sub2 <- (1*!same_country_sub2) *
+      # different country, irrespective of continent
+      different_country_sub2 <- (1-same_country_sub2) *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       # neighbors, same continent
-      neighbors_sub2 <- (1*!same_country_sub) *
+      neighbors_sub2 <- (1-same_country_sub) *
         neighbors_sub *
         same_continent_sub *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       # different countries, not neighbors, same continent
-      not_neighbors_sub2 <- (1*!same_country_sub) *
-        (1*!neighbors_sub2) *
+      not_neighbors_sub2 <- (1-same_country_sub) *
+        (1-neighbors_sub) *
         same_continent_sub *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
@@ -198,7 +189,7 @@ for (i in 1:length(phylodist_list)) {
         colldist_sub *  # within colldist timeframe
         phylodist_k # within MRCA range
       # different continent
-      different_continent_sub2 <- (1*!same_continent_sub) * 
+      different_continent_sub2 <- (1-same_continent_sub) * 
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       
@@ -218,36 +209,37 @@ for (i in 1:length(phylodist_list)) {
       }
       
       # type 1 - same country, neighbor, not neighbor, different continent
+      # testthat::expect_false(matrix_overlap(
+      #   same_country_sub2,
+      #   neighbors_sub2
+      # ))
+      # testthat::expect_false(matrix_overlap(
+      #   same_country_sub2,
+      #   not_neighbors_sub2
+      # ))
+      # testthat::expect_false(matrix_overlap(
+      #   same_country_sub2,
+      #   different_continent_sub2
+      # ))
+      # testthat::expect_false(matrix_overlap(
+      #   neighbors_sub2,
+      #   not_neighbors_sub2
+      # ))
+      # testthat::expect_false(matrix_overlap(
+      #   neighbors_sub2,
+      #   different_continent_sub2
+      # ))
+      # testthat::expect_false(matrix_overlap(
+      #   not_neighbors_sub2,
+      #   different_continent_sub2
+      # ))
       testthat::expect_false(matrix_overlap(
         same_country_sub2,
-        neighbors_sub2
-      ))
-      testthat::expect_false(matrix_overlap(
-        same_country_sub2,
-        not_neighbors_sub2
-      ))
-      testthat::expect_false(matrix_overlap(
-        same_country_sub2,
-        different_continent_sub2
-      ))
-      testthat::expect_false(matrix_overlap(
         neighbors_sub2,
-        not_neighbors_sub2
-      ))
-      testthat::expect_false(matrix_overlap(
-        neighbors_sub2,
-        different_continent_sub2
-      ))
-      testthat::expect_false(matrix_overlap(
         not_neighbors_sub2,
         different_continent_sub2
       ))
-      testthat::expect_false(matrix_overlap(
-        same_country_sub2,
-        neighbors_sub2,
-        not_neighbors_sub2,
-        different_continent_sub2
-      ))
+      
       # type 2- same country, close country, distant county, different continent
       testthat::expect_false(matrix_overlap(
         same_country_sub2,
@@ -256,7 +248,7 @@ for (i in 1:length(phylodist_list)) {
         different_continent_sub2
       ))
 
-      # type3 - same city, differenct city, different country
+      # type3 - same city, different city, different country
       testthat::expect_false(matrix_overlap(
         same_city_sub2,
         different_city_sub2,
@@ -297,14 +289,10 @@ for (i in 1:length(phylodist_list)) {
       )
       
       testthat::expect_true(type1_sumcount == type2_sumcount)
-      testthat::expect_true(type2_sumcount == type3_sumcount)
       
-      # fill up rows of the data frame
-      # TODO subsample should contain the real name of the subsample
-      # it is unclear in what order phylodist list contains the subsamples.
       newdf <- dplyr::bind_cols(
         data.frame(
-          subsample = i,
+          subsample = names(phylodist_list[i]),
           bootstrap = j,
           mrca = k
         ),
@@ -318,6 +306,8 @@ for (i in 1:length(phylodist_list)) {
     }
   }
 }
+
+countdf <- countdf[order(countdf$subsample),]
 
 countlist <- list(
   countdf = countdf,

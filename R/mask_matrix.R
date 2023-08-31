@@ -6,6 +6,8 @@
 #' neither of the two samples belong to the focus group. This function creates
 #' a masking matrix that can be used to replace these comparisons with NAs.
 #' @param df data.frame; a data frame containing sample metadata
+#' @param id_var character; a variable of the df we want to use as row and
+#' column names. Must be unique for each row of the data frame.
 #' @param focus_by character; a variable of the df we want to focus on
 #' @param focus_on character; one or more values of focus_by we want to focus on
 #' @return a matrix
@@ -16,24 +18,43 @@
 #'   country = c("hungary", "croatia", "china", "serbia", "thailand")
 #' )
 #' # focus on European samples
-#' mask_matrix(df, focus_by = "continent", focus_on = "europe")
+#' mask_matrix(
+#'   df,
+#'   id_var = "assembly",
+#'   focus_by = "continent",
+#'   focus_on = "europe"
+#' )
 #' # focus on samples from Croatia or Thailand
-#' mask_matrix(df, focus_by = "country", focus_on = c("croatia", "thailand"))
+#' mask_matrix(
+#'   df,
+#'   id_var = "assembly",
+#'   focus_by = "country",
+#'   focus_on = c("croatia", "thailand")
+#' )
 mask_matrix <- function(df,
-                        focus_by,
-                        focus_on) {
+                        id_var,
+                        focus_by = NULL,
+                        focus_on = NULL) {
+  
+  # validate id_var
+  id_var <- validate_id_var(df, id_var)
+  # validate focus_by and focus_on
+  focus <- validate_focus(df, focus_by, focus_on)
+  focus_by <- focus$focus_by
+  focus_on <- focus$focus_on
   
   mask <- matrix(1, nrow(df), nrow(df))
-  index <- which(df[[focus_by]] %in% focus_on == FALSE)
-  if (length(index) == 0) {
-    warning("Focus group contains all isolates.")
-  } else {
-    mask[index, index] <- NA
-    if (length(index) == nrow(df)) {
-      warning("Focus group is empty.")
+  rownames(mask) <- df[[id_var]]
+  colnames(mask) <- df[[id_var]]
+  
+  if (!is.null(focus_by) & !is.null(focus_on)) {
+    index <- which(df[[focus_by]] %in% focus_on == FALSE)
+    if (length(index) == 0) {
+      warning("Focus group contains all isolates.")
+    } else {
+      mask[index, index] <- NA
     }
   }
-  rownames(mask) <- df$assembly
-  colnames(mask) <- df$assembly
+  
   return(mask)
 }

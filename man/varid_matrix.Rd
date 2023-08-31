@@ -4,10 +4,13 @@
 \alias{varid_matrix}
 \title{Variable identity matrix}
 \usage{
-varid_matrix(df, var = "country", focus_on = NULL, focus_by = NULL)
+varid_matrix(df, id_var, var = "country", focus_on = NULL, focus_by = NULL)
 }
 \arguments{
 \item{df}{data.frame; a data frame containing sample metadata}
+
+\item{id_var}{character; a variable of the df we want to use as row and
+column names. Must be unique for each row of the data frame.}
 
 \item{var}{character; a variable of the df to assess}
 
@@ -29,13 +32,18 @@ df <- data.frame(
   assembly = LETTERS[1:5],
   continent = c("europe", "europe", "asia", "europe", "asia"),
   country = c("hungary", "hungary", "china", "serbia", "china"),
-  mlst = c("ST1", "ST2", "ST1", "ST2", "ST3")
+  city = c("budapest", "szeged", "beijing", "belgrade", "beijing")
 )
 # which samples come from the same country
-varid_matrix(df, var = "country")
+varid_matrix(df, id_var = "assembly", var = "country")
 # same but focus on European samples
 varid_matrix(
-  df, var = "country", focus_by = "continent", focus_on = "europe")
+  df, 
+  id_var = "assembly", 
+  var = "country", 
+  focus_by = "continent", 
+  focus_on = "europe"
+ )
 # which samples have the same mlst
-varid_matrix(df, var = "mlst")
+varid_matrix(df, id_var = "assembly", var = "city")
 }

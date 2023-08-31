@@ -51,8 +51,8 @@ if (!interactive()) {
     project_dir = "~/Methods/prophyl",
     assemblies = "assemblies.tsv",
     simtrees = "simtree_paths.txt",
-    focus_by = "none",
-    focus_on = "none"
+    focus_by = "continent",
+    focus_on = "europe"
   )
 }
 
@@ -72,43 +72,21 @@ focus_on <- args$focus_on
 if (focus_by == "none") focus_by <- NULL
 if (focus_on == "none") focus_on <- NULL
 
-# TODO maybe this should be checked at input validation as well?
-# TODO maybe only character variables should be allowed?
-# validate input
-if (!is.null(focus_by)) {
-  focus_by <- match.arg(focus_by, choices = names(assemblies))
-}
-if (!is.null(focus_on)) {
-  focus_on <- match.arg(focus_on, choices = unique(assemblies[[focus_by]]))
-}
-if (!is.null(focus_on) & !is.null(focus_by)) {
-  maskmat <- mask_matrix(assemblies, focus_by = focus_by, focus_on = focus_on)
-  rownames(maskmat) <- assemblies$assembly
-  colnames(maskmat) <- assemblies$assembly
-}
-
-simtree_paths <- readLines(args$simtrees)
-simtrees <- list()
-simtrees$trees <- list()
-for (i in simtree_paths) {
-  newtrees <- readRDS(i)
-  simtrees$trees <- c(simtrees$trees, newtrees$trees)
-}
-
 # geographic distance - same city
 same_city <- varid_matrix(
   df = assemblies,
+  id_var = "assembly",
   var = "city",
   focus_by = focus_by,
   focus_on = focus_on
 )
-
 # export data
 saveRDS(same_city, file = "same_city.rds")
 
 # geographic distance - same country
 same_country <- varid_matrix(
   df = assemblies,
+  id_var = "assembly",
   var = "country",
   focus_by = focus_by,
   focus_on = focus_on
@@ -117,8 +95,15 @@ same_country <- varid_matrix(
 saveRDS(same_country, file = "same_country.rds")
 
 # geographic distance - neighbors
+
+data("custom_country_borders")
+updated_borders <- edit_borders(custom_country_borders)
+
 neighbors <- neighbors_matrix(
   df = assemblies,
+  id_var = "assembly",
+  iso2c_var = "country_iso2c",
+  country_borders = updated_borders,
   focus_by = focus_by,
   focus_on = focus_on
 )
@@ -128,6 +113,7 @@ saveRDS(neighbors, file = "neighbors.rds")
 # geographic distance - same continent
 same_continent <- varid_matrix(
   df = assemblies,
+  id_var = "assembly",
   var = "continent",
   focus_by = focus_by,
   focus_on = focus_on
@@ -138,38 +124,56 @@ saveRDS(same_continent, file = "same_continent.rds")
 # geographic distance - distances in km
 geodist <- geodist_matrix(
   df = assemblies,
+  id_var = "assembly",
+  lat_var = "lat",
+  lon_var = "lon",
   focus_by = focus_by,
   focus_on = focus_on
 )
 # export data
 saveRDS(geodist, file = "geodist.rds")
 
-# temporal distance - time difference between collections dates
-colldist <- colldist_matrix(
+# temporal distance - time difference between collection dates
+
+# set random seed for date estimation
+set.seed(0)
+
+colldist <- tempdist_matrix(
   df = assemblies,
+  id_var = "assembly",
+  date_var = "collection_date",
   focus_by = focus_by,
   focus_on = focus_on,
-  estimate_dates = "middle"
+  estimate_dates = "runif"
 )
 # export data
 saveRDS(colldist, file = "colldist.rds")
 
 # temporal distance - most recent common ancestors between isolates
 
-nsim <- length(simtrees$trees)
+simtree_paths <- readLines(args$simtrees)
+simtree_names <- gsub("\\.rds","",basename(simtree_paths))
+
+simtrees <- list()
+simtrees$trees <- list()
+for (i in simtree_paths) {
+  newtrees <- readRDS(i)
+  simtrees$trees <- c(simtrees$trees, newtrees$trees)
+}
+
 phylodist_list <- list()
-for (i in 1:nsim) {
+for (i in seq_along(simtrees$trees)) {
   phylodist_subset <- phylodist_matrix(
     tree = simtrees$trees[[i]],
     df = assemblies,
+    id_var = "assembly",
     focus_by = focus_by,
     focus_on = focus_on
   )
-  # subset colldist to relevant rows and columns
-  index <- unname(sapply(colnames(phylodist_subset), function(x) {
-    which(colnames(colldist) == x)
-  }))
-  colldist_subset <- colldist[index, index]
+  
+  # shrink colldist to phylodist_subset, align rows and columns
+  colldist_subset <- shrink_matrix(colldist, phylodist_subset)
+  
   # calculate mrca
   mrca <- mrca_matrix(
     phylodist_subset,
@@ -178,5 +182,6 @@ for (i in 1:nsim) {
   )
   phylodist_list[[i]] <- mrca
 }
+names(phylodist_list) <- simtree_names
 # export data
 saveRDS(phylodist_list, file = "phylodist_list.rds")

@@ -4,10 +4,26 @@
 \alias{geodist_matrix}
 \title{Geographic distance matrix}
 \usage{
-geodist_matrix(df, focus_on = NULL, focus_by = NULL)
+geodist_matrix(
+  df,
+  id_var,
+  lat_var = "lat",
+  lon_var = "lon",
+  focus_on = NULL,
+  focus_by = NULL
+)
 }
 \arguments{
 \item{df}{data.frame; a data frame containing sample metadata}
+
+\item{id_var}{character; a variable of the df we want to use as row and
+column names. Must be unique for each row of the data frame.}
+
+\item{lat_var}{character; a variable of the df we want to assess which
+stores latitude coordinate.}
+
+\item{lon_var}{character; a variable of the df we want to assess which
+stores longitude coordinate.}
 
 \item{focus_on}{character; one or more values of focus_by to focus on}
 
@@ -30,7 +46,12 @@ df <- data.frame(
   lon = c(19.50330, 10.451526, 104.19540, 19.50330, 102.4955)
 )
 # no focus
-geodist_matrix(df)
+geodist_matrix(df, id_var = "assembly")
 # focus on Asian samples
-geodist_matrix(df, focus_by = "continent", focus_on = "asia")
+geodist_matrix(
+  df,
+  id_var = "assembly",
+  focus_by = "continent",
+  focus_on = "asia"
+)
 }
