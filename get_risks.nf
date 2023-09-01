@@ -9,7 +9,8 @@ r_container = "stitam/prophyl:0.10"
 // PARAMETERS
 
 // Input files
-params.assemblies = "${launchDir}/assemblies.tsv"
+params.ASSEMBLIES = "${launchDir}/assemblies.tsv"
+params.assemblies = "${launchDir}/assemblies_for_country_rr.tsv"
 params.tree = "${launchDir}/results/add_duplicates/dated_tree.rds"
 params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
 params.duplicates = "${launchDir}/results/remove_duplicates/duplicates.txt"
@@ -286,6 +287,7 @@ process subsample_input {
     """
     Rscript $projectDir/bin/subsample_input.R \
     --project_dir $projectDir \
+    --ASSEMBLIES $params.ASSEMBLIES \
     --assemblies $assemblies \
     --tree $params.tree \
     --duplicates $params.duplicates \
