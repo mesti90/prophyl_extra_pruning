@@ -45,6 +45,13 @@ tidy_duplicates <- function(df, subset, id_var, duplicates) {
           }
         }
       }))
+      # rearrange duplist elements to ensure if ref is included it is first
+      for (i in seq_along(duplist)) {
+        if (names(duplist)[i] %in% duplist[[i]]) {
+          index <- which(duplist[[i]] == names(duplist[i]))
+          duplist[[i]] <- c(duplist[[i]][index], duplist[[i]][-index])
+        }
+      }
       # Remove all assemblies that are listed as duplicates. This will remove
       # any references as well. At the same time add all references.
       index_remove <- unname(unlist(lapply(duplist, function(x) {
