@@ -42,6 +42,7 @@ params.focus_on = "none"
 
 process add_subset_duplicates {
     container "$r_container"
+    containerOptions "--no-home --bind ${launchDir}:$HOME"
     storeDir "$launchDir/results/add_subset_duplicates/${subset_id}"
 
     input:

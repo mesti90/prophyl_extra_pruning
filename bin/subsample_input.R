@@ -66,7 +66,7 @@ if (!interactive()) {
     tree = "dated_tree.rds",
     duplicates = "duplicates.txt",
     subsample_count = 10,
-    subsample_tipcount = 500,
+    subsample_tipcount = 25,
     focus_by = "none",
     focus_on = "none"
   )
@@ -224,7 +224,7 @@ for (i in 1:subsample_count) {
     c("subsample_", rep(0, times = zeroes), i, ".rds"), collapse = "")
   # export subset
   write.table(
-    subs[[i]],
+    subs_tidy[[i]],
     file = filename,
     sep = "\t",
     row.names = FALSE,
