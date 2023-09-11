@@ -5,6 +5,11 @@ rm(list = ls())
 
 args_list <- list(
   make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "Path to assemblies file."
+  ),
+  make_option(
     c("-t", "--trees"),
     type = "character",
     help = "All dated trees collected in a single rds file."
@@ -22,10 +27,14 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
+    assemblies = "aci_filtered.rds",
     trees = "all_dated_trees.rds",
     sensitivity = "Acinetobacter baumannii strains_Phages - Acinetobacter baumannii strains_Phages.tsv"
   )
 }
+
+# import assemblies
+assemblies <- readRDS(args$assemblies)
 
 # import trees
 trees <- readRDS(args$trees)
@@ -129,6 +138,22 @@ comp$A2_KL <- sapply(comp$A2, function(x) {
   index <- which(phres$Assembly == x)
   phres$KL[index]
 })
+comp$A1_region23 <- sapply(comp$A1, function(x) {
+  index <- which(assemblies$assembly == x)
+  assemblies$region23[index]
+})
+comp$A2_region23 <- sapply(comp$A2, function(x) {
+  index <- which(assemblies$assembly == x)
+  assemblies$region23[index]
+})
+comp$Region <-factor(
+  ifelse(
+    comp$A1_region23 == comp$A2_region23,
+    "Same region23",
+    "Different region23"
+  ), 
+  levels = c("Different region23", "Same region23")
+)
 # only compare strains which had the same MLST and K type
 comp <- comp[which(comp$A1_mlst == comp$A2_mlst & comp$A1_KL == comp$A2_KL),]
 
@@ -175,11 +200,11 @@ write.table(
 phres$serotype <- paste0(phres$MLST, " - ", phres$KL)
 comp$serotype <- paste0(comp$A1_mlst, " - ", comp$A1_KL)
 
-# filter to serotypes with at least 15 comparisons (6 strains)
+# filter to serotypes with at least 45 comparisons (10 strains)
 serotypes <- comp %>% 
   group_by(serotype) %>% 
   summarise(count = n()) %>% 
-  filter(count >= 15)
+  filter(count >= 45)
 comp <- comp[which(comp$serotype %in% serotypes$serotype),]
 
 # PERFORM MANTEL TEST
@@ -239,13 +264,13 @@ ymin <- min(comp_jitter$phagedist, na.rm = TRUE)
 ymax <- max(comp_jitter$phagedist, na.rm = TRUE)
 
 g <- ggplot(comp_jitter, aes(patristic, phagedist)) + 
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, aes(col = Region)) +
   geom_smooth(method = "loess", span = 5) +
   xlim(xmin, xmax) +
   ylim(ymin, ymax) +
   xlab("Time to most recent common ancestor (years)") + 
   ylab("Dissimilarity of phage susceptibility profiles (Jaccard distance)") +
-  facet_wrap(serotype~.)
+  facet_wrap(serotype~., nrow = 1)
 
 # add mantel test p values
 mantel_df <- data.frame(
@@ -269,8 +294,16 @@ ggsave(
   filename = "phylodist_phagedist.pdf",
   plot = g,
   units = "cm",
-  height = 20,
-  width = 20
+  height = 15,
+  width = 30
+)
+
+ggsave(
+  filename = "phylodist_phagedist.png",
+  plot = g,
+  units = "cm",
+  height = 15,
+  width = 30
 )
 
 # ANALYSE PAIRS WHICH HAD IDENTICAL PHAGE SENSITIVITY PROFILES
