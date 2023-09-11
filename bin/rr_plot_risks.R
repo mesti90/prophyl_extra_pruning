@@ -11,7 +11,7 @@ args_list <- list(
     c("-C", "--countlist_all"),
     type = "character",
     help = "Path to an rds file containing the counts for risk analysis."
-  ),
+  )
 )
 
 args_parser  <- OptionParser(option_list = args_list)
@@ -158,8 +158,14 @@ plot_rr <- function(df, df_all) {
     stat_summary(
       geom = "point", 
       fun.data = point_and_whiskers,
+      size = 0.3
+    ) + 
+    stat_summary(
+      geom = "point", 
+      fun.data = point_and_whiskers,
       size = 0.3, 
-      data = df_all
+      data = df_all, 
+      col = "#FF0000"
     ) +
     stat_summary(
       geom = "errorbar",
