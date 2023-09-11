@@ -187,6 +187,7 @@ process rr_calc_counts {
     Rscript $projectDir/bin/rr_calc_counts.R \
     --project_dir $projectDir \
     --assemblies $params.ASSEMBLIES \
+    --assemblies_collapsed $params.assemblies \
     --colldist $colldist \
     --same_city $same_city \
     --same_country $same_country \

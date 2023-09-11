@@ -8,9 +8,14 @@ args_list <- list(
     help = "Path to project directory."
   ),
   make_option(
-    c("-a", "--assemblies"),
+    c("-A", "--assemblies"),
     type = "character",
     help = "Path to the assemblies file."
+  ),
+  make_option(
+    c("-a", "--assemblies_collapsed"),
+    type = "character",
+    help = "Path to the assemblies file used for subsampling."
   ),
   make_option(
     c("-c", "--colldist"),
@@ -67,6 +72,7 @@ if (!interactive()) {
   args <- list(
     project_dir = "~/Methods/prophyl",
     assemblies = "assemblies.tsv",
+    assemblies_collapsed = "assemblies_for_country_rr.tsv",
     colldist = "colldist.rds",
     same_city = "same_city.rds",
     same_country = "same_country.rds",
@@ -132,6 +138,11 @@ countdf_all <- data.frame()
 ########## TODO DRY WRAP THIS INTO A FUNCTION?
 
 # convert phylogenetic distances to MRCA categories
+
+# filter all phylo distances to only those in the collapsed assemblies
+assemblies_collapsed <- read.csv(args$assemblies_collapsed, sep = "\t")
+index <- which(colnames(phylodist_all) %in% assemblies_collapsed$assembly)
+phylodist_all <- phylodist_all[index, index]
 
 foo <- function(phd, categories) {
   out <- cut(phd, breaks = categories)
