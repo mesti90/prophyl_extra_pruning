@@ -9,7 +9,8 @@ r_container = "stitam/prophyl:0.10"
 // PARAMETERS
 
 // Input files
-params.assemblies = "${launchDir}/assemblies.tsv"
+params.ASSEMBLIES = "${launchDir}/assemblies.tsv"
+params.assemblies = "${launchDir}/assemblies_for_country_rr.tsv"
 params.tree = "${launchDir}/results/add_duplicates/dated_tree.rds"
 params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
 params.duplicates = "${launchDir}/results/remove_duplicates/duplicates.txt"
@@ -112,7 +113,7 @@ process date_subset_tree {
     --project_dir $projectDir \
     --trees $subset_trees \
     --snps $subset_snps \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --threads ${task.cpus} \
     --branch_dimension snp_per_site \
     --reroot false
@@ -152,7 +153,7 @@ process root_subset_tree {
     """
     Rscript $projectDir/bin/root_subset_tree.R \
     --project_dir $projectDir \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --dated_tree $params.tree \
     --subset_tree $subset_tree \
     --threads ${task.cpus}
@@ -181,7 +182,7 @@ process rr_calc_counts {
     """
     Rscript $projectDir/bin/rr_calc_counts.R \
     --project_dir $projectDir \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --colldist $colldist \
     --same_city $same_city \
     --same_country $same_country \
@@ -215,7 +216,7 @@ process rr_calc_dist {
     """
     Rscript $projectDir/bin/rr_calc_dist.R \
     --project_dir $projectDir \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --simtrees $simtree_paths \
     --focus_by $params.focus_by \
     --focus_on $params.focus_on
@@ -286,6 +287,7 @@ process subsample_input {
     """
     Rscript $projectDir/bin/subsample_input.R \
     --project_dir $projectDir \
+    --ASSEMBLIES $params.ASSEMBLIES \
     --assemblies $assemblies \
     --tree $params.tree \
     --duplicates $params.duplicates \
