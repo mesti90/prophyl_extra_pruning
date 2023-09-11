@@ -10,7 +10,7 @@ fasttree_container = "staphb/fasttree:latest"
 r_container = "stitam/prophyl:0.10"
 snippy_container = "staphb/snippy"
 
-// Parameters
+// Input parameters
 
 params.username = "stamas"
 params.assemblies = "$launchDir/assemblies.tsv"
@@ -19,9 +19,13 @@ params.reference_genome = null
 params.gubbins_iterations = 10
 params.bootstrap_replicates = 1000
 
+// Output parameters
+
+params.resdir = "results"
+
 process add_duplicates {
     container "$r_container"
-    storeDir "$launchDir/results/add_duplicates"
+    storeDir "$launchDir/$params.resdir/add_duplicates"
 
     input:
     path tree
@@ -41,7 +45,7 @@ process add_duplicates {
 
 process bootstrap_tree {
     container "$iqtree_container"
-    storeDir "$launchDir/results/bootstrap_tree"
+    storeDir "$launchDir/$params.resdir/bootstrap_tree"
 
     input:
     tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)  
@@ -63,7 +67,7 @@ process bootstrap_tree {
 
 process build_tree {
     container "$gubbins_container"
-    storeDir "$launchDir/results/build_tree"
+    storeDir "$launchDir/$params.resdir/build_tree"
 
     input:
     path chromosomes
@@ -93,7 +97,7 @@ process build_tree {
 process choose_dated_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/choose_dated_tree"
+    storeDir "$launchDir/$params.resdir/choose_dated_tree"
 
     input:
     path dated_trees
@@ -111,7 +115,7 @@ process choose_dated_tree {
 process choose_reference_genome {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/choose_reference_genome"
+    storeDir "$launchDir/$params.resdir/choose_reference_genome"
 
     input:
     path assemblies
@@ -130,7 +134,7 @@ process choose_reference_genome {
 process create_genome_list {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/create_genome_list"
+    storeDir "$launchDir/$params.resdir/create_genome_list"
 
     input:
     path assemblies
@@ -150,7 +154,7 @@ process create_genome_list {
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_tree"
+    storeDir "$launchDir/$params.resdir/date_tree"
 
     input:
     tuple path(snps), path(rooted_trees)
@@ -177,7 +181,7 @@ process date_tree {
 process keep_chromosome {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/keep_chromosome"
+    storeDir "$launchDir/$params.resdir/keep_chromosome"
 
     input:
     path assembly_dir
@@ -194,7 +198,7 @@ process keep_chromosome {
 process remove_duplicates {
     container "$hgttree_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/remove_duplicates"
+    storeDir "$launchDir/$params.resdir/remove_duplicates"
     
     input:
     path chromosomes
@@ -215,7 +219,7 @@ process root_tree {
     // Binding required because TreeTools wants to use /home
     // TODO eliminate "username"
     containerOptions "--no-home --bind ${launchDir}/results:/home/$params.username"
-    storeDir "$launchDir/results/root_tree"
+    storeDir "$launchDir/$params.resdir/root_tree"
 
     input:
     tuple path(snps), path(shrinked_tree)
@@ -239,7 +243,7 @@ process root_tree {
 
 process shrink_tree {
     container "$hgttree_container"
-    storeDir "$launchDir/results/shrink_tree"
+    storeDir "$launchDir/$params.resdir/shrink_tree"
 
     input:
     tuple path(A),
@@ -266,7 +270,7 @@ process shrink_tree {
 
 process snippy_contig {
     container "$snippy_container"
-    storeDir "$launchDir/results/snippy_contig"
+    storeDir "$launchDir/$params.resdir/snippy_contig"
 
     input:
     tuple val(assembly_id), val(contigs)
@@ -287,7 +291,7 @@ process snippy_contig {
 
 process snippy_paired {
     container "$snippy_container"
-    storeDir "$launchDir/results/snippy_paired"
+    storeDir "$launchDir/$params.resdir/snippy_paired"
 
     input:
     tuple val(assembly_id), val(R1), val(R2)
@@ -309,7 +313,7 @@ process snippy_paired {
 
 process snippy_single {
     container "$snippy_container"
-    storeDir "$launchDir/results/snippy_single"
+    storeDir "$launchDir/$params.resdir/snippy_single"
 
     input:
     tuple val(assembly_id), val(reads)
@@ -331,7 +335,7 @@ process snippy_single {
 process tidy_bootstrap_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/tidy_bootstrap_tree"
+    storeDir "$launchDir/$params.resdir/tidy_bootstrap_tree"
 
     input: 
     path bstree
@@ -348,7 +352,7 @@ process tidy_bootstrap_tree {
 process validate_input {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/validate_input"
+    storeDir "$launchDir/$params.resdir/validate_input"
 
     output:
     path "assemblies.tsv"
@@ -381,7 +385,7 @@ workflow {
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
     chromosomes = keep_chromosome.out.collectFile(
         name: "chromosomes.fasta",
-        storeDir: "$launchDir/results/"
+        storeDir: "$launchDir/$params.resdir/"
     )
 
     // Remove duplicates, mask recombination, build tree, shrink, bootstrap
