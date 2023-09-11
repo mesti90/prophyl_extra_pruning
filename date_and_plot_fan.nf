@@ -15,9 +15,13 @@ nextflow.enable.dsl=2
 r_container = "stitam/r-aci:0.1"
 hgttree_container = "mesti90/hgttree:2.6"
 
+// Output parameters
+
+params.resdir = "results"
+
 process shrink_tree {
     container "$hgttree_container"
-    storeDir "$launchDir/results/shrink_tree"
+    storeDir "$launchDir/$params.resdir/shrink_tree"
 
     output:
     tuple path("treeshrink.treefile"),
@@ -37,7 +41,7 @@ process shrink_tree {
 process shrink_snps {
     //TODO create container from scratch
     container "staphb/snp-sites:2.5.1"
-    storeDir "$launchDir/results/shrink_snps"
+    storeDir "$launchDir/$params.resdir/shrink_snps"
 
     input:
     tuple path(shrinked_tree), path(C), path(D)  
@@ -54,7 +58,7 @@ process shrink_snps {
 process date_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_tree"
+    storeDir "$launchDir/$params.resdir/date_tree"
 
     input:
     tuple path(shrinked_snps), path(shrinked_tree), path(C), path(D)
@@ -82,7 +86,7 @@ process date_tree {
 process plot_tree_fan {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/plot_tree_fan"
+    storeDir "$launchDir/$params.resdir/plot_tree_fan"
 
     input:
     path tree

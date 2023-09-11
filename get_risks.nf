@@ -11,9 +11,9 @@ r_container = "stitam/prophyl:0.10"
 // Input files
 params.ASSEMBLIES = "${launchDir}/assemblies.tsv"
 params.assemblies = "${launchDir}/assemblies_for_country_rr.tsv"
-params.tree = "${launchDir}/results/add_duplicates/dated_tree.rds"
-params.snps = "${launchDir}/results/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
-params.duplicates = "${launchDir}/results/remove_duplicates/duplicates.txt"
+params.tree = "${launchDir}/$params.resdir/add_duplicates/dated_tree.rds"
+params.snps = "${launchDir}/$params.resdir/build_tree/chromosomes.nodup.filtered_polymorphic_sites.fasta"
+params.duplicates = "${launchDir}/$params.resdir/remove_duplicates/duplicates.txt"
 
 // Number and size of subsampled trees
 params.subsample_count = 25
@@ -38,12 +38,16 @@ params.focus_by = "none"
 // or a value of the variable chosen above e.g. "europe"
 params.focus_on = "none"
 
+// Output parameters
+
+params.resdir = "results"
+
 // Processes 
 
 process add_subset_duplicates {
     container "$r_container"
     containerOptions "--no-home --bind ${launchDir}:$HOME"
-    storeDir "$launchDir/results/add_subset_duplicates/${subset_id}"
+    storeDir "$launchDir/$params.resdir/add_subset_duplicates/${subset_id}"
 
     input:
     tuple val(subset_id), path(dated_tree), path(duplicates)
@@ -62,7 +66,7 @@ process add_subset_duplicates {
 
 process build_subset_tree {
     container "$fasttree_container"
-    storeDir "$launchDir/results/build_subset_tree"
+    storeDir "$launchDir/$params.resdir/build_subset_tree"
 
     input:
     tuple val(subset_id), path(subset_snps), path(duplicates)
@@ -79,7 +83,7 @@ process build_subset_tree {
 process choose_dated_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/choose_dated_subset_tree/${subset_id}"
+    storeDir "$launchDir/$params.resdir/choose_dated_subset_tree/${subset_id}"
 
     input:
     tuple val(subset_id), path(dated_trees), path(duplicates)
@@ -97,7 +101,7 @@ process choose_dated_subset_tree {
 process date_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/date_subset_tree/${subset_id}"
+    storeDir "$launchDir/$params.resdir/date_subset_tree/${subset_id}"
 
     input:
     tuple val(subset_id), path(subset_snps), path(subset_trees), path(duplicates)
@@ -124,7 +128,7 @@ process date_subset_tree {
 process filter_snps {
     //TODO create container from scratch
     container "staphb/snp-sites:2.5.1"
-    storeDir "$launchDir/results/filter_snps"
+    storeDir "$launchDir/$params.resdir/filter_snps"
 
     input:
     tuple val(subsample_id), path(alignment), path(duplicates)
@@ -141,7 +145,7 @@ process filter_snps {
 process root_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/root_subset_tree"
+    storeDir "$launchDir/$params.resdir/root_subset_tree"
 
     input:
     tuple val(subset_id), path(subset_snps), path(subset_tree), path(duplicates)
@@ -164,7 +168,7 @@ process root_subset_tree {
 process rr_calc_counts {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/rr_calc_counts"
+    storeDir "$launchDir/$params.resdir/rr_calc_counts"
 
     input:
     tuple \
@@ -203,7 +207,7 @@ process rr_calc_counts {
 process rr_calc_dist {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/rr_calc_dist"
+    storeDir "$launchDir/$params.resdir/rr_calc_dist"
 
     input:
     path simtree_paths
@@ -234,7 +238,7 @@ process rr_calc_dist {
 process rr_plot_risks {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/rr_plot_risks"
+    storeDir "$launchDir/$params.resdir/rr_plot_risks"
 
     input:
     tuple path(countlist_all), path(countlist)
@@ -259,7 +263,7 @@ process rr_plot_risks {
 process simulate_subset_trees {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/simulate_subset_trees"
+    storeDir "$launchDir/$params.resdir/simulate_subset_trees"
 
     input:
     tuple val(subset_id), path(subset_tree_rds)
@@ -282,7 +286,7 @@ process simulate_subset_trees {
 process subsample_input {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/subsample_input"
+    storeDir "$launchDir/$params.resdir/subsample_input"
 
     input:
     path assemblies
@@ -309,7 +313,7 @@ process subsample_input {
 process subset_snps {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/subset_snps"
+    storeDir "$launchDir/$params.resdir/subset_snps"
 
     input:
     tuple val(subsample_id), path(subsample), path(duplicates)
@@ -328,7 +332,7 @@ process subset_snps {
 process validate_input {
     container "$r_container"
     containerOptions "--no-home"
-    storeDir "$launchDir/results/validate_input"
+    storeDir "$launchDir/$params.resdir/validate_input"
 
     output:
     path "assemblies.tsv"
@@ -360,7 +364,7 @@ workflow {
     // calculate geo distance and phylo distance, calculate relative risks
     simtree_paths = simulate_subset_trees.out[0].collectFile(
         name: "simtree_paths.txt",
-        storeDir: "$launchDir/results/"
+        storeDir: "$launchDir/$params.resdir/"
     )
     simtree_paths | rr_calc_dist | rr_calc_counts | rr_plot_risks
 }
