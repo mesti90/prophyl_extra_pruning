@@ -6,6 +6,11 @@ args_list <- list(
     c("-c", "--countlist"),
     type = "character",
     help = "Path to an rds file containing the counts for risk analysis."
+  ),
+  make_option(
+    c("-C", "--countlist_all"),
+    type = "character",
+    help = "Path to an rds file containing the counts for risk analysis."
   )
 )
 
@@ -15,13 +20,15 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    countlist = "countlist.rds"
+    countlist = "countlist.rds",
+    countlist_all = "countlist_all.rds"
   )
 }
 
 library(ggplot2)
 
 countlist <- readRDS(args$countlist)
+countlist_all <- readRDS(args$countlist_all)
 
 countdf <- countlist$countdf
 mrca_cat_char = countlist$mrca_cat_char
@@ -31,168 +38,109 @@ mrca_cat_char <- unique(countdf$mrca)
 
 # convert counts to probabilities
 
-probdf_type1 <- dplyr::bind_cols(
-  countdf[,c(
-    "subsample",
-    "bootstrap",
-    "mrca"
-  )],
-  as.data.frame(
-    t(
-      apply(countdf[,c(
-        "same_country",
-        "neighbors",
-        "not_neighbors",
-        "different_continent")], 1, function(x) {
+get_probdf <- function(df, vars) {
+  out <- dplyr::bind_cols(
+    df[,c(
+      "subsample",
+      "bootstrap",
+      "mrca"
+    )],
+    as.data.frame(
+      t(
+        apply(df[,vars], 1, function(x) {
           signif(x/sum(x), 4)
         })
+      )
     )
   )
+  return(out)
+}
+
+type1_vars <- c(
+  "same_country",
+  "neighbors",
+  "not_neighbors",
+  "different_continent"
 )
 
-probdf_type2 <- dplyr::bind_cols(
-  countdf[,c(
-    "subsample",
-    "bootstrap",
-    "mrca"
-  )],
-  as.data.frame(
-    t(
-      apply(countdf[,c(
-        "same_country",
-        "close_countries",
-        "distant_countries",
-        "different_continent")], 1, function(x) {
-          signif(x/sum(x), 4)
-        })
-    )
-  )
+type2_vars <- c(
+  "same_country",
+  "close_countries",
+  "distant_countries",
+  "different_continent"
 )
 
-probdf_type3 <- dplyr::bind_cols(
-  countdf[,c(
-    "subsample",
-    "bootstrap",
-    "mrca"
-  )],
-  as.data.frame(
-    t(
-      apply(countdf[,c(
-        "same_city",
-        "different_city",
-        "different_country")], 1, function(x) {
-          signif(x/sum(x), 4)
-        })
-    )
-  )
+type3_vars <- c(
+  "same_city",
+  "different_city",
+  "different_country"
 )
+
+probdf_type1 <- get_probdf(countdf, type1_vars)
+probdf_type1_all <- get_probdf(countlist_all$countdf, type1_vars)
+
+probdf_type2 <- get_probdf(countdf, type2_vars)
+probdf_type2_all <- get_probdf(countlist_all$countdf, type2_vars)
+
+probdf_type3 <- get_probdf(countdf, type3_vars)
+probdf_type3_all <- get_probdf(countlist_all$countdf, type3_vars)
 
 # convert probabilities to relative risks
 
-rrdf_type1 <- dplyr::bind_cols(
-  countdf[,c(
-    "subsample",
-    "bootstrap",
-    "mrca"
-  )],
-  as.data.frame(
-    t(
-      apply(probdf_type1[,c(
-        "same_country",
-        "neighbors",
-        "not_neighbors",
-        "different_continent")], 1, function(x) {
-          # this is where we hardcode "not neighbors" as the reference
-          signif(x/x[3], 4)
+get_rrdf <- function(df, vars, ref) {
+  index_ref <- which(names(df[, vars]) == ref)
+  out <- dplyr::bind_cols(
+    df[,c(
+      "subsample",
+      "bootstrap",
+      "mrca"
+    )],
+    as.data.frame(
+      t(
+        apply(df[,vars], 1, function(x) {
+          signif(x/x[index_ref], 4)
         })
+      )
     )
   )
-)
+  return(out)
+}
 
-rrdf_type2 <- dplyr::bind_cols(
-  countdf[,c(
-    "subsample",
-    "bootstrap",
-    "mrca"
-  )],
-  as.data.frame(
-    t(
-      apply(probdf_type2[,c(
-        "same_country",
-        "close_countries",
-        "distant_countries",
-        "different_continent")], 1, function(x) {
-          # this is where we hardcode "distant_countries" as the reference
-          signif(x/x[3], 4)
-        })
-    )
+rrdf_type1 <- get_rrdf(probdf_type1, type1_vars, "not_neighbors")
+rrdf_type1_all <- get_rrdf(probdf_type1_all, type1_vars, "not_neighbors")
+
+rrdf_type2 <- get_rrdf(probdf_type2, type2_vars, "distant_countries")
+rrdf_type2_all <- get_rrdf(probdf_type2_all, type2_vars, "distant_countries")
+
+rrdf_type3 <- get_rrdf(probdf_type3, type3_vars, "different_country")
+rrdf_type3_all <- get_rrdf(probdf_type3_all, type3_vars, "different_country")
+
+format_long <- function(df, vars) {
+  cols <- names(df)[which(names(df) %in% vars)]
+  long <- tidyr::pivot_longer(
+    df,
+    cols = cols,
+    names_to = "geo",
+    values_to = "rr"
   )
-)
-
-rrdf_type3 <- dplyr::bind_cols(
-  countdf[,c(
-    "subsample",
-    "bootstrap",
-    "mrca"
-  )],
-  as.data.frame(
-    t(
-      apply(probdf_type3[,c(
-        "same_city",
-        "different_city",
-        "different_country")], 1, function(x) {
-          # this is where we hardcode "different_country" as the reference
-          signif(x/x[3], 4)
-        })
-    )
+  long$geo <- factor(long$geo, levels = vars)
+  long$mrca <- factor(long$mrca, levels = mrca_cat_char)
+  long$rr <- ifelse(
+    long$rr %in% c(NA, NaN, Inf, -Inf),
+    NA,
+    long$rr
   )
-)
+  return(long)
+}
 
-rrdf_type1_long <- tidyr::pivot_longer(
-  rrdf_type1,
-  cols = same_country:different_continent,
-  names_to = "geo",
-  values_to = "rr"
-)
-rrdf_type1_long$geo <- factor(rrdf_type1_long$geo, levels = c(
-  "same_country", "neighbors", "not_neighbors", "different_continent"
-))
-rrdf_type1_long$mrca <- factor(rrdf_type1_long$mrca, levels = mrca_cat_char)
-rrdf_type1_long$rr <- ifelse(
-  rrdf_type1_long$rr %in% c(NA, NaN, Inf, -Inf),
-  NA,
-  rrdf_type1_long$rr)
+rrdf_type1_long <- format_long(rrdf_type1, type1_vars)
+rrdf_type1_long_all <- format_long(rrdf_type1_all, type1_vars)
 
+rrdf_type2_long <- format_long(rrdf_type2, type2_vars)
+rrdf_type2_long_all <- format_long(rrdf_type2_all, type2_vars)
 
-rrdf_type2_long <- tidyr::pivot_longer(
-  rrdf_type2,
-  cols = same_country:different_continent,
-  names_to = "geo",
-  values_to = "rr"
-)
-rrdf_type2_long$geo <- factor(rrdf_type2_long$geo, levels = c(
-  "same_country", "close_countries", "distant_countries", "different_continent"
-))
-rrdf_type2_long$mrca <- factor(rrdf_type2_long$mrca, levels = mrca_cat_char)
-rrdf_type2_long$rr <- ifelse(
-  rrdf_type2_long$rr %in% c(NA, NaN, Inf, -Inf),
-  NA,
-  rrdf_type2_long$rr)
-
-rrdf_type3_long <- tidyr::pivot_longer(
-  rrdf_type3,
-  cols = same_city:different_country,
-  names_to = "geo",
-  values_to = "rr"
-)
-rrdf_type3_long$geo <- factor(rrdf_type3_long$geo, levels = c(
-  "same_city", "different_city", "different_country"
-))
-rrdf_type3_long$mrca <- factor(rrdf_type3_long$mrca, levels = mrca_cat_char)
-rrdf_type3_long$rr <- ifelse(
-  rrdf_type3_long$rr %in% c(NA, NaN, Inf, -Inf),
-  NA,
-  rrdf_type3_long$rr)
+rrdf_type3_long <- format_long(rrdf_type3, type3_vars)
+rrdf_type3_long_all <- format_long(rrdf_type3_all, type3_vars)
 
 point_and_whiskers <- function(x) {
   y <- median(x)
@@ -205,12 +153,19 @@ point_and_whiskers <- function(x) {
   ))
 }
 
-plot_rr <- function(df) {
+plot_rr <- function(df, df_all) {
   ggplot(df, aes(geo, rr)) + 
     stat_summary(
       geom = "point", 
       fun.data = point_and_whiskers,
       size = 0.3
+    ) + 
+    stat_summary(
+      geom = "point", 
+      fun.data = point_and_whiskers,
+      size = 0.3, 
+      data = df_all, 
+      col = "#FF0000"
     ) +
     stat_summary(
       geom = "errorbar",
@@ -241,7 +196,7 @@ plot_rr <- function(df) {
     ) 
 }
 
-g1 <- plot_rr(rrdf_type1_long) +
+g1 <- plot_rr(rrdf_type1_long, rrdf_type1_long_all) +
   scale_x_discrete(labels = c(
     "same_country" = "Within \n countries",
     "neighbors" = "Between \n neighbors",
@@ -276,7 +231,7 @@ saveRDS(g1, "relative_risks_type1.rds")
 close_countries_label <- paste0("Between countries \n <",geodist_threshold, "km")
 distant_countries_label <- paste0("Between countries \n >",geodist_threshold, "km (ref)")
 
-g2 <- plot_rr(rrdf_type2_long) +
+g2 <- plot_rr(rrdf_type2_long, rrdf_type2_long_all) +
   scale_x_discrete(labels = c(
     "same_country" = "Within \n countries",
     "close_countries" = close_countries_label,
@@ -308,7 +263,7 @@ ggsave(
 
 saveRDS(g2, "relative_risks_type2.rds")
 
-g3 <- plot_rr(rrdf_type3_long) +
+g3 <- plot_rr(rrdf_type3_long, rrdf_type3_long_all) +
   scale_x_discrete(labels = c(
     "same_country" = "Within \n countries",
     "close_countries" = close_countries_label,

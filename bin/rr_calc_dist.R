@@ -26,6 +26,11 @@ args_list <- list(
     help = "Path to the assemblies file."
   ),
   make_option(
+    c("-t", "--tree"),
+    type = "character",
+    help = "A dated tree in rds format."
+  ),
+  make_option(
     c("-s", "--simtrees"),
     type = "character",
     help = "Path to a text file containing simtree paths."
@@ -50,9 +55,10 @@ if (!interactive()) {
   args <- list(
     project_dir = "~/Methods/prophyl",
     assemblies = "assemblies.tsv",
+    tree = "dated_tree.rds",
     simtrees = "simtree_paths.txt",
-    focus_by = "continent",
-    focus_on = "europe"
+    focus_by = "none",
+    focus_on = "none"
   )
 }
 
@@ -150,6 +156,33 @@ colldist <- tempdist_matrix(
 saveRDS(colldist, file = "colldist.rds")
 
 # temporal distance - most recent common ancestors between isolates
+
+# for the big tree
+
+tree <- readRDS(args$tree)
+
+phylodist <- phylodist_matrix(
+    tree = tree,
+    df = assemblies,
+    id_var = "assembly",
+    focus_by = focus_by,
+    focus_on = focus_on
+)
+
+# shrink colldist to phylodist_subset, align rows and columns
+colldist_subset <- shrink_matrix(colldist, phylodist)
+  
+# calculate mrca
+mrca <- mrca_matrix(
+  phylodist,
+  colldist_subset,
+  force_nonnegative = TRUE
+)
+
+# export data
+saveRDS(mrca, file = "phylodist.rds")
+
+# for the subsampled trees
 
 simtree_paths <- readLines(args$simtrees)
 simtree_names <- gsub("\\.rds","",basename(simtree_paths))

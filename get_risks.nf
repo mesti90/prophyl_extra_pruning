@@ -42,6 +42,7 @@ params.focus_on = "none"
 
 process add_subset_duplicates {
     container "$r_container"
+    containerOptions "--no-home --bind ${launchDir}:$HOME"
     storeDir "$launchDir/results/add_subset_duplicates/${subset_id}"
 
     input:
@@ -173,22 +174,27 @@ process rr_calc_counts {
       path(same_continent),
       path(geodist),
       path(colldist),
+      path(phylodist),
       path(phylodist_list)
 
     output:
-    path "countlist.rds"
+    tuple \
+      path("countlist_all.rds"),
+      path("countlist.rds") 
 
     script:
     """
     Rscript $projectDir/bin/rr_calc_counts.R \
     --project_dir $projectDir \
     --assemblies $params.ASSEMBLIES \
+    --assemblies_collapsed $params.assemblies \
     --colldist $colldist \
     --same_city $same_city \
     --same_country $same_country \
     --neighbors $neighbors \
     --same_continent $same_continent \
     --geodist $geodist \
+    --phylodist_all $phylodist \
     --phylodist $phylodist_list \
     --nboot $params.nboot_on_simtree
     """
@@ -210,6 +216,7 @@ process rr_calc_dist {
       path("same_continent.rds"),
       path("geodist.rds"),
       path("colldist.rds"),
+      path("phylodist.rds"),
       path("phylodist_list.rds")
 
     script:
@@ -217,6 +224,7 @@ process rr_calc_dist {
     Rscript $projectDir/bin/rr_calc_dist.R \
     --project_dir $projectDir \
     --assemblies $params.ASSEMBLIES \
+    --tree $params.tree \
     --simtrees $simtree_paths \
     --focus_by $params.focus_by \
     --focus_on $params.focus_on
@@ -229,7 +237,7 @@ process rr_plot_risks {
     storeDir "$launchDir/results/rr_plot_risks"
 
     input:
-    path countlist
+    tuple path(countlist_all), path(countlist)
 
     output:
     path "relative_risks_type1.rds"
@@ -244,7 +252,7 @@ process rr_plot_risks {
 
     script:
     """
-    Rscript $projectDir/bin/rr_plot_risks.R --countlist $countlist
+    Rscript $projectDir/bin/rr_plot_risks.R --countlist $countlist --countlist_all $countlist_all
     """
 }
 
