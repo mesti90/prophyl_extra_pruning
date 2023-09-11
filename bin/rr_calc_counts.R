@@ -95,7 +95,7 @@ nboot <- as.numeric(args$nboot)
 
 # MRCA windows on which to compute the relative risk
 # This will define categories on the risk plot
-mrca_categories <- c(0, 4, 8, 16, Inf)
+mrca_categories <- c(0, 6, 12, 40)
 
 mrca_cat_char <- paste0(
   "(",
