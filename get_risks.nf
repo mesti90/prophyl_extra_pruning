@@ -113,7 +113,7 @@ process date_subset_tree {
     --project_dir $projectDir \
     --trees $subset_trees \
     --snps $subset_snps \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --threads ${task.cpus} \
     --branch_dimension snp_per_site \
     --reroot false
@@ -153,7 +153,7 @@ process root_subset_tree {
     """
     Rscript $projectDir/bin/root_subset_tree.R \
     --project_dir $projectDir \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --dated_tree $params.tree \
     --subset_tree $subset_tree \
     --threads ${task.cpus}
@@ -182,7 +182,7 @@ process rr_calc_counts {
     """
     Rscript $projectDir/bin/rr_calc_counts.R \
     --project_dir $projectDir \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --colldist $colldist \
     --same_city $same_city \
     --same_country $same_country \
@@ -216,7 +216,7 @@ process rr_calc_dist {
     """
     Rscript $projectDir/bin/rr_calc_dist.R \
     --project_dir $projectDir \
-    --assemblies $params.assemblies \
+    --assemblies $params.ASSEMBLIES \
     --simtrees $simtree_paths \
     --focus_by $params.focus_by \
     --focus_on $params.focus_on
