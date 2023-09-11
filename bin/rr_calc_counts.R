@@ -43,6 +43,11 @@ args_list <- list(
     help = "Matrix of pairs, geographical distances between samples."
   ),
   make_option(
+    c("-D", "--phylodist_all"),
+    type = "character",
+    help = "Matrices of pairs, phylogenetic distances for ALL tips."
+  ),
+  make_option(
     c("-d", "--phylodist"),
     type = "character",
     help = "List of matrices, matrices of pairs, phylogenetic distances."
@@ -68,6 +73,7 @@ if (!interactive()) {
     neighbors = "neighbors.rds",
     same_continent = "same_continent.rds",
     geodist = "geodist.rds",
+    phylodist_all = "phylodist.rds",
     phylodist = "phylodist_list.rds",
     nboot = 1
   )
@@ -83,6 +89,7 @@ same_country <- readRDS(args$same_country)
 neighbors <- readRDS(args$neighbors)
 same_continent <- readRDS(args$same_continent)
 geodist <- readRDS(args$geodist)
+phylodist_all <- readRDS(args$phylodist_all)
 phylodist_list <- readRDS(args$phylodist)
 nboot <- as.numeric(args$nboot)
 
@@ -119,6 +126,116 @@ geodist_close <- 1 * (geodist < geodist_threshold)
 close_countries <- (1-same_country) * geodist_close
 # Distant countries are different countries beyond threshold
 distant_countries <- (1-same_country) * (1-geodist_close)
+
+countdf_all <- data.frame()
+
+########## TODO DRY WRAP THIS INTO A FUNCTION?
+
+# convert phylogenetic distances to MRCA categories
+
+foo <- function(phd, categories) {
+  out <- cut(phd, breaks = categories)
+  out <- matrix(out, ncol = ncol(phd))
+  row.names(out) <- row.names(phd)
+  colnames(out) <- colnames(phd)
+  return(out)
+}
+
+phylodist_all <- foo(phylodist_all, mrca_categories)
+
+# shrink comparison matrices to phylodist rows and columns
+colldist_sub <- shrink_matrix(colldist, phylodist_all)
+same_city_sub <- shrink_matrix(same_city, phylodist_all)
+same_country_sub <- shrink_matrix(same_country, phylodist_all)
+neighbors_sub <- shrink_matrix(neighbors, phylodist_all)
+close_countries_sub <- shrink_matrix(close_countries, phylodist_all)
+distant_countries_sub <- shrink_matrix(distant_countries, phylodist_all)
+same_continent_sub <- shrink_matrix(same_continent, phylodist_all)
+
+# for each MRCA category
+for (k in mrca_cat_char) {
+  phylodist_k <- 1 * (phylodist_all == k)
+  ## CALCULATE BOOLEAN MATRICES
+  # same city
+  same_city_sub2 <- same_city_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # different city, same country
+  different_city_sub2 <- (1-same_city_sub) *
+    same_country_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # same country
+  same_country_sub2 <- same_country_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # different country, irrespective of continent
+  different_country_sub2 <- (1-same_country_sub2) *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # neighbors, same continent
+  neighbors_sub2 <- (1-same_country_sub) *
+    neighbors_sub *
+    same_continent_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # different countries, not neighbors, same continent
+  not_neighbors_sub2 <- (1-same_country_sub) *
+    (1-neighbors_sub) *
+    same_continent_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # close_countries, same continent
+  close_countries_sub2 <- close_countries_sub *
+    same_continent_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+  # distant countries, same continent
+  distant_countries_sub2 <- distant_countries_sub * 
+    same_continent_sub *
+    colldist_sub *  # within colldist timeframe
+    phylodist_k # within MRCA range
+  # different continent
+  different_continent_sub2 <- (1-same_continent_sub) * 
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
+
+  ddf <- data.frame(
+    same_city = sum(same_city_sub2, na.rm = TRUE) / 2,
+    different_city = sum(different_city_sub2, na.rm = TRUE) / 2,
+    same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+    different_country = sum(different_country_sub2, na.rm = TRUE) / 2,
+    neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
+    not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
+    close_countries = sum(close_countries_sub2, na.rm = TRUE) / 2,
+    distant_countries = sum(distant_countries_sub2, na.rm = TRUE) / 2,
+    different_continent = sum(different_continent_sub2, na.rm = TRUE) / 2
+  )
+
+  newdf <- dplyr::bind_cols(
+    data.frame(
+      subsample = "All",
+      bootstrap = NA,
+      mrca = k
+    ),
+    ddf
+  )
+      
+  countdf_all <- dplyr::bind_rows(
+    countdf_all,
+    newdf
+  )
+}
+
+countlist_all <- list(
+  countdf = countdf_all,
+  mrca_cat_char = mrca_cat_char,
+  geodist_threshold = geodist_threshold
+)
+
+saveRDS(countlist_all, file = "countlist_all.rds")
+
+##################################
 
 countdf <- data.frame()
 # for each subsample
