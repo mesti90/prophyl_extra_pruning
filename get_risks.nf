@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 // CONTAINERS
 fasttree_container = "staphb/fasttree:latest"
-r_container = "stitam/prophyl:0.10"
+r_container = "stitam/prophyl:0.11"
 
 // PARAMETERS
 
@@ -53,7 +53,7 @@ params.resdir = "results"
 
 process add_subset_duplicates {
     container "$r_container"
-    containerOptions "--no-home --bind ${launchDir}:$HOME"
+    containerOptions "--bind ${launchDir}:$HOME"
     storeDir "$launchDir/$params.resdir/add_subset_duplicates/${subset_id}"
 
     input:
@@ -89,7 +89,6 @@ process build_subset_tree {
 
 process choose_dated_subset_tree {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/choose_dated_subset_tree/${subset_id}"
 
     input:
@@ -107,7 +106,6 @@ process choose_dated_subset_tree {
 
 process date_subset_tree {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/date_subset_tree/${subset_id}"
 
     input:
@@ -171,7 +169,6 @@ process qc_dated_subset_tree {
 
 process root_subset_tree {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/root_subset_tree"
 
     input:
@@ -194,7 +191,6 @@ process root_subset_tree {
 
 process rr_calc_counts {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/rr_calc_counts"
 
     input:
@@ -235,7 +231,6 @@ process rr_calc_counts {
 
 process rr_calc_dist {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/rr_calc_dist"
 
     input:
@@ -266,7 +261,6 @@ process rr_calc_dist {
 
 process rr_plot_risks {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/rr_plot_risks"
 
     input:
@@ -291,7 +285,6 @@ process rr_plot_risks {
 
 process simulate_subset_trees {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/simulate_subset_trees"
 
     input:
@@ -315,7 +308,6 @@ process simulate_subset_trees {
 
 process subsample_input {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/subsample_input"
 
     input:
@@ -342,7 +334,6 @@ process subsample_input {
 
 process subset_snps {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/subset_snps"
 
     input:
@@ -361,7 +352,6 @@ process subset_snps {
 
 process validate_input {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/validate_input"
 
     output:

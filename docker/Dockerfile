@@ -1,4 +1,4 @@
-FROM debian:stable-20230612
+FROM debian:bookworm-20230904
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -41,7 +41,6 @@ RUN R -e 'options(warn = 2); install.packages("leaflet", dependencies = TRUE)'
 
 # Install R packages from CRAN
 RUN R -e 'options(warn = 2); install.packages("leaflet.minicharts", dependencies = TRUE)'
-RUN R -e 'options(warn = 2); install.packages("qualpalr", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("tictoc", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("tidytree", dependencies = TRUE)'
 
@@ -134,3 +133,6 @@ RUN R -e 'options(warn = 2); install.packages("TreeTools", dependencies = TRUE)'
 
 # Install optparse
 RUN apt-get install -y r-cran-optparse
+
+# Set R library path to avoid binding from host system
+ENV R_LIBS_USER /usr/local/lib/R/site-library

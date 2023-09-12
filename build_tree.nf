@@ -3,16 +3,15 @@
 nextflow.enable.dsl=2
 
 // Containers
-gubbins_container = "stitam/prophyl:0.9"
+gubbins_container = "stitam/prophyl:0.11"
 hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
-r_container = "stitam/prophyl:0.10"
+r_container = "stitam/prophyl:0.11"
 snippy_container = "staphb/snippy"
 
 // Input parameters
 
-params.username = "stamas"
 params.assemblies = "$launchDir/assemblies.tsv"
 params.genome_dir = "$launchDir/genomes"
 params.reference_genome = null
@@ -25,6 +24,7 @@ params.resdir = "results"
 
 process add_duplicates {
     container "$r_container"
+    containerOptions "--bind ${launchDir}:$HOME"
     storeDir "$launchDir/$params.resdir/add_duplicates"
 
     input:
@@ -96,7 +96,6 @@ process build_tree {
 
 process choose_dated_tree {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/choose_dated_tree"
 
     input:
@@ -114,7 +113,6 @@ process choose_dated_tree {
 
 process choose_reference_genome {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/choose_reference_genome"
 
     input:
@@ -133,7 +131,6 @@ process choose_reference_genome {
 
 process create_genome_list {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/create_genome_list"
 
     input:
@@ -153,7 +150,6 @@ process create_genome_list {
 
 process date_tree {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/date_tree"
 
     input:
@@ -180,7 +176,6 @@ process date_tree {
 
 process keep_chromosome {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/keep_chromosome"
 
     input:
@@ -216,9 +211,7 @@ process remove_duplicates {
 
 process root_tree {
     container "$r_container"
-    // Binding required because TreeTools wants to use /home
-    // TODO eliminate "username"
-    containerOptions "--no-home --bind ${launchDir}/results:/home/$params.username"
+    containerOptions "--bind ${launchDir}:$HOME"
     storeDir "$launchDir/$params.resdir/root_tree"
 
     input:
@@ -334,7 +327,6 @@ process snippy_single {
 
 process tidy_bootstrap_tree {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/tidy_bootstrap_tree"
 
     input: 
@@ -351,7 +343,6 @@ process tidy_bootstrap_tree {
 
 process validate_input {
     container "$r_container"
-    containerOptions "--no-home"
     storeDir "$launchDir/$params.resdir/validate_input"
 
     output:
