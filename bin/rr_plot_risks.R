@@ -263,10 +263,9 @@ saveRDS(g2, "relative_risks_type2.rds")
 
 g3 <- plot_rr(rrdf_type3_long, rrdf_type3_long_all) +
   scale_x_discrete(labels = c(
-    "same_country" = "Within \n countries",
-    "close_countries" = close_countries_label,
-    "distant_countries" = distant_countries_label,
-    "different_continent" = "Between \n continents"
+    "same_city" = "Within \n cities",
+    "different_city" = "Within \n countries",
+    "different_country" = "Between \n countries"
   ))
 
 try_g3 <- try(testthat::expect_no_error(g3), silent = TRUE)
