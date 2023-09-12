@@ -204,7 +204,7 @@ g1 <- plot_rr(rrdf_type1_long, rrdf_type1_long_all) +
     "different_continent" = "Between \n continents"
   ))
 
-try_g1 <- try(print(g1), silent = TRUE)
+try_g1 <- try(testthat::expect_no_error(g1), silent = TRUE)
 if (inherits(try_g1, "try-error")) {
   g1 <- ggplot()
 }
@@ -237,7 +237,7 @@ g2 <- plot_rr(rrdf_type2_long, rrdf_type2_long_all) +
     "different_continent" = "Between \n continents"
   ))
 
-try_g2 <- try(print(g2), silent = TRUE)
+try_g2 <- try(testthat::expect_no_error(g2), silent = TRUE)
 if (inherits(try_g2, "try-error")) {
   g2 <- ggplot()
 }
@@ -269,7 +269,7 @@ g3 <- plot_rr(rrdf_type3_long, rrdf_type3_long_all) +
     "different_continent" = "Between \n continents"
   ))
 
-try_g3 <- try(print(g3), silent = TRUE)
+try_g3 <- try(testthat::expect_no_error(g3), silent = TRUE)
 if (inherits(try_g3, "try-error")) {
   g3 <- ggplot()
 }
