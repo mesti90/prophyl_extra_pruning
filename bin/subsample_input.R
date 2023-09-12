@@ -66,9 +66,9 @@ if (!interactive()) {
     tree = "dated_tree.rds",
     duplicates = "duplicates.txt",
     subsample_count = 10,
-    subsample_tipcount = 25,
-    focus_by = "none",
-    focus_on = "none"
+    subsample_tipcount = 250,
+    focus_by = "continent",
+    focus_on = "europe"
   )
 }
 
@@ -190,7 +190,7 @@ for (i in 1:subsample_count) {
   
   # all assemblies have been replaced with reference assemblies where necessary
   # this is relevant when there are duplicates in the assembly data set
-  if (length(duplicates) > 0) {
+  if (length(duplicates) > 0 & length(duplist) > 0) {
     dupnames <- unname(unlist(duplist))
     refnames <- names(duplist)
     # these are the refs that are also in subset

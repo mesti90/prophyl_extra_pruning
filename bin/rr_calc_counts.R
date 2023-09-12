@@ -61,6 +61,16 @@ args_list <- list(
     c("-b", "--nboot"),
     type = "character",
     help = "Number of bootstrap replicates for each simulated tree."
+  ),
+  make_option(
+    c("-m", "--mrca_categories"),
+    type = "character",
+    help = "MRCA categories."
+  ),
+  make_option(
+    c("-C", "--colldist_max"),
+    type = "character",
+    help = "Maximum collection date distance between samples."
   )
 )
 
@@ -81,7 +91,9 @@ if (!interactive()) {
     geodist = "geodist.rds",
     phylodist_all = "phylodist.rds",
     phylodist = "phylodist_list.rds",
-    nboot = 1
+    nboot = 1,
+    mrca_categories = "0,6,12,40",
+    colldist_max = 2
   )
 }
 
@@ -101,7 +113,8 @@ nboot <- as.numeric(args$nboot)
 
 # MRCA windows on which to compute the relative risk
 # This will define categories on the risk plot
-mrca_categories <- c(0, 6, 12, 40)
+mrca_categories <- args$mrca_categories
+mrca_categories <- as.numeric(strsplit(mrca_categories, ", *")[[1]])
 
 mrca_cat_char <- paste0(
   "(",
@@ -121,9 +134,9 @@ phylodist_list <- lapply(phylodist_list, function(x) {
 })
 
 # Maximum collection date distance between samples
-colldist_max <- 2
+colldist_max <- as.numeric(args$colldist_max)
 # Convert collection date distance matrix to boolean matrix
-colldist <- 1 * (colldist < colldist_max)
+colldist <- 1 * (colldist <= colldist_max)
 
 # Threshold between close and distant countries
 geodist_threshold <- 1000
@@ -180,6 +193,11 @@ for (k in mrca_cat_char) {
   same_country_sub2 <- same_country_sub *
     colldist_sub * # within colldist timeframe
     phylodist_k # within MRCA range
+  # different country, same continent
+  different_country_same_continent_sub2 <- (1-same_country_sub2) *
+    same_continent_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
   # different country, irrespective of continent
   different_country_sub2 <- (1-same_country_sub2) *
     colldist_sub * # within colldist timeframe
@@ -215,6 +233,7 @@ for (k in mrca_cat_char) {
     same_city = sum(same_city_sub2, na.rm = TRUE) / 2,
     different_city = sum(different_city_sub2, na.rm = TRUE) / 2,
     same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+    different_country_same_continent = sum(different_country_same_continent_sub2, na.rm = TRUE) / 2,
     different_country = sum(different_country_sub2, na.rm = TRUE) / 2,
     neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
     not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
@@ -288,6 +307,11 @@ for (i in seq_along(phylodist_list)) {
         phylodist_k # within MRCA range
       # same country
       same_country_sub2 <- same_country_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # different country, same continent
+        different_country_same_continent_sub2 <- (1-same_country_sub2) *
+        same_continent_sub *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       # different country, irrespective of continent
@@ -387,6 +411,7 @@ for (i in seq_along(phylodist_list)) {
         same_city = sum(same_city_sub2, na.rm = TRUE) / 2,
         different_city = sum(different_city_sub2, na.rm = TRUE) / 2,
         same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+        different_country_same_continent = sum(different_country_same_continent_sub2, na.rm = TRUE) / 2,
         different_country = sum(different_country_sub2, na.rm = TRUE) / 2,
         neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
         not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
@@ -405,8 +430,7 @@ for (i in seq_along(phylodist_list)) {
       
       type2_sumcount <- sum(
         ddf$same_country,
-        ddf$close_countries,
-        ddf$distant_countries,
+        ddf$different_country_same_continent,
         ddf$different_continent
       )
 
