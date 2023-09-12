@@ -65,8 +65,7 @@ type1_vars <- c(
 
 type2_vars <- c(
   "same_country",
-  "close_countries",
-  "distant_countries",
+  "different_country_same_continent",
   "different_continent"
 )
 
@@ -109,8 +108,8 @@ get_rrdf <- function(df, vars, ref) {
 rrdf_type1 <- get_rrdf(probdf_type1, type1_vars, "not_neighbors")
 rrdf_type1_all <- get_rrdf(probdf_type1_all, type1_vars, "not_neighbors")
 
-rrdf_type2 <- get_rrdf(probdf_type2, type2_vars, "distant_countries")
-rrdf_type2_all <- get_rrdf(probdf_type2_all, type2_vars, "distant_countries")
+rrdf_type2 <- get_rrdf(probdf_type2, type2_vars, "different_country_same_continent")
+rrdf_type2_all <- get_rrdf(probdf_type2_all, type2_vars, "different_country_same_continent")
 
 rrdf_type3 <- get_rrdf(probdf_type3, type3_vars, "different_country")
 rrdf_type3_all <- get_rrdf(probdf_type3_all, type3_vars, "different_country")
@@ -160,13 +159,14 @@ plot_rr <- function(df, df_all) {
       fun.data = point_and_whiskers,
       size = 0.3
     ) + 
-    stat_summary(
-      geom = "point", 
-      fun.data = point_and_whiskers,
-      size = 0.3, 
-      data = df_all, 
-      col = "#FF0000"
-    ) +
+    # uncomment this to include risk values for the full data set
+    # stat_summary(
+    #   geom = "point", 
+    #   fun.data = point_and_whiskers,
+    #   size = 0.3, 
+    #   data = df_all, 
+    #   col = "#FF0000"
+    # ) +
     stat_summary(
       geom = "errorbar",
       fun.data = point_and_whiskers,
@@ -228,14 +228,12 @@ ggsave(
 
 saveRDS(g1, "relative_risks_type1.rds")
 
-close_countries_label <- paste0("Between countries \n <",geodist_threshold, "km")
-distant_countries_label <- paste0("Between countries \n >",geodist_threshold, "km (ref)")
+between_countries_label <- paste0("Between countries")
 
 g2 <- plot_rr(rrdf_type2_long, rrdf_type2_long_all) +
   scale_x_discrete(labels = c(
     "same_country" = "Within \n countries",
-    "close_countries" = close_countries_label,
-    "distant_countries" = distant_countries_label,
+    "different_country_same_continent" = "Between \n countries",
     "different_continent" = "Between \n continents"
   ))
 

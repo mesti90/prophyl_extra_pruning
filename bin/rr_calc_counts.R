@@ -180,6 +180,11 @@ for (k in mrca_cat_char) {
   same_country_sub2 <- same_country_sub *
     colldist_sub * # within colldist timeframe
     phylodist_k # within MRCA range
+  # different country, same continent
+  different_country_same_continent_sub2 <- (1-same_country_sub2) *
+    same_continent_sub *
+    colldist_sub * # within colldist timeframe
+    phylodist_k # within MRCA range
   # different country, irrespective of continent
   different_country_sub2 <- (1-same_country_sub2) *
     colldist_sub * # within colldist timeframe
@@ -215,6 +220,7 @@ for (k in mrca_cat_char) {
     same_city = sum(same_city_sub2, na.rm = TRUE) / 2,
     different_city = sum(different_city_sub2, na.rm = TRUE) / 2,
     same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+    different_country_same_continent = sum(different_country_same_continent_sub2, na.rm = TRUE) / 2,
     different_country = sum(different_country_sub2, na.rm = TRUE) / 2,
     neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
     not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
@@ -288,6 +294,11 @@ for (i in seq_along(phylodist_list)) {
         phylodist_k # within MRCA range
       # same country
       same_country_sub2 <- same_country_sub *
+        colldist_sub * # within colldist timeframe
+        phylodist_k # within MRCA range
+      # different country, same continent
+        different_country_same_continent_sub2 <- (1-same_country_sub2) *
+        same_continent_sub *
         colldist_sub * # within colldist timeframe
         phylodist_k # within MRCA range
       # different country, irrespective of continent
@@ -387,6 +398,7 @@ for (i in seq_along(phylodist_list)) {
         same_city = sum(same_city_sub2, na.rm = TRUE) / 2,
         different_city = sum(different_city_sub2, na.rm = TRUE) / 2,
         same_country = sum(same_country_sub2, na.rm = TRUE) / 2,
+        different_country_same_continent = sum(different_country_same_continent_sub2, na.rm = TRUE) / 2,
         different_country = sum(different_country_sub2, na.rm = TRUE) / 2,
         neighbors = sum(neighbors_sub2, na.rm = TRUE) / 2,
         not_neighbors = sum(not_neighbors_sub2, na.rm = TRUE) / 2,
@@ -405,8 +417,7 @@ for (i in seq_along(phylodist_list)) {
       
       type2_sumcount <- sum(
         ddf$same_country,
-        ddf$close_countries,
-        ddf$distant_countries,
+        ddf$different_country_same_continent,
         ddf$different_continent
       )
 
