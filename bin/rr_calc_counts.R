@@ -61,6 +61,16 @@ args_list <- list(
     c("-b", "--nboot"),
     type = "character",
     help = "Number of bootstrap replicates for each simulated tree."
+  ),
+  make_option(
+    c("-m", "--mrca_categories"),
+    type = "character",
+    help = "MRCA categories."
+  ),
+  make_option(
+    c("-C", "--colldist_max"),
+    type = "character",
+    help = "Maximum collection date distance between samples."
   )
 )
 
@@ -81,7 +91,9 @@ if (!interactive()) {
     geodist = "geodist.rds",
     phylodist_all = "phylodist.rds",
     phylodist = "phylodist_list.rds",
-    nboot = 1
+    nboot = 1,
+    mrca_categories = "0,6,12,40",
+    colldist_max = 2
   )
 }
 
@@ -101,7 +113,8 @@ nboot <- as.numeric(args$nboot)
 
 # MRCA windows on which to compute the relative risk
 # This will define categories on the risk plot
-mrca_categories <- c(0, 6, 12, 40)
+mrca_categories <- args$mrca_categories
+mrca_categories <- as.numeric(strsplit(mrca_categories, ", *")[[1]])
 
 mrca_cat_char <- paste0(
   "(",
@@ -121,9 +134,9 @@ phylodist_list <- lapply(phylodist_list, function(x) {
 })
 
 # Maximum collection date distance between samples
-colldist_max <- 2
+colldist_max <- as.numeric(args$colldist_max)
 # Convert collection date distance matrix to boolean matrix
-colldist <- 1 * (colldist < colldist_max)
+colldist <- 1 * (colldist <= colldist_max)
 
 # Threshold between close and distant countries
 geodist_threshold <- 1000

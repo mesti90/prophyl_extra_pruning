@@ -38,6 +38,13 @@ params.focus_by = "none"
 // or a value of the variable chosen above e.g. "europe"
 params.focus_on = "none"
 
+// MRCA categories for relative risk analysis
+params.mrca_categories = "0,6,12,40"
+
+// Maximum distance in collection dates between two isolates
+// to be considered as a pair for risk analysis
+params.colldist_max = 2
+
 // Output parameters
 
 params.resdir = "results"
@@ -220,7 +227,9 @@ process rr_calc_counts {
     --geodist $geodist \
     --phylodist_all $phylodist \
     --phylodist $phylodist_list \
-    --nboot $params.nboot_on_simtree
+    --nboot $params.nboot_on_simtree \
+    --mrca_categories $params.mrca_categories \
+    --colldist_max $params.colldist_max
     """
 }
 
