@@ -142,6 +142,26 @@ process filter_snps {
     """
 }
 
+process qc_dated_subset_tree {
+    container "$r_container"
+    containerOptions "--no-home"
+    storeDir "$launchDir/$params.resdir/qc_dated_subset_tree/${subset_id}"
+
+    input:
+    tuple val(subset_id), path(dated_tree), path(duplicates)
+
+    output:
+    path "${subset_id}_qc.tsv"
+
+    script:
+    """
+    Rscript $projectDir/bin/qc_dated_subset_tree.R \
+    --project_dir $projectDir \
+    --subsample_id $subset_id \
+    --tree $dated_tree
+    """
+}
+
 process root_subset_tree {
     container "$r_container"
     containerOptions "--no-home"
@@ -279,7 +299,8 @@ process simulate_subset_trees {
     $subset_tree_rds \
     $params.simtrees \
     ${task.cpus} \
-    $launchDir
+    $launchDir \
+    $launchDir/$params.resdir
     """
 }
 
@@ -359,6 +380,13 @@ workflow {
     root_subset_tree.out.rooted_trees | date_subset_tree
     // choose a single dated tree for each subset
     date_subset_tree.out.dated_trees | choose_dated_subset_tree
+    // get QC metrics for dated trees
+    choose_dated_subset_tree.out.dated_tree | qc_dated_subset_tree
+    qc_dated_subset_tree.out.collectFile(
+        name: "qc_dated_trees.tsv",
+        storeDir: "$launchDir/$params.resdir/",
+        keepHeader: true
+    )
     // simulate trees from each subset tree
     choose_dated_subset_tree.out.dated_tree |add_subset_duplicates | simulate_subset_trees
     // calculate geo distance and phylo distance, calculate relative risks

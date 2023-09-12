@@ -9,6 +9,7 @@ if(!interactive()) {
   nreps <- as.numeric(args[3])
   ncpu <- as.numeric(args[4])
   launchDir <- args[5]
+  resdir <- args[6]
 } else {
   test_dir <- "~/Methods/prophyl-tests/test-simulate_subset_trees"
   subset_id <- "test"
@@ -17,6 +18,7 @@ if(!interactive()) {
   nreps <- 1
   ncpu <- 10
   launchDir <- test_dir
+  resdir <- "~/Methods/prophyl-tests/test-simulate_subset_trees/results"
 }
 
 dated_tree <- readRDS(dated_tree_path)
@@ -42,7 +44,7 @@ for (i in 1:length(simtrees$trees)) {
 if (!interactive()) {
   # export path to the simulated tree as txt
   write.table(
-    paste0(launchDir, "/results/simulate_subset_trees/", subset_id, ".rds"),
+    paste0(resdir, "/simulate_subset_trees/", subset_id, ".rds"),
     file = paste0(subset_id, ".txt"),
     row.names = FALSE,
     col.names = FALSE,
