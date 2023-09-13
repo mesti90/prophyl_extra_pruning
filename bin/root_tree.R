@@ -206,14 +206,14 @@ ggsave(
   limitsize = FALSE
 )
 
-if (!dir.exists("rooted_trees")) dir.create("rooted_trees")
+# if (!dir.exists("rooted_trees")) dir.create("rooted_trees")
 
-for (i in seq_along(rooted_trees)) {
-  ape::write.tree(
-    rooted_trees[i],
-    file = paste0("rooted_trees/rooted_tree_", names(rooted_trees)[i], ".tre")
-  )
-}
+# for (i in seq_along(rooted_trees)) {
+#   ape::write.tree(
+#     rooted_trees[i],
+#     file = paste0("rooted_trees/rooted_tree_", names(rooted_trees)[i], ".tre")
+#   )
+# }
 
 # consistency checks
 

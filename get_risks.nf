@@ -8,6 +8,10 @@ r_container = "stitam/prophyl:0.11"
 
 // PARAMETERS
 
+// Output parameters
+
+params.resdir = "results"
+
 // Input files
 params.ASSEMBLIES = "${launchDir}/assemblies.tsv"
 params.assemblies = "${launchDir}/assemblies_for_country_rr.tsv"
@@ -45,15 +49,10 @@ params.mrca_categories = "0,6,12,40"
 // to be considered as a pair for risk analysis
 params.colldist_max = 2
 
-// Output parameters
-
-params.resdir = "results"
-
 // Processes 
 
 process add_subset_duplicates {
     container "$r_container"
-    containerOptions "--bind ${launchDir}:$HOME"
     storeDir "$launchDir/$params.resdir/add_subset_duplicates/${subset_id}"
 
     input:
@@ -148,8 +147,7 @@ process filter_snps {
 }
 
 process qc_dated_subset_tree {
-    container "$r_container"
-    containerOptions "--no-home"
+    container "$r_container"                                                                                                                                                                                                                                                                                                            
     storeDir "$launchDir/$params.resdir/qc_dated_subset_tree/${subset_id}"
 
     input:

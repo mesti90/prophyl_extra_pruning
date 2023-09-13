@@ -24,7 +24,6 @@ params.resdir = "results"
 
 process add_duplicates {
     container "$r_container"
-    containerOptions "--bind ${launchDir}:$HOME"
     storeDir "$launchDir/$params.resdir/add_duplicates"
 
     input:
@@ -38,6 +37,7 @@ process add_duplicates {
     """
     Rscript $projectDir/bin/add_duplicates.R \
     --project_dir $projectDir \
+    --launch_dir $launchDir \
     --tree $tree \
     --duplicates $duplicates
     """
@@ -211,7 +211,6 @@ process remove_duplicates {
 
 process root_tree {
     container "$r_container"
-    containerOptions "--bind ${launchDir}:$HOME"
     storeDir "$launchDir/$params.resdir/root_tree"
 
     input:
@@ -219,7 +218,7 @@ process root_tree {
 
     output:
     tuple path(snps), path("rooted_trees.rds"), emit: rooted_trees
-    path "rooted_trees/*.tre"
+    // path "rooted_trees/*.tre"
     path "rtt_metrics.rds"
     path "rtt_plots.pdf"
     path "log.txt"
