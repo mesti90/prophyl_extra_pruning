@@ -10,6 +10,11 @@ args_list <- list(
     help = "Path to project directory."
   ),
   make_option(
+    c("-l", "--launch_dir"),
+    type = "character",
+    help = "Directory from which the pipeline was launched."
+  ),
+  make_option(
     c("-t", "--tree"),
     type = "character",
     help = "A dated tree in rds format."
@@ -28,6 +33,7 @@ if (!interactive()) {
 } else {
   args <- list(
     project_dir = "~/Methods/prophyl",
+    launch_dir = getwd(),
     tree = "final_dated_tree.rds",
     duplicates = "duplicates.txt"
   )
@@ -35,6 +41,12 @@ if (!interactive()) {
 
 library(devtools)
 load_all(args$project_dir)
+
+# set cache directory for R.cache
+R.cache::setCacheRootPath(paste0(
+  args$launch_dir,
+  ".cache/R/R.cache"
+))
 
 # import tree
 tree <- readRDS(args$tree)

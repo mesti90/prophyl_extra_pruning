@@ -142,14 +142,20 @@ rrdf_type3_long <- format_long(rrdf_type3, type3_vars)
 rrdf_type3_long_all <- format_long(rrdf_type3_all, type3_vars)
 
 point_and_whiskers <- function(x) {
-  y <- median(x)
-  ymin <- quantile(x, 0.05)
-  ymax <- quantile(x, 0.95)
-  return(data.frame(
-    "y" = y,
-    "ymin" = ymin,
-    "ymax" = ymax
-  ))
+  if (all(is.na(x))) {
+    df <- data.frame(
+      "y" = NA,
+      "ymin" = NA,
+      "ymax" = NA
+    )
+  } else {
+    df <- data.frame(
+      "y" = median(x, na.rm = TRUE),
+      "ymin" = quantile(x, 0.05, na.rm = TRUE),
+      "ymax" = quantile(x, 0.95, na.rm = TRUE)
+    )
+  }
+  return(df)
 }
 
 plot_rr <- function(df, df_all) {
@@ -204,8 +210,7 @@ g1 <- plot_rr(rrdf_type1_long, rrdf_type1_long_all) +
     "different_continent" = "Between \n continents"
   ))
 
-try_g1 <- try(testthat::expect_no_error(g1), silent = TRUE)
-if (inherits(try_g1, "try-error")) {
+if (inherits(try(ggplot_build(g1), silent = TRUE), "try-error")) {
   g1 <- ggplot()
 }
 
@@ -237,8 +242,7 @@ g2 <- plot_rr(rrdf_type2_long, rrdf_type2_long_all) +
     "different_continent" = "Between \n continents"
   ))
 
-try_g2 <- try(testthat::expect_no_error(g2), silent = TRUE)
-if (inherits(try_g2, "try-error")) {
+if (inherits(try(ggplot_build(g2), silent = TRUE), "try-error")) {
   g2 <- ggplot()
 }
 
@@ -268,8 +272,7 @@ g3 <- plot_rr(rrdf_type3_long, rrdf_type3_long_all) +
     "different_country" = "Between \n countries"
   ))
 
-try_g3 <- try(testthat::expect_no_error(g3), silent = TRUE)
-if (inherits(try_g3, "try-error")) {
+if (inherits(try(ggplot_build(g3), silent = TRUE), "try-error")) {
   g3 <- ggplot()
 }
 

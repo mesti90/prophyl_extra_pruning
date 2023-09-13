@@ -1,4 +1,4 @@
-FROM debian:stable-20230612
+FROM debian:bookworm-20230904
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -33,15 +33,14 @@ RUN apt-get install -y \
 RUN R -e 'options(warn = 2); install.packages("cli", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("ggmap", dependencies = TRUE)'
 
-# Install leaflet
-RUN apt-get install -y \
-  libgdal-dev \
-  libudunits2-dev
-RUN R -e 'options(warn = 2); install.packages("leaflet", dependencies = TRUE)'
+# # Install leaflet
+# RUN apt-get install -y \
+#   libgdal-dev \
+#   libudunits2-dev
+# RUN R -e 'options(warn = 2); install.packages("leaflet", dependencies = TRUE)'
 
 # Install R packages from CRAN
-RUN R -e 'options(warn = 2); install.packages("leaflet.minicharts", dependencies = TRUE)'
-RUN R -e 'options(warn = 2); install.packages("qualpalr", dependencies = TRUE)'
+# RUN R -e 'options(warn = 2); install.packages("leaflet.minicharts", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("tictoc", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("tidytree", dependencies = TRUE)'
 
@@ -69,10 +68,10 @@ RUN R -e 'options(warn = 2); install.packages("ggimage", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); install.packages("ggnewscale", dependencies = TRUE)'
 RUN R -e 'options(warn = 2); BiocManager::install("ggtreeExtra", update = FALSE, ask = FALSE)'
 
-# Install quarto
-RUN apt-get install -y wget
-RUN wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.336/quarto-1.3.336-linux-amd64.deb
-RUN dpkg -i quarto-1.3.336-linux-amd64.deb
+# # Install quarto
+# RUN apt-get install -y wget
+# RUN wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.3.336/quarto-1.3.336-linux-amd64.deb
+# RUN dpkg -i quarto-1.3.336-linux-amd64.deb
 
 # Install optparse
 RUN apt-get install -y r-cran-optparse
@@ -124,7 +123,11 @@ RUN apt-get install -y \
   libtool \
   mpich
 
-RUN git clone https://github.com/nickjcroucher/gubbins && cd gubbins && autoreconf -i && ./configure && make && make install
+RUN git clone https://github.com/nickjcroucher/gubbins && \
+  cd gubbins && \
+  git checkout 21e70def99edad2d47c150c3ed291ad11350a2d3 && \
+  autoreconf -i && \
+  ./configure && make && make install
 
 ENV OPENBLAS_NUM_THREADS=2
 ENV LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
@@ -134,3 +137,9 @@ RUN R -e 'options(warn = 2); install.packages("TreeTools", dependencies = TRUE)'
 
 # Install optparse
 RUN apt-get install -y r-cran-optparse
+
+# Install qualpalr from GitHub instead of CRAN
+RUN R -e 'options(warn = 2); devtools::install_github("jolars/qualpalr@v.0.4.3")'
+
+# Set R library path to avoid binding from host system
+ENV R_LIBS_USER /usr/local/lib/R/site-library
