@@ -3,6 +3,7 @@
 #' This function plots a phylogenetic tree using the fan layout and optionally
 #' adds a number of heatmaps.
 #' @param tree_tbl tibble; the phylogenetic tree in tibble format.
+#' @param linewidth numeric; line width for the phylogenetic tree.
 #' @param highlight_var character; a variable name used for highlighting tips.
 #' @param open_angle numeric; open angle for the fan layout.
 #' @param heatmap_var character; a vector or variable names used for creating
@@ -54,6 +55,7 @@
 #' @importFrom qualpalr qualpal
 #' @export
 plot_tree_fan <- function(tree_tbl,
+                          linewidth = 0.5,
                           highlight_var = NULL,
                           open_angle = 10,
                           heatmap_var = NULL,
@@ -77,6 +79,7 @@ plot_tree_fan <- function(tree_tbl,
   if (is.null(highlight_var)) {
     p <- ggtree(
       tree_db,
+      size = linewidth,
       layout = "fan",
       open.angle = open_angle
     )
@@ -84,6 +87,7 @@ plot_tree_fan <- function(tree_tbl,
     p <- ggtree(
       tree_db,
       aes(color = get(highlight_var)),
+      size = linewdith,
       layout = "fan",
       open.angle = open_angle
     ) + 
