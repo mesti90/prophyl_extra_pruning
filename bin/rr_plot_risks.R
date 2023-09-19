@@ -25,6 +25,7 @@ if (!interactive()) {
   )
 }
 
+library(dplyr)
 library(ggplot2)
 
 countlist <- readRDS(args$countlist)
