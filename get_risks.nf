@@ -274,6 +274,7 @@ process rr_plot_risks {
     path "relative_risks_type3.rds"
     path "relative_risks_type3.pdf"
     path "relative_risks_type3.png"
+    path "p_values.tsv"
 
     script:
     """
