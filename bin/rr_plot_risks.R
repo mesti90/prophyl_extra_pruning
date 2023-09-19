@@ -202,6 +202,18 @@ plot_rr <- function(df, df_all) {
     ) 
 }
 
+get_p_values <- function(gg, type) {
+  out <- gg$data %>% 
+    group_by(mrca, geo) %>% 
+    summarise(
+      higher = mean(rr > 1, na.rm = TRUE),
+      lower = mean(rr < 1, na.rm = TRUE),
+      .groups = "drop"
+    )
+  out <- dplyr::bind_cols(type = type, out)
+  return(out)
+}
+
 g1 <- plot_rr(rrdf_type1_long, rrdf_type1_long_all) +
   scale_x_discrete(labels = c(
     "same_country" = "Within \n countries",
@@ -212,6 +224,12 @@ g1 <- plot_rr(rrdf_type1_long, rrdf_type1_long_all) +
 
 if (inherits(try(ggplot_build(g1), silent = TRUE), "try-error")) {
   g1 <- ggplot()
+}
+
+if (inherits(try(ggplot_build(g1), silent = TRUE), "try-error")) {
+  ps <- data.frame()
+} else {
+  ps <- get_p_values(g1, "type1")
 }
 
 ggsave(
@@ -246,6 +264,12 @@ if (inherits(try(ggplot_build(g2), silent = TRUE), "try-error")) {
   g2 <- ggplot()
 }
 
+if (inherits(try(ggplot_build(g2), silent = TRUE), "try-error")) {
+  ps <- dplyr::bind_rows(ps, data.frame())
+} else {
+  ps <- dplyr::bind_rows(ps, get_p_values(g2, "type2"))
+}
+
 ggsave(
   filename = "relative_risks_type2.pdf",
   plot = g2,
@@ -276,6 +300,12 @@ if (inherits(try(ggplot_build(g3), silent = TRUE), "try-error")) {
   g3 <- ggplot()
 }
 
+if (inherits(try(ggplot_build(g3), silent = TRUE), "try-error")) {
+  ps <- dplyr::bind_rows(ps, data.frame())
+} else {
+  ps <- dplyr::bind_rows(ps, get_p_values(g3, "type3"))
+}
+
 ggsave(
   filename = "relative_risks_type3.pdf",
   plot = g3,
@@ -295,3 +325,10 @@ ggsave(
 
 saveRDS(g3, "relative_risks_type3.rds")
 
+write.table(
+  ps, 
+  file = "p_values.tsv",
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
+)
