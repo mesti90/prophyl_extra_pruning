@@ -28,10 +28,27 @@ if (!interactive()) {
 library(dplyr)
 library(ggplot2)
 
+prettify_mrca <- function(mrca) {
+  foo <- function(x) {
+    sp <- strsplit(x, "\\[|\\(|,|\\)|\\]")[[1]]
+    paste0(sp[2], " < MRCA (years) < ", sp[3])
+  }
+  unname(sapply(mrca, foo))
+}
+
+# import countlist
 countlist <- readRDS(args$countlist)
+# make mrca categories pretty
+countlist$mrca_cat_char <- prettify_mrca(countlist$mrca_cat_char)
+countlist$countdf$mrca <- prettify_mrca(countlist$countdf$mrca)
+
+# import countlist for all tips
 countlist_all <- readRDS(args$countlist_all)
+countlist_all$mrca_cat_char <- prettify_mrca(countlist_all$mrca_cat_char)
+countlist_all$countdf$mrca <- prettify_mrca(countlist_all$countdf$mrca)
 
 countdf <- countlist$countdf
+
 mrca_cat_char = countlist$mrca_cat_char
 geodist_threshold <- countlist$geodist_threshold
 
@@ -182,7 +199,7 @@ plot_rr <- function(df, df_all) {
       col = "#000000"
     ) +
     geom_hline(yintercept = 1, col = "#FF0000", linewidth = 0.1) +
-    facet_grid(mrca~.) +
+    facet_wrap(mrca~., nrow = length(unique(df$mrca))) +
     scale_y_log10() +
     ylab("Relative Risk") +
     xlab("") +
@@ -199,7 +216,11 @@ plot_rr <- function(df, df_all) {
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
       axis.ticks = element_line(colour = "#000000", linewidth = 0.1),
       axis.ticks.length = unit(0.05, "cm"),
-      strip.text = element_text(family = "helvetica", size = 5)
+      strip.text = element_text(
+        family = "helvetica",
+        size = 5,
+        margin = margin(0,0,0,0, "cm")
+      )
     ) 
 }
 
