@@ -87,7 +87,7 @@ plot_tree_fan <- function(tree_tbl,
     p <- ggtree(
       tree_db,
       aes(color = get(highlight_var)),
-      size = linewdith,
+      size = linewidth,
       layout = "fan",
       open.angle = open_angle
     ) + 
