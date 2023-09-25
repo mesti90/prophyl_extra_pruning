@@ -94,6 +94,11 @@ plot_tree_fan <- function(tree_tbl,
     labs(
       color = highlight_var
     )
+    if (!highlight_var %in% legend_show){
+      p <- p + guides(
+        color = "none"
+      )
+    }
   }
   if (!is.null(heatmap_var)) {
     idx_x <- which(tree_tbl$label %in% tree$tip.label)
