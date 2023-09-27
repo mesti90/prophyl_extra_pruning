@@ -4,12 +4,15 @@
 \alias{tidy_duplicates}
 \title{Tidy duplicates for assembly subsets}
 \usage{
-tidy_duplicates(assemblies, subset, duplicates)
+tidy_duplicates(df, subset, id_var, duplicates)
 }
 \arguments{
-\item{assemblies}{data.frame; assembly data set containing all samples}
+\item{df}{data.frame; data set containing all samples}
 
-\item{subset}{data.frame; a subset of the assembly data set}
+\item{subset}{data.frame; a subset of the data set}
+
+\item{id_var}{character; a variable in df and subset which contains the
+duplicate names.}
 
 \item{duplicates}{list; a list of duplicates. See \code{parse_duplicates()}
 for more information.}

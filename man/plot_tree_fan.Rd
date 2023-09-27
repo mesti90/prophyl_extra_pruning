@@ -6,6 +6,7 @@
 \usage{
 plot_tree_fan(
   tree_tbl,
+  linewidth = 0.5,
   highlight_var = NULL,
   open_angle = 10,
   heatmap_var = NULL,
@@ -16,6 +17,8 @@ plot_tree_fan(
   heatmap_colnames_font_size = 4,
   heatmap_colnames_hjust = 1,
   legend_show = NA,
+  legend_breaks = list(),
+  legend_guides = list(),
   legend_box = "horizontal",
   file_name = NULL,
   verbose = getOption("verbose")
@@ -23,6 +26,8 @@ plot_tree_fan(
 }
 \arguments{
 \item{tree_tbl}{tibble; the phylogenetic tree in tibble format.}
+
+\item{linewidth}{numeric; line width for the phylogenetic tree.}
 
 \item{highlight_var}{character; a variable name used for highlighting tips.}
 
@@ -47,6 +52,15 @@ be generated automatically.}
 
 \item{legend_show}{character; name of heatmap variables to include in legend.
 By default, all variables are included.}
+
+\item{legend_breaks}{list; a list of character vectors that tell which
+levels to show on each heatmap. By default all levels will be shown for
+each heatmap.}
+
+\item{legend_guides}{list; a list of lists where the name of each list
+element is the name of a legend we want to customize and the value is a list
+of parameters that will be evaluated by guide_legend(). If left empty, the
+legends will be drawn with defaults.}
 
 \item{legend_box}{character; arrangement of multiple legends. Can be either
 \code{"horizontal"} or \code{"vertical"}.}

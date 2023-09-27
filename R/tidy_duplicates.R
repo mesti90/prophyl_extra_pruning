@@ -15,9 +15,6 @@
 #' \code{"subset"} contains the tidied subset data frame where any duplicates
 #' are replaced by their reference assembly and \code{"duplist"} contains the
 #' assemblies that have been removed in the process.
-#' @examples
-#' 
-#' 
 tidy_duplicates <- function(df, subset, id_var, duplicates) {
   duplist <- list()
   if (length(duplicates) > 0) {
