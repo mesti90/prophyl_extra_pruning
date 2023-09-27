@@ -18,6 +18,13 @@
 #' @param heatmap_colnames_hjust numeric; hjust for column names.
 #' @param legend_show character; name of heatmap variables to include in legend.
 #' By default, all variables are included.
+#' @param legend_breaks list; a list of character vectors that tell which
+#' levels to show on each heatmap. By default all levels will be shown for
+#' each heatmap.
+#' @param legend_guides list; a list of lists where the name of each list
+#' element is the name of a legend we want to customize and the value is a list
+#' of parameters that will be evaluated by guide_legend(). If left empty, the
+#' legends will be drawn with defaults.
 #' @param legend_box character; arrangement of multiple legends. Can be either
 #' \code{"horizontal"} or \code{"vertical"}.
 #' @param verbose logical; should verbose messages be printed to the console?
@@ -66,6 +73,8 @@ plot_tree_fan <- function(tree_tbl,
                           heatmap_colnames_font_size = 4,
                           heatmap_colnames_hjust = 1,
                           legend_show = NA,
+                          legend_breaks = list(),
+                          legend_guides = list(),
                           legend_box = "horizontal",
                           file_name = NULL,
                           verbose = getOption("verbose")) {
@@ -162,13 +171,33 @@ plot_tree_fan <- function(tree_tbl,
                            text.angle = heatmap_colnames_angle,
                            hjust = heatmap_colnames_hjust),
         show.legend = show_legend
-      )+
-      scale_fill_manual(
-        name = heatmap_var[i],
-        values = hmdf_colors,
-        breaks = names(hmdf_colors),
-        na.translate = FALSE
       )
+      
+      
+      if (heatmap_var[i] %in% names(legend_breaks)) {
+        breaks <- legend_breaks[[heatmap_var[i]]]
+      } else {
+        breaks <- names(hmdf_colors)
+      }
+      
+      if (heatmap_var[i] %in% names(legend_guides)) {
+        p <- p + scale_fill_manual(
+          name = heatmap_var[i],
+          values = hmdf_colors,
+          breaks = breaks,
+          na.translate = FALSE,
+          guide = rlang::exec(guide_legend, !!!legend_guides[[heatmap_var[i]]])
+        )
+      } else {
+        p <- p + scale_fill_manual(
+          name = heatmap_var[i],
+          values = hmdf_colors,
+          breaks = breaks,
+          na.translate = FALSE
+        )
+      }
+      
+      
     }
   }
   p <- p + theme(legend.box = legend_box)
