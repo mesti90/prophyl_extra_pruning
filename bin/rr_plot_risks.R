@@ -211,13 +211,12 @@ plot_rr <- function(df, df_all) {
       ),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      axis.title = element_text(family = "helvetica", size = 5),
-      axis.text = element_text(family = "helvetica", size = 5),
+      axis.title = element_text(size = 5),
+      axis.text = element_text(size = 5),
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
       axis.ticks = element_line(colour = "#000000", linewidth = 0.1),
       axis.ticks.length = unit(0.05, "cm"),
       strip.text = element_text(
-        family = "helvetica",
         size = 5,
         margin = margin(0,0,0,0, "cm")
       )
@@ -259,8 +258,7 @@ ggsave(
   plot = g1,
   units = "cm",
   width = 8,
-  height = 6,
-  device = cairo_pdf
+  height = 6
 )
 
 ggsave(
@@ -297,8 +295,7 @@ ggsave(
   plot = g2,
   units = "cm",
   width = 8,
-  height = 6,
-  device = cairo_pdf
+  height = 6
 )
 
 ggsave(
@@ -333,8 +330,7 @@ ggsave(
   plot = g3,
   units = "cm",
   width = 8,
-  height = 6,
-  device = cairo_pdf
+  height = 6
 )
 
 ggsave(
