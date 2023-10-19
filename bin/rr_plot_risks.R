@@ -129,8 +129,8 @@ rrdf_type1_all <- get_rrdf(probdf_type1_all, type1_vars, "not_neighbors")
 rrdf_type2 <- get_rrdf(probdf_type2, type2_vars, "different_country_same_continent")
 rrdf_type2_all <- get_rrdf(probdf_type2_all, type2_vars, "different_country_same_continent")
 
-rrdf_type3 <- get_rrdf(probdf_type3, type3_vars, "different_country")
-rrdf_type3_all <- get_rrdf(probdf_type3_all, type3_vars, "different_country")
+rrdf_type3 <- get_rrdf(probdf_type3, type3_vars, "different_city")
+rrdf_type3_all <- get_rrdf(probdf_type3_all, type3_vars, "different_city")
 
 format_long <- function(df, vars) {
   cols <- names(df)[which(names(df) %in% vars)]
