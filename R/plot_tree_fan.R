@@ -169,7 +169,9 @@ plot_tree_fan <- function(tree_tbl,
                            text = axis_text,
                            text.size = heatmap_colnames_font_size,
                            text.angle = heatmap_colnames_angle,
-                           hjust = heatmap_colnames_hjust),
+                           hjust = heatmap_colnames_hjust,
+                           line.size = 0,
+                           line.color = "#FFFFFF"),
         show.legend = show_legend
       )
       
