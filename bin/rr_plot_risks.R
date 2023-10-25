@@ -89,8 +89,7 @@ type2_vars <- c(
 
 type3_vars <- c(
   "same_city",
-  "different_city",
-  "different_country"
+  "different_city"
 )
 
 probdf_type1 <- get_probdf(countdf, type1_vars)
@@ -311,8 +310,7 @@ saveRDS(g2, "relative_risks_type2.rds")
 g3 <- plot_rr(rrdf_type3_long, rrdf_type3_long_all) +
   scale_x_discrete(labels = c(
     "same_city" = "Within \n cities",
-    "different_city" = "Within \n countries",
-    "different_country" = "Between \n countries"
+    "different_city" = "Within \n countries"
   ))
 
 if (inherits(try(ggplot_build(g3), silent = TRUE), "try-error")) {
