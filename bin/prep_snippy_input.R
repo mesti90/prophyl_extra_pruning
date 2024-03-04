@@ -54,7 +54,7 @@ for (i in 1:nrow(df)) {
       }
     }
   } else {
-    assembly_dir <- paste0(source_dir, "/", df$jobname[i], "/assembled_genomes/")
+    assembly_dir <- paste0(source_dir, "/", df$jobname[i], "/")
     if (dir.exists(assembly_dir)) {
       message("Assembly directory found. ", appendLF = FALSE)
       hit <- list.files(assembly_dir)[grep(df$assembly[i], list.files(assembly_dir))]
