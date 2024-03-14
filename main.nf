@@ -4,10 +4,7 @@ nextflow.enable.dsl=2
 
 // assemblies_ch = Channel.fromPath("$launchDir/assemblies.tsv")
 
-ans_targets = Channel.of("country", "continent", "mlst", "k_serotype")
-
 // tree_ch = Channel.fromPath("$launchDir/treedater_tree_with_time.nwk", checkIfExists: true)
-// pastml_ch = Channel.fromPath("$launchDir/output/pastml/combined_ancestral_states.tab", checkIfExists: true)
 // meta_rda_ch = Channel.fromPath("$launchDir/treemeta.rda", checkIfExists: true)
 // meta_tsv_ch = Channel.fromPath("$launchDir/treemeta.tsv", checkIfExists: true)
 
@@ -16,7 +13,6 @@ gubbins_container = "mesti90/gubbins:latest"
 hgttree_container = "mesti90/hgttree:2.6"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
-pastml = "evolbioinfo/pastml"
 r_container = "stitam/r-prophyl:0.4"
 root_digger_container = "stitam/root_digger:1.7.0"
 snippy_container = "staphb/snippy"
@@ -313,91 +309,6 @@ process keep_chromosome {
     """
 }
 
-process plot_tree {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/plot_tree"
-
-    input:
-    path tree_tbl
-
-    output:
-    path "dated_tree.pdf"
-    path "dated_tree.png"
-    
-    script:
-    """
-    Rscript $projectDir/bin/plot_tree.R $tree_tbl
-    """
-}
-
-process predict_ancestral_states {
-    container "$pastml_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/predict_ancestral_states"
-    
-    input:
-    tuple path(dated_tree), val(target)
-
-    output:
-    tuple val(target), path(target)
-
-    script:
-    """
-    pastml \
-    -t $dated_tree \
-    -d $params.assemblies \
-    -c $target \
-    --threads ${task.cpus} \
-    --work_dir $target \
-    --offline
-    """
-}
-
-process predict_ancestral_states_k_serotype {
-    container "$pastml_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/predict_ancestral_states"
-
-    input:
-    tuple path(dated_tree), val(target)
-
-    output:
-    tuple val(target), path(target)
-
-    script:
-    """
-    pastml \
-    -t $dated_tree \
-    -d $params.assemblies \
-    -c k_serotype \
-    -m JC \
-    --threads ${task.cpus} \
-    --work_dir k_serotype \
-    --html_compressed tree_with_as.html \
-    --offline
-    """
-}
-
-process prep_tree_tbl {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/prep_tree_tbl"
-
-    input:
-    path tree
-    path ancestral_states
-
-    output:
-    path "tree_tbl.rds"
-    
-    script:
-    """
-    Rscript $projectDir/bin/prep_tree_tbl.R $tree $params.assemblies $ancestral_states $params.Rdir
-    """
-}
-
-
 process root_tree {
     container "$root_digger_container"
     storeDir "$launchDir/results/root_tree"
@@ -621,23 +532,6 @@ process subset_snps {
     """
 }
 
-process tidy_ancestral_states {
-    container "$r_container"
-    containerOptions "--no-home"
-    storeDir "$launchDir/results/tidy_ancestral_states"
-
-    input:
-    tuple val(target), path(combined)
-
-    output:
-    path "${target}.tsv"
-
-    script:
-    """
-    Rscript $projectDir/bin/tidy_ancestral_states.R $combined $target
-    """
-}
-
 process tidy_bootstrap_tree {
     container "$r_container"
     containerOptions "--no-home"
@@ -688,10 +582,6 @@ workflow {
     // shrink_snp_cols.out | date_tree_bactdating
     // Simulate new trees using the dated tree, calculate geo distance and phylo distance, calculate relative_risks
     // date_tree.out[1] | simulate_trees | calculate_distances | calculate_relative_risks
-    // predict ancestral states for each variable defined in the ans_targets channel
-    // date_tree.out[0].combine(ans_targets) | predict_ancestral_states | tidy_ancestral_states
-    // prepare tree_tbl which contains predicted ancestral states for internal nodes
-    // prep_tree_tbl(date_tree.out[0], tidy_ancestral_states.out.collectFile(name: "all_ancestral_states.tsv", newLine: false, keepHeader: true))
     // collapse outbreaks
     validate_input.out | collapse_outbreaks
     // prepare random subsamples from assemblies and create a channel
