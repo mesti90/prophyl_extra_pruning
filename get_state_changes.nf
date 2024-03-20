@@ -13,6 +13,7 @@ r_container = "stitam/prophyl:0.11"
 params.assemblies = "$launchDir/assemblies.tsv"
 params.tree = "$launchDir/dated_tree.nwk"
 params.target = "city"
+params.method = "MPPA"
 params.model = "JC"
 params.resdir = "results"
 
@@ -37,6 +38,7 @@ process predict_ancestral_states {
     -t $params.tree \
     -d $params.assemblies \
     -c $target \
+    --prediction_method $params.method \
     -m $params.model \
     --threads ${task.cpus} \
     --work_dir $params.target \
