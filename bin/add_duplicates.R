@@ -70,12 +70,6 @@ if (length(duplicates) > 0) {
           label = duplicates[[i]][j],
           edgeLength = 0
         )
-        tree$intree <- TreeTools::AddTip(
-          tree$intree,
-          where = names(duplicates)[i],
-          label = duplicates[[i]][j],
-          edgeLength = 0
-        )
       }
     }
   }
@@ -88,7 +82,6 @@ if (length(duplicates) > 0) {
     # removed. 
     if (names(duplicates)[i] != duplicates[[i]][1]) {
       tree <- ape::drop.tip(tree, names(duplicates)[i])
-      tree$intree <- ape::drop.tip(tree$intree, names(duplicates)[i])
     }
   }
   
@@ -102,10 +95,9 @@ if (length(duplicates) > 0) {
 # alter node.label when adding tips. Raised an issue here:
 # https://github.com/ms609/TreeTools/issues/149
 tree$node.label <- paste0("Node_", 1:tree$Nnode)
-tree$intree$node.label <- paste0("Node_", 1:tree$intree$Nnode)
 
-# Note that tips are added to both non-dated and dated trees. Also the internal
-# node labels are regenerated for both non-dated and dated trees. However, the
+# Note that tips are added only to the dated tree. Also the internal
+# node labels are regenerated only for the dated tree. The
 # rests of the list elements within the dated tree object remain unchanged.
 
 # export tree
