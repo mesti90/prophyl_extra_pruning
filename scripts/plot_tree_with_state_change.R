@@ -42,7 +42,7 @@ if (!interactive()) {
     project_dir = "aci/prophyl",
     tree_tbl = "data/global_ST2_tree/tree_tbl.rds",
     target = "city_pooled",
-    heatmap_vars = "city_pooled"
+    heatmap_vars = c("city_pooled", "country", "continent", "k_serotype")
   )
 }
 
@@ -70,9 +70,24 @@ tree <-  treeio::as.treedata(tree_tbl)
 
 max_date <- max(tree_tbl$collection_day, na.rm = TRUE)
 
-mat <- as.matrix(tree_tbl[, args$heatmap_vars])
-rownames(mat) <- tree_tbl$label
-colnames(mat) <- args$heatmap_vars
+# prepare heatmap matrices and colors
+
+mats <- list()
+cls <- list()
+for (i in 1:length(args$heatmap_vars)) {
+  mats[[i]] <- as.matrix(tree_tbl[, args$heatmap_vars[i]])
+  rownames(mats[[i]]) <- tree_tbl$label
+  colnames(mats[[i]]) <- args$heatmap_vars[i]
+  if (args$heatmap_vars[i] == args$target) {
+    cls[[i]] <- geo_cols$color
+    names(cls[[i]]) <- geo_cols$city_pooled
+  } else {
+    set.seed(0)
+    coldf <-  get_colors(tree_tbl[1:(index-1), ], args$heatmap_vars[i])
+    cls[[i]] <- coldf$color
+    names(cls[[i]]) <- coldf[[args$heatmap_vars[i]]]
+  }
+}
 
 index_ambiguous_nodes <- grep("\\|", tree_tbl[[args$target]])
 
@@ -110,21 +125,24 @@ p <- ggtree(tree, aes(color = get(args$target)), mrsd = max_date) +
   geom_label(aes(label = city_pooled), size = 2)+
   theme(legend.position = "none")
 
-cls <- geo_cols$color
-names(cls) <- geo_cols$city_pooled
-
-p2 <- gheatmap(
-  p,
-  mat,
-  offset = 1,
-  width = 0.02,
-  colnames_offset_y = 0,
-  colnames_position = "top",
-  legend_title = args$heatmap_vars
+p2 <- p
+for (i in 1:length(mats)) {
+  p2 <- gheatmap(
+    p2,
+    mats[[i]],
+    offset = 1 + (i-1) * 1,
+    width = 0.02,
+    colnames_offset_y = 0,
+    colnames_position = "top",
+    legend_title = args$heatmap_vars
   )+
-  labs(fill = args$heatmap_vars)+
-  scale_fill_manual(values = cls)+
-  guides(colour = "none", fill = "none")
+    labs(fill = args$heatmap_vars[i])+
+    scale_fill_manual(values = cls[[i]])
+  if (i < length(mats)) {
+    p2 <- p2 + new_scale_fill()
+  }
+}
+p2 <- p2 + theme(legend.position = "none")
 
 ggsave(
   file = "tree_with_state_changes.pdf",
