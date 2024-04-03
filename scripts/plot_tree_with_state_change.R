@@ -100,6 +100,22 @@ for (i in 1:nrow(tree_tbl)) {
   }
 }
 
+index_trnodes <- which(tree_tbl$node %in% index_transmission_nodes)
+
+trlabel <- vector()
+for (i in 1:nrow(tree_tbl)) {
+  if (tree_tbl$node[i] %in% index_trnodes) {
+    trlabel <- c(trlabel, paste0(
+      "INTRO?\n",
+      tree_tbl$collection_day[which(tree_tbl$node == tree_tbl$parent[i])],
+      "/",
+      tree_tbl$collection_day[i]
+    ))
+  } else {
+    trlabel <- c(trlabel, NA_character_)
+  }
+}
+
 p <- ggtree(tree, aes(color = get(args$target)), mrsd = max_date) +
   theme_tree2()+
   scale_x_ggtree()+
@@ -111,18 +127,21 @@ p <- ggtree(tree, aes(color = get(args$target)), mrsd = max_date) +
     aes(subset = (node %in% index_ambiguous_nodes)),
     shape = 21,
     size = 10,
-    fill = "orange"
+    fill = "orange",
+    alpha = 0.5
   )+
   geom_label2(
     aes(
       x = branch,
-      subset = (node %in% index_transmission_nodes),
-      label = "INTRO?"
+      subset = (tree_tbl$node %in% index_transmission_nodes),
+      label = trlabel
     ),
-    size = 3,
-    fill = "red")+
-  geom_tiplab(align = TRUE, size = 2)+
-  geom_label(aes(label = city_pooled), size = 2)+
+    size = 2,
+    col = "black",
+    fill = "red",
+    alpha = 0.5)+
+  geom_label(aes(label = city_pooled), size = 2, alpha = 0.5)+
+  geom_tiplab(align = TRUE, size = 2, alpha = 1)+
   theme(legend.position = "none")
 
 p2 <- p
@@ -146,7 +165,7 @@ p2 <- p2 + theme(legend.position = "none")
 
 ggsave(
   file = "tree_with_state_changes.pdf",
-  height = 0.2*nrow(tree_tbl),
+  height = 0.25*nrow(tree_tbl),
   width = 0.01*nrow(tree_tbl),
   units = "cm",
   limitsize = FALSE
