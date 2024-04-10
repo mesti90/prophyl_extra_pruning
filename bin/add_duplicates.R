@@ -91,5 +91,14 @@ if (length(duplicates) > 0) {
   
 }
 
+# Rename internal nodes. This is needed because TreeTools::AddTips() does not
+# alter node.label when adding tips. Raised an issue here:
+# https://github.com/ms609/TreeTools/issues/149
+tree$node.label <- paste0("Node_", 1:tree$Nnode)
+
+# Note that tips are added only to the dated tree. Also the internal
+# node labels are regenerated only for the dated tree. The
+# rests of the list elements within the dated tree object remain unchanged.
+
 # export tree
 saveRDS(tree, file = "dated_tree.rds")

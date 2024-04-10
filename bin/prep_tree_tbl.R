@@ -1,12 +1,51 @@
-rm(list=ls())
+library(ggtree) # required for tibble to convert tree to tibble
+library(optparse)
+rm(list = ls())
 
 args <- commandArgs(trailingOnly = TRUE)
 
-library(ggtree) # required for tibble to convert tree to tibble
+args_list <- list(
+  make_option(
+    c("-p", "--project_dir"),
+    type = "character",
+    help = "Path to project directory."
+  ),
+  make_option(
+    c("-a", "--assemblies"),
+    type = "character",
+    help = "A tab delimited file with assembly metadata."
+  ),
+  make_option(
+    c("-t", "--tree"),
+    type = "character",
+    help = "A tree in Newick format."
+  ),
+  make_option(
+    c("-A", "--ancestral_states"),
+    type = "character",
+    help = "A tab delimited file with ancestral states."
+  )
+)
 
-tree_file <- args[1]
-treemeta_file <- args[2]
-ans_file <- args[3]
+args_parser  <- OptionParser(option_list = args_list)
+
+if (!interactive()) {
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    project_dir = "~/Methods/prophyl",
+    assemblies = "assemblies.tsv",
+    tree = "dated_tree.nwk",
+    ancestral_states = "ancestral_states.tsv"
+  )
+}
+
+library(devtools)
+load_all(args$project_dir)
+
+tree_file <- args$tree
+treemeta_file <- args$assemblies
+ans_file <- args$ancestral_states
 
 # load tree
 tree <- ape::read.tree(tree_file)
@@ -101,3 +140,11 @@ write.table(
 )
 
 saveRDS(tree_tbl, file = "tree_tbl.rds")
+
+write.table(
+  tree_tbl,
+  file = "tree_tbl.tsv",
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
+)

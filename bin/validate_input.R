@@ -50,6 +50,19 @@ if ("continent" %in% names(df) == FALSE) {
   stop("Required column 'continent' is missing.")
 }
 
+# Required variables for ancestral state prediction
+# TODO expand this structure to all of the script
+required_variables <- c(
+  "country", "region23", "continent", "k_serotype", "k_confidence"
+)
+index <- which(required_variables %in% names(df) == FALSE)
+if (length(index) > 0) {
+  missing = paste(required_variables[index], collapse = ", ")
+  stop("One or mode required variables are missing: ", missing, ".")
+}
+
+
+
 write.table(
   df, 
   file = "assemblies.tsv",
