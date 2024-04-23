@@ -80,7 +80,7 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    project_dir = "~/Methods/prophyl",
+    project_dir = "aci/prophyl",
     assemblies = "assemblies.tsv",
     assemblies_collapsed = "assemblies_for_country_rr.tsv",
     colldist = "colldist.rds",
@@ -158,7 +158,7 @@ index <- which(colnames(phylodist_all) %in% assemblies_collapsed$assembly)
 phylodist_all <- phylodist_all[index, index]
 
 foo <- function(phd, categories) {
-  out <- cut(phd, breaks = categories)
+  out <- cut(phd, breaks = categories, include.lowest = TRUE)
   out <- matrix(out, ncol = ncol(phd))
   row.names(out) <- row.names(phd)
   colnames(out) <- colnames(phd)
@@ -358,6 +358,21 @@ for (i in seq_along(phylodist_list)) {
         }
         smat_tab <- table(smat)
         all(names(smat_tab) %in% c("0", "1")) == FALSE
+      }
+      
+      subset_matrix <- function(matrix, value) {
+        index_x <- vector()
+        index_y <- vector()
+        for (i in 1:nrow(matrix)) {
+          for (j in 1:ncol(matrix)) {
+            if (!is.na(matrix[i,j]) & matrix[i,j] == value) {
+              index_x <- c(index_x, i)
+              index_y <- c(index_y, j)
+            }
+          }
+        }
+        subset_mat <- matrix[index_x, index_y]
+        return(subset_mat)
       }
       
       # type 1 - same country, neighbor, not neighbor, different continent
