@@ -124,13 +124,17 @@ mrca_cat_char <- paste0(
   "]"
 )
 
+foo <- function(phd, categories) {
+  out <- cut(phd, breaks = categories, include.lowest = TRUE)
+  out <- matrix(out, ncol = ncol(phd))
+  row.names(out) <- row.names(phd)
+  colnames(out) <- colnames(phd)
+  return(out)
+}
+
 # convert phylogenetic distances to MRCA categories
 phylodist_list <- lapply(phylodist_list, function(x) {
-  out <- cut(x, breaks = mrca_categories)
-  out <- matrix(out, ncol = ncol(x))
-  row.names(out) <- row.names(x)
-  colnames(out) <- colnames(x)
-  return(out)
+  foo(x, categories = mrca_categories)
 })
 
 # Maximum collection date distance between samples
@@ -156,14 +160,6 @@ countdf_all <- data.frame()
 assemblies_collapsed <- read.csv(args$assemblies_collapsed, sep = "\t")
 index <- which(colnames(phylodist_all) %in% assemblies_collapsed$assembly)
 phylodist_all <- phylodist_all[index, index]
-
-foo <- function(phd, categories) {
-  out <- cut(phd, breaks = categories, include.lowest = TRUE)
-  out <- matrix(out, ncol = ncol(phd))
-  row.names(out) <- row.names(phd)
-  colnames(out) <- colnames(phd)
-  return(out)
-}
 
 phylodist_all <- foo(phylodist_all, mrca_categories)
 
