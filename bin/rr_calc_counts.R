@@ -80,7 +80,7 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    project_dir = "~/Methods/prophyl",
+    project_dir = "aci/prophyl",
     assemblies = "assemblies.tsv",
     assemblies_collapsed = "assemblies_for_country_rr.tsv",
     colldist = "colldist.rds",
@@ -124,13 +124,20 @@ mrca_cat_char <- paste0(
   "]"
 )
 
+# include lowest
+mrca_cat_char[1] <- gsub("^\\(", "[", mrca_cat_char[1])
+
+foo <- function(phd, categories) {
+  out <- cut(phd, breaks = categories, include.lowest = TRUE)
+  out <- matrix(out, ncol = ncol(phd))
+  row.names(out) <- row.names(phd)
+  colnames(out) <- colnames(phd)
+  return(out)
+}
+
 # convert phylogenetic distances to MRCA categories
 phylodist_list <- lapply(phylodist_list, function(x) {
-  out <- cut(x, breaks = mrca_categories)
-  out <- matrix(out, ncol = ncol(x))
-  row.names(out) <- row.names(x)
-  colnames(out) <- colnames(x)
-  return(out)
+  foo(x, categories = mrca_categories)
 })
 
 # Maximum collection date distance between samples
@@ -156,14 +163,6 @@ countdf_all <- data.frame()
 assemblies_collapsed <- read.csv(args$assemblies_collapsed, sep = "\t")
 index <- which(colnames(phylodist_all) %in% assemblies_collapsed$assembly)
 phylodist_all <- phylodist_all[index, index]
-
-foo <- function(phd, categories) {
-  out <- cut(phd, breaks = categories)
-  out <- matrix(out, ncol = ncol(phd))
-  row.names(out) <- row.names(phd)
-  colnames(out) <- colnames(phd)
-  return(out)
-}
 
 phylodist_all <- foo(phylodist_all, mrca_categories)
 
@@ -358,6 +357,21 @@ for (i in seq_along(phylodist_list)) {
         }
         smat_tab <- table(smat)
         all(names(smat_tab) %in% c("0", "1")) == FALSE
+      }
+      
+      subset_matrix <- function(matrix, value) {
+        index_x <- vector()
+        index_y <- vector()
+        for (i in 1:nrow(matrix)) {
+          for (j in 1:ncol(matrix)) {
+            if (!is.na(matrix[i,j]) & matrix[i,j] == value) {
+              index_x <- c(index_x, i)
+              index_y <- c(index_y, j)
+            }
+          }
+        }
+        subset_mat <- matrix[index_x, index_y]
+        return(subset_mat)
       }
       
       # type 1 - same country, neighbor, not neighbor, different continent
