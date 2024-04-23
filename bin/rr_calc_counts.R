@@ -124,6 +124,9 @@ mrca_cat_char <- paste0(
   "]"
 )
 
+# include lowest
+mrca_cat_char[1] <- gsub("^\\(", "[", mrca_cat_char[1])
+
 foo <- function(phd, categories) {
   out <- cut(phd, breaks = categories, include.lowest = TRUE)
   out <- matrix(out, ncol = ncol(phd))
