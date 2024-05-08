@@ -19,9 +19,9 @@ different: while the aim for the master repository is *only*
 reproducibility (for the purpose of the article), the aim for this
 repository is reusability.
 
-At its current state the pipelines should work with any set of
-prokaryotic genomes. Ongoing work includes tidying the repository to
-ensure it can be run easily on other platforms.
+At its current state the pipelines in this repository should work with
+any set of prokaryotic genomes. Ongoing work includes tidying the
+repository to ensure it can be run easily on other platforms.
 
 ## Repository Structure
 
