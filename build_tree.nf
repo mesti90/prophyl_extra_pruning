@@ -137,7 +137,8 @@ process prep_snippy_input {
     path assemblies
 
     output:
-    path "snippy_input.tsv"
+    path "snippy_input.tsv", emit: snippy_input
+    path "unzipped_assemblies"
 
     script:
     """
@@ -343,7 +344,7 @@ workflow {
     }
     
     // Construct pseudo-whole genomes and keep only chromosomes
-    snippy_channel = prep_snippy_input.out | splitCsv(header: true, sep: "\t")
+    snippy_channel = prep_snippy_input.out.snippy_input | splitCsv(header: true, sep: "\t")
 
     snippy(snippy_channel, reference_genome) | keep_chromosome
 
