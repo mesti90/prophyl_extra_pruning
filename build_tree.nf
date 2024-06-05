@@ -143,6 +143,7 @@ process prep_snippy_input {
     """
     Rscript $projectDir/bin/prep_snippy_input.R \
     --project_dir $projectDir \
+    --store_dir $launchDir/$params.resdir/prep_snippy_input \
     --assemblies $assemblies
     """
 }

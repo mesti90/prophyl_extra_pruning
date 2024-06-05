@@ -10,6 +10,12 @@ if (!interactive()) {
       default = "prophyl-priv"
     ),
     make_option(
+      "--store_dir",
+      type = "character",
+      help = "Path to the storage directory for the process",
+      default = "results"
+    ),
+    make_option(
       "--assemblies",
       type = "character",
       help = "Path to a tbl of assemblies",
@@ -21,6 +27,7 @@ if (!interactive()) {
 } else {
   args <- list(
     project_dir = "prophyl-priv",
+    store_dir = "results",
     assemblies = "assemblies.tsv"
   )
 }
@@ -106,19 +113,15 @@ if (length(index) > 0) {
     if (grepl(".gz$", assembly_path_original)) {
       # copy file to a new location
       assembly_path_copy <- paste0(
+        args$store_dir, "/",
         unzipped_assemblies_dir, "/",
         basename(assembly_path_original)
       )
       file.copy(from = assembly_path_original, to = assembly_path_copy)
       # decompress
-      assembly_path_final <- gsub(".gz$", "", assembly_path_copy)
-      R.utils::decompressFile(
-        filename = assembly_path_copy,
-        destfile = assembly_path_final,
-        remove = TRUE
-      )
+      R.utils::gunzip(filename = assembly_path_copy, remove = TRUE)
       # update file path in dataframe
-      df$assembly_path[i] <- assembly_path_final
+      df$assembly_path[i] <- gsub(".gz$", "", assembly_path_copy)
     }
   }
 }
