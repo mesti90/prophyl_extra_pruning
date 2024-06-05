@@ -137,14 +137,16 @@ process create_genome_list {
     path assemblies
 
     output:
-    file "log.txt"
-    file "paired_reads.csv"
-    file "single_reads.csv"
-    file "contigs.csv"
+    file "paired_reads.tsv", emit: paired_reads
+    file "single_reads.tsv", emit: single_reads
+    file "contigs.tsv", emit: contigs
+    file "error.tsv"
 
     script:
     """
-    Rscript $projectDir/bin/prep_snippy_input.R $assemblies "$launchDir/genomes"
+    Rscript $projectDir/bin/prep_snippy_input.R \
+    --project_dir $projectDir \
+    --assemblies $assemblies
     """
 }
 
@@ -367,9 +369,9 @@ workflow {
     
     // Construct pseudo-whole genomes
 
-    snippy_paired(create_genome_list.out[1].splitCsv(header: true), reference_genome)
-    snippy_single(create_genome_list.out[2].splitCsv(header: true), reference_genome)
-    snippy_contig(create_genome_list.out[3].splitCsv(header: true), reference_genome)
+    snippy_paired(create_genome_list.out.paired_reads.splitCsv(header: true, sep: "\t"), reference_genome)
+    snippy_single(create_genome_list.out.single_reads.splitCsv(header: true, sep: "\t"), reference_genome)
+    snippy_contig(create_genome_list.out.contigs.splitCsv(header: true, sep: "\t"), reference_genome)
 
     // Combine snippy outputs and keep only chromosomes
     snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
