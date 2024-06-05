@@ -51,7 +51,7 @@ error <- data.frame()
 
 for (i in 1:nrow(df)) {
   if (!is.na(df$R1_path[i])) {
-    if (!is.na(df$R2_path)) {
+    if (!is.na(df$R2_path[i])) {
       # append paired_reads
       R1_exists <- file.exists(df$R1_path[i])
       R2_exists <- file.exists(df$R2_path[i])
@@ -86,7 +86,7 @@ for (i in 1:nrow(df)) {
         error <- dplyr::bind_rows(error, new_row)
       }
     }
-  } else if (!is.na(df$R2_path)) {
+  } else if (!is.na(df$R2_path[i])) {
     new_row <- data.frame(
       assembly = df$assembly[i],
       reason = "Syntax error. For single end reads use R1."
