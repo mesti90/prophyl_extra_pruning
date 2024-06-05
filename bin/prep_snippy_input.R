@@ -10,7 +10,7 @@ if (!interactive()) {
       default = "prophyl-priv"
     ),
     make_option(
-      "--assembly_file",
+      "--assemblies",
       type = "character",
       help = "Path to a tbl of assemblies",
       default = "assemblies.tsv"
@@ -21,7 +21,7 @@ if (!interactive()) {
 } else {
   args <- list(
     project_dir = "prophyl-priv",
-    assembly_file = "assemblies.tsv"
+    assemblies = "assemblies.tsv"
   )
 }
 
@@ -29,7 +29,7 @@ library(devtools)
 library(dplyr)
 load_all(args$project_dir)
 
-df <- read_df(args$assembly_file)
+df <- read_df(args$assemblies)
 
 varnames <- c("assembly", "R1_path", "R2_path", "assembly_path")
 index <- which(!varnames %in% colnames(df))

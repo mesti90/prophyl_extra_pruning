@@ -137,10 +137,10 @@ process create_genome_list {
     path assemblies
 
     output:
-    file "paired_reads.tsv", emit: paired_reads
-    file "single_reads.tsv", emit: single_reads
-    file "contigs.tsv", emit: contigs
-    file "error.tsv"
+    path "paired_reads.tsv", emit: paired_reads
+    path "single_reads.tsv", emit: single_reads
+    path "contigs.tsv", emit: contigs
+    path "error.tsv"
 
     script:
     """
