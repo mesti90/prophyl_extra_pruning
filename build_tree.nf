@@ -124,8 +124,8 @@ process choose_reference_genome {
     script:
     """
     Rscript $projectDir/bin/choose_reference_genome.R \
-    --assemblies $assemblies \
-    --genome_dir $params.genome_dir
+    --project_dir $projectDir \
+    --assemblies $assemblies
     """
 }
 
