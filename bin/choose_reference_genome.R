@@ -35,7 +35,7 @@ if (!interactive()) {
 library(devtools)
 load_all(args$project_dir)
 
-df <- read_df(args$assemblies, sep = "\t")
+df <- read_df(args$assemblies)
 
 index_max_length <- which(df$longest_contig == max(df$longest_contig, na.rm = TRUE))
 longest_assemblies <- df$assembly[index_max_length]
