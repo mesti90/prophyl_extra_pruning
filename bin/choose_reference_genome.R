@@ -33,6 +33,7 @@ if (!interactive()) {
 }
 
 library(devtools)
+library(R.utils)
 load_all(args$project_dir)
 
 df <- read_df(args$assemblies)
@@ -56,7 +57,19 @@ if (nrow(df_filtered) > 1) {
   }
 }
 
-file.copy(
-  from = df_filtered$assembly_path,
-  to = paste0("refgen_", basename(df_filtered$assembly_path))
-)
+infile <- df_filtered$assembly_path
+local_copy <- paste0("refgen_", basename(infile))
+
+file.copy(from = infile, to = local_copy)
+
+# if file is compressed, uncompress it
+
+filetype = summary(file(local_copy))$class
+
+if (filetype == "gzfile") {
+  R.utils::gunzip(
+    filename = local_copy,
+    skip = TRUE,
+    remove = TRUE
+  )
+}
