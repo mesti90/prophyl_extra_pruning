@@ -57,6 +57,6 @@ if (nrow(df_filtered) > 1) {
 }
 
 file.copy(
-  from = df$filtered$assembly_path,
+  from = df_filtered$assembly_path,
   to = paste0("refgen_", basename(df_filtered$assembly_path))
 )
