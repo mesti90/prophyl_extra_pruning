@@ -141,5 +141,8 @@ RUN apt-get install -y r-cran-optparse
 # Install qualpalr from GitHub instead of CRAN
 RUN R -e 'options(warn = 2); devtools::install_github("jolars/qualpalr@v.0.4.3")'
 
+# Install naniar
+RUN R -e 'options(warn = 2); install.packages("naniar", dependencies = TRUE)'
+
 # Set R library path to avoid binding from host system
 ENV R_LIBS_USER /usr/local/lib/R/site-library

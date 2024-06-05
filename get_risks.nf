@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 // CONTAINERS
 fasttree_container = "staphb/fasttree:latest"
-r_container = "stitam/prophyl:0.11"
+r_container = "stitam/prophyl:0.12"
 
 // PARAMETERS
 
