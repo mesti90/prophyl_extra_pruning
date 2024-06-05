@@ -113,7 +113,7 @@ if (length(index) > 0) {
     if (grepl(".gz$", assembly_path_original)) {
       # copy file to a new location
       assembly_path_copy <- paste0(
-        args$store_dir, "/",
+        getwd(), "/",
         unzipped_assemblies_dir, "/",
         basename(assembly_path_original)
       )
@@ -121,7 +121,12 @@ if (length(index) > 0) {
       # decompress
       R.utils::gunzip(filename = assembly_path_copy, remove = TRUE)
       # update file path in dataframe
-      df$assembly_path[i] <- gsub(".gz$", "", assembly_path_copy)
+      assembly_path_store <- paste0(
+        store_dir, "/",
+        unzipped_assemblies_dir, "/",
+        basename(assembly_path_copy)
+      )
+      df$assembly_path[i] <- gsub(".gz$", "", assembly_path_store)
     }
   }
 }
