@@ -27,6 +27,7 @@ if (!interactive()) {
 
 library(devtools)
 library(dplyr)
+library(R.utils)
 load_all(args$project_dir)
 
 df <- read_df(args$assemblies)
@@ -44,84 +45,86 @@ if (length(index) > 0) {
   stop(msg)
 }
 
-paired_reads <- data.frame()
-single_reads <- data.frame()
-contigs <- data.frame()
-error <- data.frame()
-
+df$mode = NA
+df$error = NA
 for (i in 1:nrow(df)) {
   if (!is.na(df$R1_path[i])) {
     if (!is.na(df$R2_path[i])) {
-      # append paired_reads
+      # paired_reads
       R1_exists <- file.exists(df$R1_path[i])
       R2_exists <- file.exists(df$R2_path[i])
       if (all(R1_exists, R2_exists)) {
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          R1 = df$R1_path[i],
-          R2 = df$R2_path[i]
-        )
-        paired_reads <- dplyr::bind_rows(paired_reads, new_row)
+        df$mode[i] <- "paired"
       } else {
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          reason = "R1 or R2 file not found."
-        )
-        error <- dplyr::bind_rows(error, new_row)
+        df$error[i] <- "R1 or R2 file not found."
       }
     } else {
       # append single_reads
       R1_exists <- file.exists(df$R1_path[i])
       if (R1_exists) {
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          reads = df$R1_path[i]
-        )
-        single_reads <- dplyr::bind_rows(single_reads, new_row)
+        df$mode[i] <- "single"
       } else {
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          reason = "R1 file not found."
-        )
-        error <- dplyr::bind_rows(error, new_row)
+        df$error[i] <- "R1 file not found."
       }
     }
   } else if (!is.na(df$R2_path[i])) {
-    new_row <- data.frame(
-      assembly = df$assembly[i],
-      reason = "Syntax error. For single end reads use R1."
-    )
-    error <- dplyr::bind_rows(error, new_row)
+    df$error[i] <- "Syntax error. For single end reads use R1."
   } else if (!is.na(df$assembly_path[i])) {
     # append contigs
     assembly_exists <- file.exists(df$assembly_path[i])
     if (assembly_exists) {
-      new_row <- data.frame(
-        assembly = df$assembly[i],
-        path = df$assembly_path[i]
-      )
-      contigs <- dplyr::bind_rows(contigs, new_row)
+      df$mode[i] <- "contigs"
     } else {
-      new_row <- data.frame(
-        assembly = df$assembly[i],
-        reason = "Assembly file not found."
-      )
-      error <- dplyr::bind_rows(error, new_row)
+      df$error[i] <- "Assembly file not found."
     }
   } else {
-    new_row <- data.frame(
-      assembly = df$assembly[i],
-      reason = "No read or assembly files found."
-    )
-    error <- dplyr::bind_rows(error, new_row)
+    df$error[i] <- "No read or assembly files found."
   }
 }
 
-write_tsv(paired_reads, "paired_reads.tsv")
-write_tsv(single_reads, "single_reads.tsv")
-write_tsv(contigs, "contigs.tsv")
-write_tsv(error, "error.tsv")
+df <- df %>%
+  dplyr::select(
+    assembly,
+    R1_path,
+    R2_path,
+    assembly_path,
+    mode,
+    error
+  )
 
-if (nrow(error) > 0) {
+unzipped_assemblies_dir <- "unzipped_assemblies"
+
+if (!dir.exists("unzipped_assemblies")) {
+  dir.create(unzipped_assemblies_dir)
+}
+
+index <- which(df$mode == "contigs")
+
+if (length(index) > 0) {
+  for (i in index) {
+    assembly_path_original <- df$assembly_path[i]
+    if (grepl(".gz$", assembly_path_original)) {
+      # copy file to a new location
+      assembly_path_copy <- paste0(
+        unzipped_assemblies_dir, "/",
+        basename(assembly_path_original)
+      )
+      file.copy(from = assembly_path_original, to = assembly_path_copy)
+      # decompress
+      assembly_path_final <- gsub(".gz$", "", assembly_path_copy)
+      R.utils::decompressFile(
+        filename = assembly_path_copy,
+        destfile = assembly_path_final,
+        remove = TRUE
+      )
+      # update file path in dataframe
+      df$assembly_path[i] <- assembly_path_final
+    }
+  }
+}
+
+write_tsv(df, "snippy_input.tsv")
+
+if (any(!is.na(df$error))) {
   stop("Some files were not found. See error.tsv for details.")
 }

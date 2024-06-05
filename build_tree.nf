@@ -129,18 +129,15 @@ process choose_reference_genome {
     """
 }
 
-process create_genome_list {
+process prep_snippy_input {
     container "$r_container"
-    storeDir "$launchDir/$params.resdir/create_genome_list"
+    storeDir "$launchDir/$params.resdir/prep_snippy_input"
 
     input:
     path assemblies
 
     output:
-    path "paired_reads.tsv", emit: paired_reads
-    path "single_reads.tsv", emit: single_reads
-    path "contigs.tsv", emit: contigs
-    path "error.tsv"
+    path "snippy_input.tsv"
 
     script:
     """
@@ -262,68 +259,45 @@ process shrink_tree {
     """
 }
 
-process snippy_contig {
+process snippy {
     container "$snippy_container"
-    storeDir "$launchDir/$params.resdir/snippy_contig"
+    storeDir "$launchDir/$params.resdir/snippy"
 
     input:
-    tuple val(assembly_id), val(contigs)
+    tuple val(assembly_id), val(R1), val(R2), val(contigs), val(mode), val(error)
     each reference_genome
 
     output:
     path assembly_id
-    
+
     script:
-    """
-    snippy \
-    --outdir $assembly_id \
-    --ref $reference_genome \
-    --ctgs $contigs \
-    --force
-    """
-}
-
-process snippy_paired {
-    container "$snippy_container"
-    storeDir "$launchDir/$params.resdir/snippy_paired"
-
-    input:
-    tuple val(assembly_id), val(R1), val(R2)
-    each reference_genome
-
-    output:
-    path assembly_id
-    
-    script:
-    """
-    snippy \
-    --outdir $assembly_id \
-    --ref $reference_genome \
-    --R1 $R1 \
-    --R2 $R2 \
-    --force
-    """
-}
-
-process snippy_single {
-    container "$snippy_container"
-    storeDir "$launchDir/$params.resdir/snippy_single"
-
-    input:
-    tuple val(assembly_id), val(reads)
-    each reference_genome
-
-    output:
-    path assembly_id
-    
-    script:
-    """
-    snippy \
-    --outdir $assembly_id \
-    --ref $reference_genome \
-    --se $reads \
-    --force
-    """
+    if (mode == "paired")
+        """
+        snippy \
+        --outdir $assembly_id \
+        --ref $reference_genome \
+        --R1 $R1 \
+        --R2 $R2 \
+        --force
+        """
+    else if (mode == "single")
+        """
+        snippy \
+        --outdir $assembly_id \
+        --ref $reference_genome \
+        --se $reads \
+        --force
+        """
+    else if (mode == "contigs")
+        """
+        snippy \
+        --outdir $assembly_id \
+        --ref $reference_genome \
+        --ctgs $contigs \
+        --force
+        """
+    else
+        error "Invalid mode: ${mode}"
 }
 
 process tidy_bootstrap_tree {
@@ -357,7 +331,7 @@ process validate_input {
 
 workflow {
     // Validate input and create a list of genomes to process
-    validate_input() | create_genome_list
+    validate_input() | prep_snippy_input
     
     // Choose a reference genome
     if (params.reference_genome != null) {
@@ -367,14 +341,11 @@ workflow {
         reference_genome = choose_reference_genome(validate_input.out)
     }
     
-    // Construct pseudo-whole genomes
+    // Construct pseudo-whole genomes and keep only chromosomes
+    snippy_channel = prep_snippy_input.out | splitCsv(header: true, sep: "\t")
 
-    snippy_paired(create_genome_list.out.paired_reads.splitCsv(header: true, sep: "\t"), reference_genome)
-    snippy_single(create_genome_list.out.single_reads.splitCsv(header: true, sep: "\t"), reference_genome)
-    snippy_contig(create_genome_list.out.contigs.splitCsv(header: true, sep: "\t"), reference_genome)
+    snippy(snippy_channel, reference_genome) | keep_chromosome
 
-    // Combine snippy outputs and keep only chromosomes
-    snippy_paired.out.concat(snippy_single.out, snippy_contig.out) | keep_chromosome
     chromosomes = keep_chromosome.out.collectFile(
         name: "chromosomes.fasta",
         storeDir: "$launchDir/$params.resdir/"
