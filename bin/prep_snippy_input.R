@@ -122,7 +122,7 @@ if (length(index) > 0) {
       R.utils::gunzip(filename = assembly_path_copy, remove = TRUE)
       # update file path in dataframe
       assembly_path_store <- paste0(
-        store_dir, "/",
+        args$store_dir, "/",
         unzipped_assemblies_dir, "/",
         basename(assembly_path_copy)
       )
