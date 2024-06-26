@@ -358,7 +358,9 @@ process validate_input {
 
     script:
     """
-    Rscript $projectDir/bin/validate_input.R $params.assemblies
+    Rscript $projectDir/bin/validate_input.R \
+    --project_dir $projectDir \
+    --assemblies $params.assemblies
     """
 }
 

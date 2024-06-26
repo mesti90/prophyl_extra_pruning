@@ -1,7 +1,28 @@
+library(optparse)
 rm(list=ls())
 
-args <- commandArgs(trailingOnly = TRUE)
-df <- read.csv(args[1], sep = "\t")
+args_list <- list(
+  make_option(
+    "--project_dir",
+    type = "character",
+    help = "The project directory.",
+    default = "~/Methods/prophyl"
+  ),
+  make_option(
+    "--assemblies",
+    type = "character",
+    help = "A list of assemblies in tsv format.",
+    default = "assemblies.tsv"
+  )
+)
+
+args_parser  <- OptionParser(option_list = args_list)
+args  <- parse_args(args_parser)
+
+library(devtools)
+load_all(args$project_dir)
+
+df <- read_df(args$assemblies)
 
 # if pastml would break because of too many character states, stop.
 # look at how this error appears in pastml, copy.
@@ -30,13 +51,13 @@ if ("collection_day" %in% names(df) == FALSE) {
   stop("Required column 'collection_day' is missing.")
 }
 
-#if (class(df$collection_day) != "Date") {
-#  stop("Required column 'collection_day' must be a 'Date'.")
-#}
+if (class(df$collection_day) != "Date") {
+ stop("Required column 'collection_day' must be a 'Date'.")
+}
 
-# if (sum(is.na(df$collection_day)) > 0) {
-#   stop("All assemblies must contain collection days. Check.")
-# }
+if (any(is.na(df$collection_day))) {
+  stop("All assemblies must contain collection days. Check.")
+}
 
 if ("country" %in% names(df) == FALSE) {
   stop("Required column 'country' is missing.")
@@ -61,10 +82,8 @@ if (length(index) > 0) {
   stop("One or mode required variables are missing: ", missing, ".")
 }
 
-
-
 write.table(
-  df, 
+  df,
   file = "assemblies.tsv",
   sep = "\t",
   row.names = FALSE,
