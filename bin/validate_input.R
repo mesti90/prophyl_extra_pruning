@@ -51,9 +51,9 @@ if ("collection_day" %in% names(df) == FALSE) {
   stop("Required column 'collection_day' is missing.")
 }
 
-if (class(df$collection_day) != "Date") {
- stop("Required column 'collection_day' must be a 'Date'.")
-}
+# if (class(df$collection_day) != "Date") {
+#   stop("Required column 'collection_day' must be a 'Date'.")
+# }
 
 if (any(is.na(df$collection_day))) {
   stop("All assemblies must contain collection days. Check.")
