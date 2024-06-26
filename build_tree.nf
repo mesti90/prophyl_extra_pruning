@@ -287,7 +287,7 @@ process snippy {
         snippy \
         --outdir $assembly_id \
         --ref $reference_genome \
-        --se $reads \
+        --se $R1 \
         --force
         """
     else if (mode == "contigs")
