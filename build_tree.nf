@@ -263,6 +263,7 @@ process shrink_tree {
 
 process snippy {
     container "$snippy_container"
+    containerOptions "--bind $workDir:/scratch/tmp"
     storeDir "$launchDir/$params.resdir/snippy"
 
     input:
@@ -296,7 +297,7 @@ process snippy {
         --outdir $assembly_id \
         --ref $reference_genome \
         --ctgs $contigs \
-        --force
+        --force \
         """
     else
         error "Invalid mode: ${mode}"
