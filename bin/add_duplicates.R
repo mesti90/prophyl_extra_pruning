@@ -45,7 +45,7 @@ load_all(args$project_dir)
 # set cache directory for R.cache
 R.cache::setCacheRootPath(paste0(
   args$launch_dir,
-  ".cache/R/R.cache"
+  "/.cache/R/R.cache"
 ))
 
 # import tree
