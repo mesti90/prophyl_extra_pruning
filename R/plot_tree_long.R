@@ -48,8 +48,8 @@
 #' \dontrun{
 #' # manually define colors for the variable "mlst"
 #' mlst_colors <- data.frame(
-#'   mlst = c("ST1", "ST2, "Other"),
-#'   color = c("red, "green", "grey50")
+#'   mlst = c("ST1", "ST2", "Other"),
+#'   color = c("red", "green", "grey50")
 #' )
 #' # plot the phylogenetic tree with manually defined colors
 #' plot_tree_fan(
@@ -98,7 +98,13 @@ plot_tree_long <- function(
     if (is.null(mrsd)) {
       p <- ggtree(tree_db, size = linewidth)
     } else {
-      # TODO add input validation for mrsd, it must be a "date" (not decimal)
+      if (length(mrsd) > 1) {
+        stop("Argument 'mrsd' must be a single value.")
+      } else if(is.na(mrsd)) {
+        stop("Argument 'mrsd' cannot be NA.")
+      } else if (class(mrsd) != "Date") {
+        stop("Argument 'mrsd' must be a 'Date'.")
+      }
       p <- ggtree(tree_db, size = linewidth, mrsd = mrsd) + theme_tree2()
     }
   } else {
@@ -173,8 +179,8 @@ plot_tree_long <- function(
           ))
         }
         hmdf_colors <- qualpalr::qualpal(
-          length(unique(hmdf[[heatmap_var[i]]])), colorspace = "pretty")$hex
-        names(hmdf_colors) <- unique(hmdf[[heatmap_var[i]]])
+          length(unique(hmdf$group)), colorspace = "pretty")$hex
+        names(hmdf_colors) <- unique(hmdf$group)
         hmcolors <- "set"
       }
       # add heatmaps

@@ -100,8 +100,8 @@ respectively.
 \dontrun{
 # manually define colors for the variable "mlst"
 mlst_colors <- data.frame(
-  mlst = c("ST1", "ST2, "Other"),
-  color = c("red, "green", "grey50")
+  mlst = c("ST1", "ST2", "Other"),
+  color = c("red", "green", "grey50")
 )
 # plot the phylogenetic tree with manually defined colors
 plot_tree_fan(
