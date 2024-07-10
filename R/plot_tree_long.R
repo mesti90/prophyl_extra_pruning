@@ -178,8 +178,14 @@ plot_tree_long <- function(
             ". Colors will be assigned automatically."
           ))
         }
+        if (length(unique(hmdf$group)) == 1) {
+          hmdf_colors <- "grey"
+          names(hmdf_colors) <- unique(hmdf$group)
+        } else {
         hmdf_colors <- qualpalr::qualpal(
           length(unique(hmdf$group)), colorspace = "pretty")$hex
+        }
+
         names(hmdf_colors) <- unique(hmdf$group)
         hmcolors <- "set"
       }
