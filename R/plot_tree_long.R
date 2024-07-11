@@ -29,6 +29,8 @@
 #' element is the name of a legend we want to customize and the value is a list
 #' of parameters that will be evaluated by guide_legend(). If left empty, the
 #' legends will be drawn with defaults.
+#' @param legend_position character; position of the legends compared to the
+#' plots. See `?theme()` for accepted values.
 #' @param legend_box character; arrangement of multiple legends. Can be either
 #' \code{"horizontal"} or \code{"vertical"}.
 #' @param verbose logical; should verbose messages be printed to the console?
@@ -85,6 +87,7 @@ plot_tree_long <- function(
   legend_show = NA,
   legend_breaks = list(),
   legend_guides = list(),
+  legend_position = "right",
   legend_box = "horizontal",
   verbose = getOption("verbose")
   ) {
@@ -139,6 +142,7 @@ plot_tree_long <- function(
   }
   
   # add heatmaps
+  hm_list <- list()
   if (!is.null(heatmap_var)) {
 
     # tree_tbl index for tips
@@ -166,81 +170,78 @@ plot_tree_long <- function(
     
     for (i in seq_along(heatmap_var)) {
       
-      # if (length(heatmap_offset) == 1) {
-      #   heatmap_offset_i <- heatmap_offset
-      # } else if (length(heatmap_offset) == length(heatmap_var)) {
-      #   heatmap_offset_i <- heatmap_offset[i]
-      # } else {
-      #   stop(paste0(
-      #     "'heatmap_offset' must have length one or the same length as ",
-      #     "'heatmap_var'"
-      #   ))
-      # }
+      if (length(heatmap_offset) == 1) {
+        heatmap_offset_i <- heatmap_offset
+      } else if (length(heatmap_offset) == length(heatmap_var)) {
+        heatmap_offset_i <- heatmap_offset[i]
+      } else {
+        stop(paste0(
+          "'heatmap_offset' must have length one or the same length as ",
+          "'heatmap_var'"
+        ))
+      }
       
-      # # define heatmap data frame
-      # idx_y <- which(names(tree_tbl) == heatmap_var[i])
-      # hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
-      # row.names(hmdf) <- tree_tbl$label[idx_x]
-      # hmdf <- data.frame(id = row.names(hmdf), group = hmdf[[heatmap_var[i]]])
-      # # define heatmap colors
-      # hmcolors <- "not_set"
-      # if (!is.null(heatmap_colors)) {
-      #   index <- which(names(heatmap_colors) == heatmap_var[i])
-      #   if (length(index) == 1) {
-      #     if (verbose) {
-      #       message(paste0(
-      #         "Color coding table found for variable ", heatmap_var[i], "."))
-      #     }
-      #     # TODO: Add validation and informative messages around formatting the
-      #     # heatmap color tables
-      #     hmdf_colors <- heatmap_colors[[index]]$color
-      #     names(hmdf_colors) <- heatmap_colors[[index]][[heatmap_var[i]]]
-      #     hmcolors <- "set"
-      #   }
-      #   if (length(index) > 1) {
-      #     stop(paste0(
-      #       "Multiple color coding tables found for variable ", heatmap_var[i])
-      #     )
-      #   }
-      # }
-      # if (hmcolors == "not_set") {
-      #   if (verbose) {
-      #     message(paste0(
-      #       "Color coding table not found for variable ",
-      #       heatmap_var[i],
-      #       ". Colors will be assigned automatically."
-      #     ))
-      #   }
-      #   if (length(unique(hmdf$group)) == 1) {
-      #     hmdf_colors <- "grey"
-      #     names(hmdf_colors) <- unique(hmdf$group)
-      #   } else {
-      #   hmdf_colors <- qualpalr::qualpal(
-      #     length(unique(hmdf$group)), colorspace = "pretty")$hex
-      #   }
+      # define heatmap data frame
+      idx_y <- which(names(tree_tbl) == heatmap_var[i])
+      hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
+      row.names(hmdf) <- tree_tbl$label[idx_x]
+      hmdf <- data.frame(id = row.names(hmdf), group = hmdf[[heatmap_var[i]]])
+      # define heatmap colors
+      hmcolors <- "not_set"
+      if (!is.null(heatmap_colors)) {
+        index <- which(names(heatmap_colors) == heatmap_var[i])
+        if (length(index) == 1) {
+          if (verbose) {
+            message(paste0(
+              "Color coding table found for variable ", heatmap_var[i], "."))
+          }
+          # TODO: Add validation and informative messages around formatting the
+          # heatmap color tables
+          hmdf_colors <- heatmap_colors[[index]]$color
+          names(hmdf_colors) <- heatmap_colors[[index]][[heatmap_var[i]]]
+          hmcolors <- "set"
+        }
+        if (length(index) > 1) {
+          stop(paste0(
+            "Multiple color coding tables found for variable ", heatmap_var[i])
+          )
+        }
+      }
+      if (hmcolors == "not_set") {
+        if (verbose) {
+          message(paste0(
+            "Color coding table not found for variable ",
+            heatmap_var[i],
+            ". Colors will be assigned automatically."
+          ))
+        }
+        if (length(unique(hmdf$group)) == 1) {
+          hmdf_colors <- "grey"
+          names(hmdf_colors) <- unique(hmdf$group)
+        } else {
+        hmdf_colors <- qualpalr::qualpal(
+          length(unique(hmdf$group)), colorspace = "pretty")$hex
+        }
 
-      #   names(hmdf_colors) <- unique(hmdf$group)
-      #   hmcolors <- "set"
-      # }
+        names(hmdf_colors) <- unique(hmdf$group)
+        hmcolors <- "set"
+      }
 
       var <- heatmap_var[i]
       
-      hm <- ggplot(tipdf, aes(x = var, y = label)) + 
-        geom_tile(aes(fill = get(var))) + 
-        geom_text(aes(label = get(var))) + 
+      hm_list[[i]] <- ggplot(tipdf, aes(x = "", y = label)) + 
+        geom_tile(aes(fill = .data[[var]])) + 
+        geom_text(aes(label = .data[[var]]), size = tiplab_size) + 
         xlab("") +
         ylab("") +
         theme(
+          panel.background = element_rect(fill = "white"),
           panel.grid = element_blank(),
           axis.text.y = element_blank(),
           axis.ticks = element_blank()
         )
       
-      if (i == 1) {
-        hm_composite = hm
-      } else {
-        hm_composite = hm_composite + hm
-      }
+      
       
 
       # add heatmaps
@@ -269,36 +270,44 @@ plot_tree_long <- function(
       # )
 
       
-      # if (heatmap_var[i] %in% names(legend_breaks)) {
-      #   breaks <- legend_breaks[[heatmap_var[i]]]
-      # } else {
-      #   breaks <- names(hmdf_colors)
-      # }
+      if (heatmap_var[i] %in% names(legend_breaks)) {
+        breaks <- legend_breaks[[heatmap_var[i]]]
+      } else {
+        breaks <- names(hmdf_colors)
+      }
       
-      # if (heatmap_var[i] %in% names(legend_guides)) {
-      #   p <- p + scale_fill_manual(
-      #     name = heatmap_var[i],
-      #     values = hmdf_colors,
-      #     breaks = breaks,
-      #     na.translate = FALSE,
-      #     guide = rlang::exec(guide_legend, !!!legend_guides[[heatmap_var[i]]])
-      #   )
-      # } else {
-      #   p <- p + scale_fill_manual(
-      #     name = heatmap_var[i],
-      #     values = hmdf_colors,
-      #     breaks = breaks,
-      #     na.translate = FALSE
-      #   )
-      # }
-      
+      if (heatmap_var[i] %in% names(legend_guides)) {
+        hm_list[[i]] <- hm_list[[i]] + scale_fill_manual(
+          name = heatmap_var[i],
+          values = hmdf_colors,
+          breaks = breaks,
+          na.translate = FALSE,
+          guide = rlang::exec(guide_legend, !!!legend_guides[[heatmap_var[i]]])
+        )
+      } else {
+        hm_list[[i]] <- hm_list[[i]] + scale_fill_manual(
+          name = heatmap_var[i],
+          values = hmdf_colors,
+          breaks = breaks,
+          na.translate = FALSE
+        )
+      }
       
     }
     
-    return(hm_composite)
-    
-    
+    p <- p + hm_list +
+      patchwork::plot_layout(
+        nrow = 1,
+        widths = c(20, rep(heatmap_width, times = length(heatmap_var))),
+        guides = "collect"
+      )
+
   }
-  p <- p + theme(legend.box = legend_box)
+  p <- p &
+    theme(
+      plot.margin = unit(c(0,0,0,0), "points"),
+      legend.position = legend_position,
+      legend.box = legend_box
+    )
   p
 }
