@@ -63,7 +63,9 @@
 #' @import ggplot2
 #' @import ggtree
 #' @import ggtreeExtra
+#' @import patchwork
 #' @importFrom qualpalr qualpal
+#' @importFrom dplyr %>%
 #' @export
 plot_tree_long <- function(
   tree_tbl,
@@ -84,27 +86,30 @@ plot_tree_long <- function(
   legend_breaks = list(),
   legend_guides = list(),
   legend_box = "horizontal",
-  file_name = NULL,
   verbose = getOption("verbose")
   ) {
   legend_box <- match.arg(legend_box, choices = c("horizontal", "vertical"))
-  if (!is.null(file_name) && !grepl("\\.pdf$", file_name)) {
-    stop("'filename' must be pdf.")
+  
+  # input validation for mrsd
+  if (!is.null(mrsd)) {
+    if (length(mrsd) > 1) {
+      stop("Argument 'mrsd' must be a single value.")
+    } else if(is.na(mrsd)) {
+      stop("Argument 'mrsd' cannot be NA.")
+    } else if (class(mrsd) != "Date") {
+      stop("Argument 'mrsd' must be a 'Date'.")
+    }
   }
+  
   tree_db <-  treeio::as.treedata(tree_tbl)
   tree <- ape::as.phylo(tree_db)
   options(ignore.negative.edge=TRUE)
+  
+  # plot base tree, with/without highlighting, with/without mrsd
   if (is.null(highlight_var)) {
     if (is.null(mrsd)) {
       p <- ggtree(tree_db, size = linewidth)
     } else {
-      if (length(mrsd) > 1) {
-        stop("Argument 'mrsd' must be a single value.")
-      } else if(is.na(mrsd)) {
-        stop("Argument 'mrsd' cannot be NA.")
-      } else if (class(mrsd) != "Date") {
-        stop("Argument 'mrsd' must be a 'Date'.")
-      }
       p <- ggtree(tree_db, size = linewidth, mrsd = mrsd) + theme_tree2()
     }
   } else {
@@ -114,7 +119,6 @@ plot_tree_long <- function(
           color = highlight_var
         )
     } else {
-      # TODO add input validation for mrsd, is must be a "date" (not decimal)
       p <- ggtree(
         tree_db, aes(color = get(highlight_var)), size = linewidth, mrsd = mrsd) + 
         labs(
@@ -127,119 +131,173 @@ plot_tree_long <- function(
       )
     }
   }
+  
+  # add tiplab
   if (show_tiplab) {
     p <- p + geom_tiplab(
       align = FALSE, geom = "text", size = tiplab_size, hjust = 0)
   }
+  
+  # add heatmaps
   if (!is.null(heatmap_var)) {
-    idx_x <- which(tree_tbl$label %in% tree$tip.label)
-    for (i in 1:length(heatmap_var)) {
-      if (length(heatmap_offset) == 1) {
-        heatmap_offset_i <- heatmap_offset
-      } else if (length(heatmap_offset) == length(heatmap_var)) {
-        heatmap_offset_i <- heatmap_offset[i]
-      } else {
-        stop(paste0(
-          "'heatmap_offset' must have length one or the same length as ",
-          "'heatmap_var'"
-        ))
-      }
-      # define heatmap data frame
-      idx_y <- which(names(tree_tbl) == heatmap_var[i])
-      hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
-      row.names(hmdf) <- tree_tbl$label[idx_x]
-      hmdf <- data.frame(id = row.names(hmdf), group = hmdf[[heatmap_var[i]]])
-      # define heatmap colors
-      hmcolors <- "not_set"
-      if (!is.null(heatmap_colors)) {
-        index <- which(names(heatmap_colors) == heatmap_var[i])
-        if (length(index) == 1) {
-          if (verbose) {
-            message(paste0(
-              "Color coding table found for variable ", heatmap_var[i], "."))
-          }
-          # TODO: Add validation and informative messages around formatting the
-          # heatmap color tables
-          hmdf_colors <- heatmap_colors[[index]]$color
-          names(hmdf_colors) <- heatmap_colors[[index]][[heatmap_var[i]]]
-          hmcolors <- "set"
-        }
-        if (length(index) > 1) {
-          stop(paste0(
-            "Multiple color coding tables found for variable ", heatmap_var[i])
-          )
-        }
-      }
-      if (hmcolors == "not_set") {
-        if (verbose) {
-          message(paste0(
-            "Color coding table not found for variable ",
-            heatmap_var[i],
-            ". Colors will be assigned automatically."
-          ))
-        }
-        if (length(unique(hmdf$group)) == 1) {
-          hmdf_colors <- "grey"
-          names(hmdf_colors) <- unique(hmdf$group)
-        } else {
-        hmdf_colors <- qualpalr::qualpal(
-          length(unique(hmdf$group)), colorspace = "pretty")$hex
-        }
 
-        names(hmdf_colors) <- unique(hmdf$group)
-        hmcolors <- "set"
+    # tree_tbl index for tips
+    idx_x <- which(tree_tbl$label %in% tree$tip.label)
+    
+    # from aplot:::get_taxa_order
+    get_taxa_order <- function (tree_view) {
+      df <- tree_view$data
+      with(df, {
+        i = order(y, decreasing = T)
+        label[i][isTip[i]]
+      })
+    }
+    
+    # tips on tree plot from top
+    tips_from_top <- get_taxa_order(p)
+    
+    # define tipdf in same order as tips on tree
+    tipdf <- tree_tbl[idx_x, ]
+    idx_top <- unname(sapply(tips_from_top, function(x) {
+      which(tipdf$label == x)
+    }))
+    tipdf <- tipdf[idx_top, ]
+    tipdf$label <- factor(tipdf$label, levels = rev(tipdf$label))
+    
+    for (i in seq_along(heatmap_var)) {
+      
+      # if (length(heatmap_offset) == 1) {
+      #   heatmap_offset_i <- heatmap_offset
+      # } else if (length(heatmap_offset) == length(heatmap_var)) {
+      #   heatmap_offset_i <- heatmap_offset[i]
+      # } else {
+      #   stop(paste0(
+      #     "'heatmap_offset' must have length one or the same length as ",
+      #     "'heatmap_var'"
+      #   ))
+      # }
+      
+      # # define heatmap data frame
+      # idx_y <- which(names(tree_tbl) == heatmap_var[i])
+      # hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
+      # row.names(hmdf) <- tree_tbl$label[idx_x]
+      # hmdf <- data.frame(id = row.names(hmdf), group = hmdf[[heatmap_var[i]]])
+      # # define heatmap colors
+      # hmcolors <- "not_set"
+      # if (!is.null(heatmap_colors)) {
+      #   index <- which(names(heatmap_colors) == heatmap_var[i])
+      #   if (length(index) == 1) {
+      #     if (verbose) {
+      #       message(paste0(
+      #         "Color coding table found for variable ", heatmap_var[i], "."))
+      #     }
+      #     # TODO: Add validation and informative messages around formatting the
+      #     # heatmap color tables
+      #     hmdf_colors <- heatmap_colors[[index]]$color
+      #     names(hmdf_colors) <- heatmap_colors[[index]][[heatmap_var[i]]]
+      #     hmcolors <- "set"
+      #   }
+      #   if (length(index) > 1) {
+      #     stop(paste0(
+      #       "Multiple color coding tables found for variable ", heatmap_var[i])
+      #     )
+      #   }
+      # }
+      # if (hmcolors == "not_set") {
+      #   if (verbose) {
+      #     message(paste0(
+      #       "Color coding table not found for variable ",
+      #       heatmap_var[i],
+      #       ". Colors will be assigned automatically."
+      #     ))
+      #   }
+      #   if (length(unique(hmdf$group)) == 1) {
+      #     hmdf_colors <- "grey"
+      #     names(hmdf_colors) <- unique(hmdf$group)
+      #   } else {
+      #   hmdf_colors <- qualpalr::qualpal(
+      #     length(unique(hmdf$group)), colorspace = "pretty")$hex
+      #   }
+
+      #   names(hmdf_colors) <- unique(hmdf$group)
+      #   hmcolors <- "set"
+      # }
+
+      var <- heatmap_var[i]
+      
+      hm <- ggplot(tipdf, aes(x = var, y = label)) + 
+        geom_tile(aes(fill = get(var))) + 
+        geom_text(aes(label = get(var))) + 
+        xlab("") +
+        ylab("") +
+        theme(
+          panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks = element_blank()
+        )
+      
+      if (i == 1) {
+        hm_composite = hm
+      } else {
+        hm_composite = hm_composite + hm
       }
+      
+
       # add heatmaps
-      p <- p + new_scale_fill()
-      axis_text <- heatmap_var[i]
-      if (length(legend_show) == 1 && is.na(legend_show)) {
-        show_legend <- NA
-      } else {
-        show_legend <- ifelse(heatmap_var[i] %in% legend_show, NA, FALSE)
-      }
-      p <- p + geom_fruit(
-        data=hmdf,
-        geom=geom_tile,
-        mapping=aes(y=id, fill=group),
-        width=heatmap_width,
-        offset=heatmap_offset_i,
-        axis.params = list(axis = "x",
-                           text = axis_text,
-                           text.size = heatmap_colnames_font_size,
-                           text.angle = heatmap_colnames_angle,
-                           hjust = heatmap_colnames_hjust,
-                           vjust = heatmap_colnames_vjust,
-                           line.size = 0,
-                           line.color = "#FFFFFF"),
-        show.legend = show_legend
-      )
+      # p <- p + new_scale_fill()
+      # axis_text <- heatmap_var[i]
+      # if (length(legend_show) == 1 && is.na(legend_show)) {
+      #   show_legend <- NA
+      # } else {
+      #   show_legend <- ifelse(heatmap_var[i] %in% legend_show, NA, FALSE)
+      # }
+      # p <- p + geom_fruit(
+      #   data=hmdf,
+      #   geom=geom_tile,
+      #   mapping=aes(y=id, fill=group),
+      #   width=heatmap_width,
+      #   offset=heatmap_offset_i,
+      #   axis.params = list(axis = "x",
+      #                      text = axis_text,
+      #                      text.size = heatmap_colnames_font_size,
+      #                      text.angle = heatmap_colnames_angle,
+      #                      hjust = heatmap_colnames_hjust,
+      #                      vjust = heatmap_colnames_vjust,
+      #                      line.size = 0,
+      #                      line.color = "#FFFFFF"),
+      #   show.legend = show_legend
+      # )
+
       
+      # if (heatmap_var[i] %in% names(legend_breaks)) {
+      #   breaks <- legend_breaks[[heatmap_var[i]]]
+      # } else {
+      #   breaks <- names(hmdf_colors)
+      # }
       
-      if (heatmap_var[i] %in% names(legend_breaks)) {
-        breaks <- legend_breaks[[heatmap_var[i]]]
-      } else {
-        breaks <- names(hmdf_colors)
-      }
-      
-      if (heatmap_var[i] %in% names(legend_guides)) {
-        p <- p + scale_fill_manual(
-          name = heatmap_var[i],
-          values = hmdf_colors,
-          breaks = breaks,
-          na.translate = FALSE,
-          guide = rlang::exec(guide_legend, !!!legend_guides[[heatmap_var[i]]])
-        )
-      } else {
-        p <- p + scale_fill_manual(
-          name = heatmap_var[i],
-          values = hmdf_colors,
-          breaks = breaks,
-          na.translate = FALSE
-        )
-      }
+      # if (heatmap_var[i] %in% names(legend_guides)) {
+      #   p <- p + scale_fill_manual(
+      #     name = heatmap_var[i],
+      #     values = hmdf_colors,
+      #     breaks = breaks,
+      #     na.translate = FALSE,
+      #     guide = rlang::exec(guide_legend, !!!legend_guides[[heatmap_var[i]]])
+      #   )
+      # } else {
+      #   p <- p + scale_fill_manual(
+      #     name = heatmap_var[i],
+      #     values = hmdf_colors,
+      #     breaks = breaks,
+      #     na.translate = FALSE
+      #   )
+      # }
       
       
     }
+    
+    return(hm_composite)
+    
+    
   }
   p <- p + theme(legend.box = legend_box)
   p
