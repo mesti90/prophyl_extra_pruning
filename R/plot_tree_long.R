@@ -78,7 +78,7 @@ plot_tree_long <- function(
   highlight_var = NULL,
   heatmap_var = NULL,
   heatmap_colors = NULL,
-  heatmap_offset = 0.15,
+  heatmap_offset = 0,
   heatmap_width = 5,
   heatmap_colnames_angle = 0,
   heatmap_colnames_font_size = 4,
@@ -305,9 +305,9 @@ plot_tree_long <- function(
   }
   p <- p &
     theme(
-      plot.margin = unit(c(0,0,0,0), "points"),
+      plot.margin = unit(c(0, 0, 0, heatmap_offset), "points"),
       legend.position = legend_position,
       legend.box = legend_box
     )
-  p
+  return(p)
 }
