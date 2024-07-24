@@ -13,6 +13,8 @@
 #' @param heatmap_colors list; a list of data frames used for color coding
 #' heatmaps. See Details for more information. If \code{NULL}, the colors will
 #' be generated automatically.
+#' @param heatmap_text boolean; should heatmap values be printed in each heatmap
+#' tile?
 #' @param heatmap_offset numeric; distance between heatmaps.
 #' @param heatmap_width numeric; width of a heatmap band.
 #' @param heatmap_colnames_angle numeric; angle for column names.
@@ -78,6 +80,7 @@ plot_tree_long <- function(
   highlight_var = NULL,
   heatmap_var = NULL,
   heatmap_colors = NULL,
+  heatmap_text = TRUE,
   heatmap_offset = 0,
   heatmap_width = 5,
   heatmap_colnames_angle = 0,
@@ -230,8 +233,14 @@ plot_tree_long <- function(
       var <- heatmap_var[i]
       
       hm_list[[i]] <- ggplot(tipdf, aes(x = "", y = label)) + 
-        geom_tile(aes(fill = .data[[var]])) + 
-        geom_text(aes(label = .data[[var]]), size = tiplab_size) + 
+        geom_tile(aes(fill = .data[[var]]))
+      
+      if (heatmap_text == TRUE) {
+        hm_list[[i]] <- hm_list[[i]] +
+          geom_text(aes(label = .data[[var]]), size = tiplab_size)
+      }
+      
+      hm_list[[i]] <- hm_list[[i]] +
         xlab("") +
         ylab("") +
         theme(
