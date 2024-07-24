@@ -250,35 +250,6 @@ plot_tree_long <- function(
           axis.ticks = element_blank()
         )
       
-      
-      
-
-      # add heatmaps
-      # p <- p + new_scale_fill()
-      # axis_text <- heatmap_var[i]
-      # if (length(legend_show) == 1 && is.na(legend_show)) {
-      #   show_legend <- NA
-      # } else {
-      #   show_legend <- ifelse(heatmap_var[i] %in% legend_show, NA, FALSE)
-      # }
-      # p <- p + geom_fruit(
-      #   data=hmdf,
-      #   geom=geom_tile,
-      #   mapping=aes(y=id, fill=group),
-      #   width=heatmap_width,
-      #   offset=heatmap_offset_i,
-      #   axis.params = list(axis = "x",
-      #                      text = axis_text,
-      #                      text.size = heatmap_colnames_font_size,
-      #                      text.angle = heatmap_colnames_angle,
-      #                      hjust = heatmap_colnames_hjust,
-      #                      vjust = heatmap_colnames_vjust,
-      #                      line.size = 0,
-      #                      line.color = "#FFFFFF"),
-      #   show.legend = show_legend
-      # )
-
-      
       if (heatmap_var[i] %in% names(legend_breaks)) {
         breaks <- legend_breaks[[heatmap_var[i]]]
       } else {
