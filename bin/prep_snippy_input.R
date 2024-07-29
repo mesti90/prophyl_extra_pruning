@@ -1,130 +1,138 @@
 rm(list=ls())
 
-args <- commandArgs(trailingOnly = TRUE)
+if (!interactive()) {
+  library(optparse)
+  args_list <- list(
+    make_option(
+      "--project_dir",
+      type = "character",
+      help = "Path to the project directory",
+      default = "prophyl-priv"
+    ),
+    make_option(
+      "--store_dir",
+      type = "character",
+      help = "Path to the storage directory for the process",
+      default = "results"
+    ),
+    make_option(
+      "--assemblies",
+      type = "character",
+      help = "Path to a tbl of assemblies",
+      default = "assemblies.tsv"
+    )
+  )
+  args_parser  <- OptionParser(option_list = args_list)
+  args  <- parse_args(args_parser)
+} else {
+  args <- list(
+    project_dir = "prophyl-priv",
+    store_dir = "results",
+    assemblies = "assemblies.tsv"
+  )
+}
 
-con <- file("log.txt", open = "wt")
-sink(con, type = "message")
+library(devtools)
+library(dplyr)
+library(R.utils)
+load_all(args$project_dir)
 
-df <- read.csv(args[1], sep = "\t")
-source_dir <- args[2]
+df <- read_df(args$assemblies)
 
-paired_reads <- data.frame()
-single_reads <- data.frame()
-contigs <- data.frame()
+varnames <- c("assembly", "R1_path", "R2_path", "assembly_path")
+index <- which(!varnames %in% colnames(df))
 
+if (length(index) > 0) {
+  varnames_missing_collapsed <- paste(varnames[index], collapse = ", ")
+  msg <- paste0(
+    "The following required variables are missing from the input table: ",
+    varnames_missing_collapsed,
+    "."
+  )
+  stop(msg)
+}
+
+df$mode = NA
+df$error = NA
 for (i in 1:nrow(df)) {
-  message(paste0("Searching ", df$assembly[i], ". "), appendLF = FALSE)
-  read_dir <- paste0(source_dir, "/", df$jobname[i], "/raw_reads/")
-  if (dir.exists(read_dir)) {
-    message("Raw reads directory found. ", appendLF = FALSE)
-    hit <- list.files(read_dir)[grep(df$assembly[i], list.files(read_dir))]
-    if (length(hit) == 0) message(" Raw reads not found. Skipping.")
-    if (length(hit) == 1) {
-      message(" Single reads found.")
-      new_row <- data.frame(
-        assembly = df$assembly[i],
-        reads = paste0(read_dir, hit)
-        )
-      single_reads <- rbind(single_reads, new_row)
-    }
-    if (length(hit) > 1) {
-      d <- stringdist::stringdist(hit, df$assembly[i])
-      index <- which(d == min(d))
-      if (length(index) == 1) {
-        message(" Single reads found.")
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          reads = paste0(read_dir, hit[index])
-        )
-        single_reads <- rbind(single_reads, new_row)
-      }
-      if (length(index) == 2) {
-        message(" Paired reads found.")
-        index.R1 <- grep("R1", hit[index])
-        index.R2 <- grep("R2", hit[index])
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          R1 = paste0(read_dir, hit[index][index.R1]),
-          R2 = paste0(read_dir, hit[index][index.R2])
-        )
-        paired_reads <- rbind(paired_reads, new_row)  
-      }
-      if (length(index) > 2) {
-        message(paste0(" More than 2 files found. Skipping."))
-      }
-    }
-  } else {
-    assembly_dir <- paste0(source_dir, "/", df$jobname[i], "/")
-    if (dir.exists(assembly_dir)) {
-      message("Assembly directory found. ", appendLF = FALSE)
-      hit <- list.files(assembly_dir)[grep(df$assembly[i], list.files(assembly_dir))]
-      if (length(hit) == 0) message(" Assembly not found. Skipping.")
-      if (length(hit) == 1) {
-        message(" Assembly found.")
-        new_row <- data.frame(
-          assembly = df$assembly[i],
-          path = paste0(assembly_dir, hit)
-        )
-        contigs <- rbind(contigs, new_row)
-      }
-      if (length(hit) > 1) {
-        d <- stringdist::stringdist(hit, df$assembly[i])
-        index <- which(d == min(d))
-        if (length(index) == 1) {
-          message(" Assembly found.")
-          new_row <- data.frame(
-            assembly = df$assembly[i],
-            path = paste0(assembly_dir, hit[index])
-          ) 
-          contigs <- rbind(contigs, new_row)
-        } else {
-          message(paste0(" More than 1 files found. Skipping."))
-        }
+  if (!is.na(df$R1_path[i])) {
+    if (!is.na(df$R2_path[i])) {
+      # paired_reads
+      R1_exists <- file.exists(df$R1_path[i])
+      R2_exists <- file.exists(df$R2_path[i])
+      if (all(R1_exists, R2_exists)) {
+        df$mode[i] <- "paired"
+      } else {
+        df$error[i] <- "R1 or R2 file not found."
       }
     } else {
-      message(paste0("Not found. Skipping."))
+      # append single_reads
+      R1_exists <- file.exists(df$R1_path[i])
+      if (R1_exists) {
+        df$mode[i] <- "single"
+      } else {
+        df$error[i] <- "R1 file not found."
+      }
+    }
+  } else if (!is.na(df$R2_path[i])) {
+    df$error[i] <- "Syntax error. For single end reads use R1."
+  } else if (!is.na(df$assembly_path[i])) {
+    # append contigs
+    assembly_exists <- file.exists(df$assembly_path[i])
+    if (assembly_exists) {
+      df$mode[i] <- "contigs"
+    } else {
+      df$error[i] <- "Assembly file not found."
+    }
+  } else {
+    df$error[i] <- "No read or assembly files found."
+  }
+}
+
+df <- df %>%
+  dplyr::select(
+    assembly,
+    R1_path,
+    R2_path,
+    assembly_path,
+    mode,
+    error
+  )
+
+unzipped_assemblies_dir <- "unzipped_assemblies"
+
+if (!dir.exists("unzipped_assemblies")) {
+  dir.create(unzipped_assemblies_dir)
+}
+
+index <- which(df$mode == "contigs")
+
+if (length(index) > 0) {
+  for (i in index) {
+    assembly_path_original <- df$assembly_path[i]
+    if (grepl(".gz$", assembly_path_original)) {
+      # copy file to a new location
+      assembly_path_copy <- paste0(
+        getwd(), "/",
+        unzipped_assemblies_dir, "/",
+        basename(assembly_path_original)
+      )
+      file.copy(from = assembly_path_original, to = assembly_path_copy)
+      # decompress
+      R.utils::gunzip(filename = assembly_path_copy, remove = TRUE)
+      # update file path in dataframe
+      assembly_path_store <- paste0(
+        args$store_dir, "/",
+        unzipped_assemblies_dir, "/",
+        basename(assembly_path_copy)
+      )
+      df$assembly_path[i] <- gsub(".gz$", "", assembly_path_store)
     }
   }
 }
 
-if (nrow(paired_reads) == 0) {
-  paired_reads <-  paste("assembly", "R1", "R2", sep = "\t")
-  write.table(
-    paired_reads,
-    file = "paired_reads.csv",
-    row.names = FALSE,
-    quote = FALSE,
-    col.names = FALSE)
-} else {
-  write.csv(
-    paired_reads, file = "paired_reads.csv", row.names = FALSE, quote = FALSE)
+write_tsv(df, "snippy_input.tsv")
+
+if (any(!is.na(df$error))) {
+  stop("Some files were not found. See error.tsv for details.")
 }
-
-if (nrow(single_reads) == 0) {
-  single_reads <-  paste("assembly", "reads", sep = "\t")
-  write.table(
-    single_reads,
-    file = "single_reads.csv",
-    row.names = FALSE,
-    quote = FALSE,
-    col.names = FALSE)
-} else {
-  write.csv(
-    single_reads, file = "single_reads.csv", row.names = FALSE, quote = FALSE)
-}
-
-if (nrow(contigs) == 0) {
-  contigs <- paste("assembly", "path", spe = "\t")
-  write.table(
-    contigs,
-    file = "contigs.csv",
-    row.names = FALSE,
-    quote = FALSE,
-    col.names = FALSE)
-} else {
-  write.csv(
-    contigs, file = "contigs.csv", row.names = FALSE, quote = FALSE)
-}
-
-sink(con)
-

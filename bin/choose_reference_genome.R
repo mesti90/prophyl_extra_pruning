@@ -5,34 +5,38 @@
 # collection date, the script chooses the first genome in the list. This genome
 # is then copied to the current directory and renamed to refgen_[genome_name].
 
-library(optparse)
-rm(list = ls())
-
-args_list <- list(
-  make_option(
-    c("-a", "--assemblies"),
-    type = "character",
-    help = "Path to a data frame."
-  ),
-  make_option(
-    c("-g", "--genome_dir"),
-    type = "character",
-    help = "Path to the directory containing the genomes."
-  )
-)
-
-args_parser  <- OptionParser(option_list = args_list)
+rm(list=ls())
 
 if (!interactive()) {
+  library(optparse)
+  args_list <- list(
+    make_option(
+      "--project_dir",
+      type = "character",
+      help = "Path to the project directory",
+      default = "prophyl-priv"
+    ),
+    make_option(
+      "--assemblies",
+      type = "character",
+      help = "Path to a tbl of assemblies",
+      default = "assemblies.tsv"
+    )
+  )
+  args_parser  <- OptionParser(option_list = args_list)
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    assemblies = "assemblies.tsv",
-    genome_dir = "genomes"
+    project_dir = "prophyl-priv",
+    assemblies = "assemblies.tsv"
   )
 }
 
-df <- read.csv(args$assemblies, sep = "\t")
+library(devtools)
+library(R.utils)
+load_all(args$project_dir)
+
+df <- read_df(args$assemblies)
 
 index_max_length <- which(df$longest_contig == max(df$longest_contig, na.rm = TRUE))
 longest_assemblies <- df$assembly[index_max_length]
@@ -53,7 +57,19 @@ if (nrow(df_filtered) > 1) {
   }
 }
 
-file.copy(
-  from = paste0(args$genome_dir, "/", df_filtered$jobname, "/", df_filtered$relative_path),
-  to = paste0("refgen_", basename(df_filtered$relative_path))
-)
+infile <- df_filtered$assembly_path
+local_copy <- paste0("refgen_", basename(infile))
+
+file.copy(from = infile, to = local_copy)
+
+# if file is compressed, uncompress it
+
+filetype = summary(file(local_copy))$class
+
+if (filetype == "gzfile") {
+  R.utils::gunzip(
+    filename = local_copy,
+    skip = TRUE,
+    remove = TRUE
+  )
+}
