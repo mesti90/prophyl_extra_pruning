@@ -13,6 +13,8 @@
 #' @param heatmap_colors list; a list of data frames used for color coding
 #' heatmaps. See Details for more information. If \code{NULL}, the colors will
 #' be generated automatically.
+#' @param heatmap_text boolean; should heatmap values be printed in each heatmap
+#' tile?
 #' @param heatmap_offset numeric; distance between heatmaps.
 #' @param heatmap_width numeric; width of a heatmap band.
 #' @param heatmap_colnames_angle numeric; angle for column names.
@@ -29,6 +31,8 @@
 #' element is the name of a legend we want to customize and the value is a list
 #' of parameters that will be evaluated by guide_legend(). If left empty, the
 #' legends will be drawn with defaults.
+#' @param legend_position character; position of the legends compared to the
+#' plots. See `?theme()` for accepted values.
 #' @param legend_box character; arrangement of multiple legends. Can be either
 #' \code{"horizontal"} or \code{"vertical"}.
 #' @param verbose logical; should verbose messages be printed to the console?
@@ -63,7 +67,9 @@
 #' @import ggplot2
 #' @import ggtree
 #' @import ggtreeExtra
+#' @import patchwork
 #' @importFrom qualpalr qualpal
+#' @importFrom dplyr %>%
 #' @export
 plot_tree_long <- function(
   tree_tbl,
@@ -74,7 +80,8 @@ plot_tree_long <- function(
   highlight_var = NULL,
   heatmap_var = NULL,
   heatmap_colors = NULL,
-  heatmap_offset = 0.15,
+  heatmap_text = TRUE,
+  heatmap_offset = 0,
   heatmap_width = 5,
   heatmap_colnames_angle = 0,
   heatmap_colnames_font_size = 4,
@@ -83,28 +90,32 @@ plot_tree_long <- function(
   legend_show = NA,
   legend_breaks = list(),
   legend_guides = list(),
+  legend_position = "right",
   legend_box = "horizontal",
-  file_name = NULL,
   verbose = getOption("verbose")
   ) {
   legend_box <- match.arg(legend_box, choices = c("horizontal", "vertical"))
-  if (!is.null(file_name) && !grepl("\\.pdf$", file_name)) {
-    stop("'filename' must be pdf.")
+  
+  # input validation for mrsd
+  if (!is.null(mrsd)) {
+    if (length(mrsd) > 1) {
+      stop("Argument 'mrsd' must be a single value.")
+    } else if(is.na(mrsd)) {
+      stop("Argument 'mrsd' cannot be NA.")
+    } else if (class(mrsd) != "Date") {
+      stop("Argument 'mrsd' must be a 'Date'.")
+    }
   }
+  
   tree_db <-  treeio::as.treedata(tree_tbl)
   tree <- ape::as.phylo(tree_db)
   options(ignore.negative.edge=TRUE)
+  
+  # plot base tree, with/without highlighting, with/without mrsd
   if (is.null(highlight_var)) {
     if (is.null(mrsd)) {
       p <- ggtree(tree_db, size = linewidth)
     } else {
-      if (length(mrsd) > 1) {
-        stop("Argument 'mrsd' must be a single value.")
-      } else if(is.na(mrsd)) {
-        stop("Argument 'mrsd' cannot be NA.")
-      } else if (class(mrsd) != "Date") {
-        stop("Argument 'mrsd' must be a 'Date'.")
-      }
       p <- ggtree(tree_db, size = linewidth, mrsd = mrsd) + theme_tree2()
     }
   } else {
@@ -114,7 +125,6 @@ plot_tree_long <- function(
           color = highlight_var
         )
     } else {
-      # TODO add input validation for mrsd, is must be a "date" (not decimal)
       p <- ggtree(
         tree_db, aes(color = get(highlight_var)), size = linewidth, mrsd = mrsd) + 
         labs(
@@ -127,13 +137,42 @@ plot_tree_long <- function(
       )
     }
   }
+  
+  # add tiplab
   if (show_tiplab) {
     p <- p + geom_tiplab(
       align = FALSE, geom = "text", size = tiplab_size, hjust = 0)
   }
+  
+  # add heatmaps
+  hm_list <- list()
   if (!is.null(heatmap_var)) {
+
+    # tree_tbl index for tips
     idx_x <- which(tree_tbl$label %in% tree$tip.label)
-    for (i in 1:length(heatmap_var)) {
+    
+    # from aplot:::get_taxa_order
+    get_taxa_order <- function (tree_view) {
+      df <- tree_view$data
+      with(df, {
+        i = order(y, decreasing = T)
+        label[i][isTip[i]]
+      })
+    }
+    
+    # tips on tree plot from top
+    tips_from_top <- get_taxa_order(p)
+    
+    # define tipdf in same order as tips on tree
+    tipdf <- tree_tbl[idx_x, ]
+    idx_top <- unname(sapply(tips_from_top, function(x) {
+      which(tipdf$label == x)
+    }))
+    tipdf <- tipdf[idx_top, ]
+    tipdf$label <- factor(tipdf$label, levels = rev(tipdf$label))
+    
+    for (i in seq_along(heatmap_var)) {
+      
       if (length(heatmap_offset) == 1) {
         heatmap_offset_i <- heatmap_offset
       } else if (length(heatmap_offset) == length(heatmap_var)) {
@@ -144,6 +183,7 @@ plot_tree_long <- function(
           "'heatmap_var'"
         ))
       }
+      
       # define heatmap data frame
       idx_y <- which(names(tree_tbl) == heatmap_var[i])
       hmdf <- as.data.frame(tree_tbl[idx_x, idx_y])
@@ -189,31 +229,26 @@ plot_tree_long <- function(
         names(hmdf_colors) <- unique(hmdf$group)
         hmcolors <- "set"
       }
-      # add heatmaps
-      p <- p + new_scale_fill()
-      axis_text <- heatmap_var[i]
-      if (length(legend_show) == 1 && is.na(legend_show)) {
-        show_legend <- NA
-      } else {
-        show_legend <- ifelse(heatmap_var[i] %in% legend_show, NA, FALSE)
-      }
-      p <- p + geom_fruit(
-        data=hmdf,
-        geom=geom_tile,
-        mapping=aes(y=id, fill=group),
-        width=heatmap_width,
-        offset=heatmap_offset_i,
-        axis.params = list(axis = "x",
-                           text = axis_text,
-                           text.size = heatmap_colnames_font_size,
-                           text.angle = heatmap_colnames_angle,
-                           hjust = heatmap_colnames_hjust,
-                           vjust = heatmap_colnames_vjust,
-                           line.size = 0,
-                           line.color = "#FFFFFF"),
-        show.legend = show_legend
-      )
+
+      var <- heatmap_var[i]
       
+      hm_list[[i]] <- ggplot(tipdf, aes(x = "", y = label)) + 
+        geom_tile(aes(fill = .data[[var]]))
+      
+      if (heatmap_text == TRUE) {
+        hm_list[[i]] <- hm_list[[i]] +
+          geom_text(aes(label = .data[[var]]), size = tiplab_size)
+      }
+      
+      hm_list[[i]] <- hm_list[[i]] +
+        xlab("") +
+        ylab("") +
+        theme(
+          panel.background = element_rect(fill = "white"),
+          panel.grid = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks = element_blank()
+        )
       
       if (heatmap_var[i] %in% names(legend_breaks)) {
         breaks <- legend_breaks[[heatmap_var[i]]]
@@ -222,7 +257,7 @@ plot_tree_long <- function(
       }
       
       if (heatmap_var[i] %in% names(legend_guides)) {
-        p <- p + scale_fill_manual(
+        hm_list[[i]] <- hm_list[[i]] + scale_fill_manual(
           name = heatmap_var[i],
           values = hmdf_colors,
           breaks = breaks,
@@ -230,7 +265,7 @@ plot_tree_long <- function(
           guide = rlang::exec(guide_legend, !!!legend_guides[[heatmap_var[i]]])
         )
       } else {
-        p <- p + scale_fill_manual(
+        hm_list[[i]] <- hm_list[[i]] + scale_fill_manual(
           name = heatmap_var[i],
           values = hmdf_colors,
           breaks = breaks,
@@ -238,9 +273,21 @@ plot_tree_long <- function(
         )
       }
       
-      
     }
+    
+    p <- p + hm_list +
+      patchwork::plot_layout(
+        nrow = 1,
+        widths = c(20, rep(heatmap_width, times = length(heatmap_var))),
+        guides = "collect"
+      )
+
   }
-  p <- p + theme(legend.box = legend_box)
-  p
+  p <- p &
+    theme(
+      plot.margin = unit(c(0, 0, 0, heatmap_offset), "points"),
+      legend.position = legend_position,
+      legend.box = legend_box
+    )
+  return(p)
 }

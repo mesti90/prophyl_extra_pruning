@@ -13,7 +13,8 @@ plot_tree_long(
   highlight_var = NULL,
   heatmap_var = NULL,
   heatmap_colors = NULL,
-  heatmap_offset = 0.15,
+  heatmap_text = TRUE,
+  heatmap_offset = 0,
   heatmap_width = 5,
   heatmap_colnames_angle = 0,
   heatmap_colnames_font_size = 4,
@@ -22,8 +23,8 @@ plot_tree_long(
   legend_show = NA,
   legend_breaks = list(),
   legend_guides = list(),
+  legend_position = "right",
   legend_box = "horizontal",
-  file_name = NULL,
   verbose = getOption("verbose")
 )
 }
@@ -46,6 +47,9 @@ heatmaps. If \code{NULL} the plot will not contain any heatmaps.}
 \item{heatmap_colors}{list; a list of data frames used for color coding
 heatmaps. See Details for more information. If \code{NULL}, the colors will
 be generated automatically.}
+
+\item{heatmap_text}{boolean; should heatmap values be printed in each heatmap
+tile?}
 
 \item{heatmap_offset}{numeric; distance between heatmaps.}
 
@@ -71,6 +75,9 @@ each heatmap.}
 element is the name of a legend we want to customize and the value is a list
 of parameters that will be evaluated by guide_legend(). If left empty, the
 legends will be drawn with defaults.}
+
+\item{legend_position}{character; position of the legends compared to the
+plots. See `?theme()` for accepted values.}
 
 \item{legend_box}{character; arrangement of multiple legends. Can be either
 \code{"horizontal"} or \code{"vertical"}.}
