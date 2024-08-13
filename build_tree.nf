@@ -13,7 +13,6 @@ snippy_container = "staphb/snippy"
 // Input parameters
 
 params.assemblies = "$launchDir/assemblies.tsv"
-params.genome_dir = "$launchDir/genomes"
 params.reference_genome = null
 params.gubbins_iterations = 10
 params.bootstrap_replicates = 1000
