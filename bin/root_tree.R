@@ -169,8 +169,8 @@ if (args$root_method %in% c(
       objective_fn = objective[[i]]
     )
     names(rtree) <- paste0("rtt_", names(objective)[i], "_", 1:top_n)
-    index_from = (i-1)*top_n + 2
-    index_to = i*top_n + 1
+    index_from = length(rooted_trees) + 1
+    index_to = length(rooted_trees) + top_n
     rooted_trees[index_from:index_to] <- rtree
     names(rooted_trees)[index_from:index_to] <- names(rtree)
   }
