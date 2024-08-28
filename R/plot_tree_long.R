@@ -120,13 +120,13 @@ plot_tree_long <- function(
     }
   } else {
     if (is.null(mrsd)) {
-      p <- ggtree(tree_db, aes(color = get(highlight_var)), size = linewidth) + 
+      p <- ggtree(tree_db, aes(color = .data[[highlight_var]]), size = linewidth) + 
         labs(
           color = highlight_var
         )
     } else {
       p <- ggtree(
-        tree_db, aes(color = get(highlight_var)), size = linewidth, mrsd = mrsd) + 
+        tree_db, aes(color = .data[[highlight_var]]), size = linewidth, mrsd = mrsd) + 
         labs(
           color = highlight_var
         ) + theme_tree2()
@@ -272,7 +272,6 @@ plot_tree_long <- function(
           na.translate = FALSE
         )
       }
-      
     }
     
     p <- p + hm_list +
@@ -281,11 +280,10 @@ plot_tree_long <- function(
         widths = c(20, rep(heatmap_width, times = length(heatmap_var))),
         guides = "collect"
       )
-
   }
+
   p <- p &
     theme(
-      plot.margin = unit(c(0, 0, 0, heatmap_offset), "points"),
       legend.position = legend_position,
       legend.box = legend_box
     )
