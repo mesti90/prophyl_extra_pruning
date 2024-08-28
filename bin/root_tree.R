@@ -15,40 +15,49 @@ library(optparse)
 rm(list = ls())
 
 args_list <- list(
- make_option(
-    c("-p", "--project_dir"),
+  make_option(
+    "--project_dir",
     type = "character",
-    help = "Path to project directory."
-  ),
- make_option(
-   c("-t", "--tree"),
-   type = "character",
-   help = "Path to tree file."
- ),
- make_option(
-    c("-a", "--assemblies"),
-    type = "character",
-    help = "Path to assemblies file."
+    help = "Path to project directory.",
+    default = "~/Methods/prophyl"
   ),
   make_option(
-    c("-c", "--threads"),
+    "--tree",
+    type = "character",
+    help = "Path to tree file.",
+    default = "treeshrink.tre"
+  ),
+  make_option(
+    "--assemblies",
+    type = "character",
+    help = "Path to assemblies file.",
+    default = "assemblies.tsv"
+  ),
+  make_option(
+    "--root_method",
+    type = "character",
+    help = "Rooting method to use. Options are 'midpoint', 'rtt_correlation', 
+    'rtt_rms', 'rtt_rsquared', 'all'.",
+    default = "rtt_rms"
+  ),
+  make_option(
+    "--root_topn",
     type = "integer",
-    help = "Number of threads to use."
+    help = "Number of top trees to return for the selected root method. Only
+    used for root-to-tip regression methods.",
+    default = 1
+  ),
+  make_option(
+    "--threads",
+    type = "integer",
+    help = "Number of threads to use.",
+    default = 10
   )
 )
 
 args_parser  <- OptionParser(option_list = args_list)
 
-if (!interactive()) {
-  args  <- parse_args(args_parser)
-} else {
-  args <- list(
-    project_dir = "~/Methods/prophyl",
-    tree = "treeshrink.tre",
-    assemblies = "assemblies.tsv",
-    threads = 10
-  )
-}
+args  <- parse_args(args_parser)
 
 load_all(args$project_dir)
 
@@ -70,8 +79,10 @@ rooted_trees <- list()
 
 # OPTION 1: MIDPOINT ROOTING
 
-# root tree
-rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
+if (args$root_method %in% c("midpoint", "all")) {
+  # root tree
+  rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
+}
 
 # Note: OPTION 2  is removed until Issue #73 is fixed.
 # # OPTION 2: MINIMUM ANCESTOR DEVIATION (MAD)
@@ -103,54 +114,66 @@ rooted_trees[["midpoint"]] <- phytools::midpoint.root(tree)
 
 # OPTION 3: ROOT-TO-TIP REGRESSION
 
-# read assemblies
-assemblies <- read.csv(args$assemblies, sep = "\t")
-
-# collect tip dates in the same order as tree$tip.label
-tip_dates <- unname(sapply(tree$tip.label, function(x) {
-  index <- which(assemblies$assembly == x)
-  assemblies$collection_day[index]
-}))
-
-# convert tip dates to numeric for root_tree()
-tip_dates <- as.numeric(as.Date(tip_dates))
-
-# TODO: look for better objectives
-objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
-objective_rlm_rms <- function(x,y) -summary(MASS::rlm(y ~ x))$sigma^2
-
-# Remove custom objectives for now
-# objective <- list(
-#   "correlation" = NULL,
-#   "rsquared" = NULL,
-#   "rms" = NULL,
-#   "rlm_slope" = objective_rlm_slope,
-#   "rlm_rms" = objective_rlm_rms
-# )
-
-objective <- list(
-  "correlation" = NULL,
-  "rsquared" = NULL,
-  "rms" = NULL
-)
-
-# return the top_n trees for each objective
-top_n = 3
-
-for (i in seq_along(objective)) {
-  rtree <- root_rtt(
-    t = tree,
-    tip.dates = tip_dates,
-    topx = top_n, 
-    ncpu = args$threads,
-    objective = names(objective)[[i]],
-    objective_fn = objective[[i]]
-  )
-  names(rtree) <- paste0("rtt_", names(objective)[i], "_", 1:top_n)
-  index_from = (i-1)*top_n + 2
-  index_to = i*top_n + 1
-  rooted_trees[index_from:index_to] <- rtree
-  names(rooted_trees)[index_from:index_to] <- names(rtree)
+if (args$root_method %in% c(
+  "rtt_correlation", "rtt_rms", "rtt_rsquared", "all")) {
+  
+  # read assemblies
+  assemblies <- read.csv(args$assemblies, sep = "\t")
+  
+  # collect tip dates in the same order as tree$tip.label
+  tip_dates <- unname(sapply(tree$tip.label, function(x) {
+    index <- which(assemblies$assembly == x)
+    assemblies$collection_day[index]
+  }))
+  
+  # convert tip dates to numeric for root_tree()
+  tip_dates <- as.numeric(as.Date(tip_dates))
+  
+  # TODO: look for better objectives
+  objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
+  objective_rlm_rms <- function(x,y) -summary(MASS::rlm(y ~ x))$sigma^2
+  
+  # Remove custom objectives for now
+  # objective <- list(
+  #   "correlation" = NULL,
+  #   "rsquared" = NULL,
+  #   "rms" = NULL,
+  #   "rlm_slope" = objective_rlm_slope,
+  #   "rlm_rms" = objective_rlm_rms
+  # )
+  
+  if (args$root_method == "rtt_correlation") {
+    objective <- list("correlation" = NULL)
+  } else if (args$root_method == "rtt_rsquared") {
+    objective <- list("rsquared" = NULL)
+  } else if (args$root_method == "rtt_rms") {
+    objective <- list("rms" = NULL)
+  } else {
+    objective <- list(
+      "correlation" = NULL,
+      "rsquared" = NULL,
+      "rms" = NULL
+    )
+  }
+  
+  # return the top_n trees for each objective
+  top_n <- args$root_topn
+  
+  for (i in seq_along(objective)) {
+    rtree <- root_rtt(
+      t = tree,
+      tip.dates = tip_dates,
+      topx = top_n, 
+      ncpu = args$threads,
+      objective = names(objective)[[i]],
+      objective_fn = objective[[i]]
+    )
+    names(rtree) <- paste0("rtt_", names(objective)[i], "_", 1:top_n)
+    index_from = length(rooted_trees) + 1
+    index_to = length(rooted_trees) + top_n
+    rooted_trees[index_from:index_to] <- rtree
+    names(rooted_trees)[index_from:index_to] <- names(rtree)
+  }
 }
 
 # CALCULATE ROOT TO TIP METRICS FOR EACH ROOTED TREE

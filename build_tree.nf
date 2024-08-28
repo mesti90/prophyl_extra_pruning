@@ -16,6 +16,8 @@ params.assemblies = "$launchDir/assemblies.tsv"
 params.reference_genome = null
 params.gubbins_iterations = 10
 params.bootstrap_replicates = 1000
+params.root_method = "rtt_rms"
+params.root_topn = 1
 
 // Output parameters
 
@@ -229,6 +231,8 @@ process root_tree {
     --project_dir $projectDir \
     --tree $shrinked_tree \
     --assemblies $params.assemblies \
+    --root_method $params.root_method \
+    --root_topn $params.root_topn \
     --threads ${task.cpus}
     """
 }
