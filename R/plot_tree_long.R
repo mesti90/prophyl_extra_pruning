@@ -8,6 +8,8 @@
 #' @param mrsd tibble; the date of the most recent tip.
 #' @param linewidth numeric; line width for the phylogenetic tree.
 #' @param highlight_var character; a variable name used for highlighting tips.
+#' @param highlight_colors data.frame; a data frame used for color coding. The
+#' data frame must contain a `group` variable and a `color` variable.
 #' @param heatmap_var character; a vector or variable names used for creating
 #' heatmaps. If \code{NULL} the plot will not contain any heatmaps.
 #' @param heatmap_colors list; a list of data frames used for color coding
@@ -78,6 +80,7 @@ plot_tree_long <- function(
   mrsd = NULL,
   linewidth = 0.5,
   highlight_var = NULL,
+  highlight_colors = NULL,
   heatmap_var = NULL,
   heatmap_colors = NULL,
   heatmap_text = TRUE,
@@ -118,30 +121,50 @@ plot_tree_long <- function(
     } else {
       p <- ggtree(tree_db, size = linewidth, mrsd = mrsd) + theme_tree2()
     }
+    if (show_tiplab) {
+      p <- p + 
+        geom_tiplab(
+          align = FALSE, 
+          geom = "text", 
+          size = tiplab_size, 
+          hjust = 0
+        )
+    }
   } else {
     if (is.null(mrsd)) {
-      p <- ggtree(tree_db, aes(color = .data[[highlight_var]]), size = linewidth) + 
-        labs(
-          color = highlight_var
-        )
+      p <- ggtree(tree_db, size = linewidth)
     } else {
       p <- ggtree(
-        tree_db, aes(color = .data[[highlight_var]]), size = linewidth, mrsd = mrsd) + 
-        labs(
-          color = highlight_var
-        ) + theme_tree2()
+        tree_db, size = linewidth, mrsd = mrsd) + 
+        theme_tree2()
     }
     if (!highlight_var %in% legend_show){
       p <- p + guides(
         color = "none"
       )
     }
-  }
-  
-  # add tiplab
-  if (show_tiplab) {
-    p <- p + geom_tiplab(
-      align = FALSE, geom = "text", size = tiplab_size, hjust = 0)
+    if (show_tiplab) {
+      if (is.null(highlight_colors)) {
+        p <- p + geom_tiplab(
+          align = FALSE,
+          geom = "text",
+          aes(col = .data[[highlight_var]]),
+          size = tiplab_size,
+          hjust = 0
+        )
+      } else {
+        hlt_colors <- highlight_colors$color
+        names(hlt_colors) <- highlight_colors$group
+        p <- p + geom_tiplab(
+          align = FALSE,
+          geom = "text",
+          aes(col = .data[[highlight_var]]),
+          size = tiplab_size,
+          hjust = 0
+        ) + 
+        scale_color_manual(values = hlt_colors)
+      }
+    }
   }
   
   # add heatmaps
