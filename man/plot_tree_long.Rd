@@ -43,7 +43,7 @@ plot_tree_long(
 \item{highlight_var}{character; a variable name used for highlighting tips.}
 
 \item{highlight_colors}{data.frame; a data frame used for color coding. The
-data frame must contain a `group` variable and a `column` variable.}
+data frame must contain a `group` variable and a `color` variable.}
 
 \item{heatmap_var}{character; a vector or variable names used for creating
 heatmaps. If \code{NULL} the plot will not contain any heatmaps.}
