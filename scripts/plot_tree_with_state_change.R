@@ -39,8 +39,8 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    project_dir = "aci/prophyl",
-    tree_tbl = "data/global_ST2_tree/tree_tbl.rds",
+    project_dir = "prophyl-priv",
+    tree_tbl = "tree_tbl.rds",
     target = "city_pooled",
     heatmap_vars = c("city_pooled", "country", "continent", "k_serotype")
   )
@@ -150,7 +150,7 @@ for (i in 1:length(mats)) {
     p2,
     mats[[i]],
     offset = 1 + (i-1) * 1,
-    width = 0.02,
+    width = 0.04,
     colnames_offset_y = 0,
     colnames_position = "top",
     legend_title = args$heatmap_vars
@@ -166,7 +166,7 @@ p2 <- p2 + theme(legend.position = "none")
 ggsave(
   file = "tree_with_state_changes.pdf",
   height = 0.25*nrow(tree_tbl),
-  width = 0.01*nrow(tree_tbl),
+  width = 65,
   units = "cm",
   limitsize = FALSE
 )
