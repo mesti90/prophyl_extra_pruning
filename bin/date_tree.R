@@ -156,9 +156,9 @@ if (length(index_uncertain) > 0) {
   uncertain_dates <- NULL
 }
 
-# drop tips where a range cannot be defined
-index <- which(is.na(uncertain_dates$lower) | is.na(uncertain_dates$upper))
-tips_to_drop <- rownames(uncertain_dates)[index]
+# drop tips with unknown sampling dates
+index <- which(is.na(assemblies$date))
+tips_to_drop <- assemblies$assembly[index]
 if (length(index) > 0) {
   # drop from tree
   trees <- lapply(trees, function(tree) {
@@ -167,8 +167,7 @@ if (length(index) > 0) {
   })
   # drop from assemblies
   assemblies <- assemblies[-which(assemblies$assembly %in% tips_to_drop), ]
-  # drop from uncertain dates
-  uncertain_dates <- uncertain_dates[-which(row.names(uncertain_dates) %in% tips_to_drop), ]
+  # print warning message
   tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
   msg <- paste0(
     "One or more tips were dropped because no data on sampling data was found: ",
