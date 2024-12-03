@@ -56,6 +56,12 @@ args_list <- list(
     default = "snp_per_genome"
   ),
   make_option(
+    "--clock",
+    type = "character",
+    help = "The choice of molecular clock model. Choices are 'uncorrelated', 'additive', or 'strict'.",
+    default = "strict"
+  ),
+  make_option(
     "--reroot",
     type = "logical",
     help = "Whether to reroot the tree using treedater's standard rerooting functionality.",
@@ -78,6 +84,11 @@ if (!interactive()) {
 branch_dimension <- match.arg(
   args$branch_dimension,
   choices = c("snp_per_genome", "snp_per_site")
+)
+
+clock <- match.arg(
+  args$clock,
+  choices = c("uncorrelated", "additive", "strict")
 )
 
 # import trees
@@ -213,7 +224,7 @@ for (i in 1:length(trees)) {
     sts,
     s = alignment_length,
     estimateSampleTimes = uncertain_dates,
-    clock = 'strict', 
+    clock = clock,
     ncpu =  args$threads)
 }
 
