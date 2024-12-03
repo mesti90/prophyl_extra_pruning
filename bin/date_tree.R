@@ -20,57 +20,57 @@ rm(list = ls())
 
 args_list <- list(
   make_option(
-    c("-p", "--project_dir"),
+    "--project_dir",
     type = "character",
-    help = "Path to project directory."
+    help = "Path to project directory.",
+    default = "~/Methods/prophyl"
   ),
   make_option(
-   c("-t", "--trees"),
+   "--trees",
    type = "character",
-   help = "A list of rooted trees in rds format."
+   help = "A list of rooted trees in rds format.",
+   default = "rooted_trees.rds"
   ),
   make_option(
-    c("-s", "--snps"),
+    "--snps",
     type = "character",
-    help = "Path to a fasta file containing snps."
+    help = "Path to a fasta file containing snps.",
+    default = "chromosomes.nodup.filtered_polymorphic_sites.fasta"
   ),
   make_option(
-    c("-a", "--assemblies"),
+    "--assemblies",
     type = "character",
-    help = "Path to assemblies file."
+    help = "Path to assemblies file.",
+    default = "assemblies.tsv"
   ),
   make_option(
-    c("-T", "--threads"),
+    "--threads",
     type = "integer",
-    help = "Number of threads to use."
+    help = "Number of threads to use.",
+    default = 10
   ),
   make_option(
-    c("-b", "--branch_dimension"),
+    "--branch_dimension",
     type = "character",
-    help = "Dimension of branch lengths in tree. Either 'snp_per_genome' or 'snp_per_site'."
+    help = "Dimension of branch lengths in tree. Either 'snp_per_genome' or 'snp_per_site'.",
+    default = "snp_per_genome"
   ),
   make_option(
-    c("-r", "--reroot"),
+    "--clock",
+    type = "character",
+    help = "The choice of molecular clock model. Choices are 'uncorrelated', 'additive', or 'strict'.",
+    default = "strict"
+  ),
+  make_option(
+    "--reroot",
     type = "logical",
-    help = "Whether to reroot the tree using treedater's standard rerooting functionality."
+    help = "Whether to reroot the tree using treedater's standard rerooting functionality.",
+    default = FALSE
   )
 )
 
 args_parser  <- OptionParser(option_list = args_list)
-
-if (!interactive()) {
-  args  <- parse_args(args_parser)
-} else {
-  args <- list(
-    project_dir = "~/Methods/prophyl",
-    trees = "rooted_trees.rds",
-    snps = "chromosomes.nodup.filtered_polymorphic_sites.fasta",
-    assemblies = "assemblies.tsv",
-    threads = 10,
-    branch_dimension = "snp_per_genome",
-    reroot = FALSE
-  )
-}
+args  <- parse_args(args_parser)
 
 load_all(args$project_dir)
 
@@ -84,6 +84,11 @@ if (!interactive()) {
 branch_dimension <- match.arg(
   args$branch_dimension,
   choices = c("snp_per_genome", "snp_per_site")
+)
+
+clock <- match.arg(
+  args$clock,
+  choices = c("uncorrelated", "additive", "strict")
 )
 
 # import trees
@@ -145,7 +150,10 @@ assemblies$lower <- date_lower(assemblies$collection_date)
 assemblies$upper <- date_upper(assemblies$collection_date)
 
 # define range for dates which are not known exactly
-index_uncertain <- which(is.na(assemblies$date))
+# note, the which function automatically removes NA values
+# so this step will only include dates which are known to some extent
+# but not exactly
+index_uncertain <- which(assemblies$upper > assemblies$lower)
 if (length(index_uncertain) > 0) {
   uncertain_dates <- assemblies[index_uncertain, c("lower", "upper")]
   rownames(uncertain_dates) <- assemblies$assembly[index_uncertain]
@@ -153,9 +161,9 @@ if (length(index_uncertain) > 0) {
   uncertain_dates <- NULL
 }
 
-# drop tips where a range cannot be defined
-index <- which(is.na(uncertain_dates$lower) | is.na(uncertain_dates$upper))
-tips_to_drop <- rownames(uncertain_dates)[index]
+# drop tips with unknown sampling dates
+index <- which(is.na(assemblies$date))
+tips_to_drop <- assemblies$assembly[index]
 if (length(index) > 0) {
   # drop from tree
   trees <- lapply(trees, function(tree) {
@@ -164,8 +172,7 @@ if (length(index) > 0) {
   })
   # drop from assemblies
   assemblies <- assemblies[-which(assemblies$assembly %in% tips_to_drop), ]
-  # drop from uncertain dates
-  uncertain_dates <- uncertain_dates[-which(row.names(uncertain_dates) %in% tips_to_drop), ]
+  # print warning message
   tips_to_drop_collapsed <- paste(tips_to_drop, collapse = ", ")
   msg <- paste0(
     "One or more tips were dropped because no data on sampling data was found: ",
@@ -189,6 +196,7 @@ if (!is.null(uncertain_dates)) {
   # rename rownames in uncertain dates to include dates
   row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
     index <- which(assemblies$assembly == x)
+    # this will include the middle value of the range
     paste(x, assemblies$date[index], sep = "|")
   }, USE.NAMES = FALSE)
 }
@@ -196,16 +204,19 @@ if (!is.null(uncertain_dates)) {
 # extract dates from tip labels in appropriate format
 sts <- sampleYearsFromLabels(trees[[1]]$tip.label, delimiter = "|")
 
+# if the reroot argument is set to TRUE, and the tree is rooted, unroot the tree
 if (as.logical(args$reroot)) {
   trees <- lapply(trees, function(tree) {
     if (ape::is.rooted(tree)) {
       tree <- ape::unroot(tree)
     }
+    return(tree)
   })
-  return(tree)
 }
 
 # date trees
+# if the tree is rooted, the function will not reroot the tree
+# if the tree is unrooted, the function will root the tree
 dtr <- list()
 for (i in 1:length(trees)) {
   dtr[[i]] <- treedater::dater(
@@ -213,7 +224,7 @@ for (i in 1:length(trees)) {
     sts,
     s = alignment_length,
     estimateSampleTimes = uncertain_dates,
-    clock = 'strict', 
+    clock = clock,
     ncpu =  args$threads)
 }
 

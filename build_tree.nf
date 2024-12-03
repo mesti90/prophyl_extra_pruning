@@ -13,6 +13,7 @@ snippy_container = "staphb/snippy"
 // Input parameters
 
 params.assemblies = "$launchDir/assemblies.tsv"
+params.clock = "strict"
 params.reference_genome = null
 params.gubbins_iterations = 10
 params.bootstrap_replicates = 1000
@@ -172,6 +173,7 @@ process date_tree {
     --assemblies $params.assemblies \
     --threads ${task.cpus} \
     --branch_dimension snp_per_genome \
+    --clock $params.clock \
     --reroot false
     """
 }
