@@ -145,7 +145,10 @@ assemblies$lower <- date_lower(assemblies$collection_date)
 assemblies$upper <- date_upper(assemblies$collection_date)
 
 # define range for dates which are not known exactly
-index_uncertain <- which(is.na(assemblies$date))
+# note, the which function automatically removes NA values
+# so this step will only include dates which are known to some extent
+# but not exactly
+index_uncertain <- which(assemblies$upper > assemblies$lower)
 if (length(index_uncertain) > 0) {
   uncertain_dates <- assemblies[index_uncertain, c("lower", "upper")]
   rownames(uncertain_dates) <- assemblies$assembly[index_uncertain]
@@ -189,6 +192,7 @@ if (!is.null(uncertain_dates)) {
   # rename rownames in uncertain dates to include dates
   row.names(uncertain_dates) <- sapply(row.names(uncertain_dates), function(x) {
     index <- which(assemblies$assembly == x)
+    # this will include the middle value of the range
     paste(x, assemblies$date[index], sep = "|")
   }, USE.NAMES = FALSE)
 }
