@@ -20,57 +20,51 @@ rm(list = ls())
 
 args_list <- list(
   make_option(
-    c("-p", "--project_dir"),
+    "--project_dir",
     type = "character",
-    help = "Path to project directory."
+    help = "Path to project directory.",
+    default = "~/Methods/prophyl"
   ),
   make_option(
-   c("-t", "--trees"),
+   "--trees",
    type = "character",
-   help = "A list of rooted trees in rds format."
+   help = "A list of rooted trees in rds format.",
+   default = "rooted_trees.rds"
   ),
   make_option(
-    c("-s", "--snps"),
+    "--snps",
     type = "character",
-    help = "Path to a fasta file containing snps."
+    help = "Path to a fasta file containing snps.",
+    default = "chromosomes.nodup.filtered_polymorphic_sites.fasta"
   ),
   make_option(
-    c("-a", "--assemblies"),
+    "--assemblies",
     type = "character",
-    help = "Path to assemblies file."
+    help = "Path to assemblies file.",
+    default = "assemblies.tsv"
   ),
   make_option(
-    c("-T", "--threads"),
+    "--threads",
     type = "integer",
-    help = "Number of threads to use."
+    help = "Number of threads to use.",
+    default = 10
   ),
   make_option(
-    c("-b", "--branch_dimension"),
+    "--branch_dimension",
     type = "character",
-    help = "Dimension of branch lengths in tree. Either 'snp_per_genome' or 'snp_per_site'."
+    help = "Dimension of branch lengths in tree. Either 'snp_per_genome' or 'snp_per_site'.",
+    default = "snp_per_genome"
   ),
   make_option(
-    c("-r", "--reroot"),
+    "--reroot",
     type = "logical",
-    help = "Whether to reroot the tree using treedater's standard rerooting functionality."
+    help = "Whether to reroot the tree using treedater's standard rerooting functionality.",
+    default = FALSE
   )
 )
 
 args_parser  <- OptionParser(option_list = args_list)
-
-if (!interactive()) {
-  args  <- parse_args(args_parser)
-} else {
-  args <- list(
-    project_dir = "~/Methods/prophyl",
-    trees = "rooted_trees.rds",
-    snps = "chromosomes.nodup.filtered_polymorphic_sites.fasta",
-    assemblies = "assemblies.tsv",
-    threads = 10,
-    branch_dimension = "snp_per_genome",
-    reroot = FALSE
-  )
-}
+args  <- parse_args(args_parser)
 
 load_all(args$project_dir)
 
