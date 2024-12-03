@@ -199,16 +199,19 @@ if (!is.null(uncertain_dates)) {
 # extract dates from tip labels in appropriate format
 sts <- sampleYearsFromLabels(trees[[1]]$tip.label, delimiter = "|")
 
+# if the reroot argument is set to TRUE, and the tree is rooted, unroot the tree
 if (as.logical(args$reroot)) {
   trees <- lapply(trees, function(tree) {
     if (ape::is.rooted(tree)) {
       tree <- ape::unroot(tree)
     }
+    return(tree)
   })
-  return(tree)
 }
 
 # date trees
+# if the tree is rooted, the function will not reroot the tree
+# if the tree is unrooted, the function will root the tree
 dtr <- list()
 for (i in 1:length(trees)) {
   dtr[[i]] <- treedater::dater(
