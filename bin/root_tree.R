@@ -123,11 +123,11 @@ if (args$root_method %in% c(
   # collect tip dates in the same order as tree$tip.label
   tip_dates <- unname(sapply(tree$tip.label, function(x) {
     index <- which(assemblies$assembly == x)
-    assemblies$collection_day[index]
+    date_middle(assemblies$collection_date[index])
   }))
   
   # convert tip dates to numeric for root_tree()
-  tip_dates <- as.numeric(as.Date(tip_dates))
+  tip_dates <- as.numeric(as.Date(tip_dates, origin = "1970-01-01"))
   
   # TODO: look for better objectives
   objective_rlm_slope <- function(x,y) MASS::rlm(y ~ x)$coef[2]
