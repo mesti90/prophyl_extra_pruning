@@ -100,7 +100,7 @@ tree$node.label <- paste0("Node_", 1:tree$Nnode)
 # node labels are regenerated only for the dated tree. The
 # rests of the list elements within the dated tree object remain unchanged.
 
-tree_tbl <- treeio::as_tibble(tree_tbl)
+tree_tbl <- treeio::as_tibble(tree)
 
 # export tree
 saveRDS(tree, file = "final_tree.rds")
