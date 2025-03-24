@@ -31,7 +31,8 @@ varnames <- c(
   "R1_path",
   "R2_path",
   "assembly_path",
-  "collection_date"
+  "collection_date",
+  "longest_contig"
 )
 
 index <- which(!varnames %in% colnames(df))
@@ -64,7 +65,7 @@ if (sum(!is.na(suppressWarnings(as.numeric(df$assembly)))) > 0) {
   stop("Assembly name cannot be a number. Specify another name.")
 }
 
-# All genomes must have collection days.
+# All genomes must have collection dates.
 
 if (any(is.na(df$collection_date))) {
   stop("All assemblies must contain collection dates. Check.")
