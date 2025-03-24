@@ -3,7 +3,7 @@
 nextflow.enable.dsl=2
 
 // Containers
-gubbins_container = "stitam/prophyl:0.12"
+gubbins_container = "sangerpathogens/gubbins:v3.0.0"
 hgttree_container = "mesti90/hgttree:2.11"
 iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
