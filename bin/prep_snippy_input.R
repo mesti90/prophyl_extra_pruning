@@ -39,19 +39,6 @@ load_all(args$project_dir)
 
 df <- read_df(args$assemblies)
 
-varnames <- c("assembly", "R1_path", "R2_path", "assembly_path")
-index <- which(!varnames %in% colnames(df))
-
-if (length(index) > 0) {
-  varnames_missing_collapsed <- paste(varnames[index], collapse = ", ")
-  msg <- paste0(
-    "The following required variables are missing from the input table: ",
-    varnames_missing_collapsed,
-    "."
-  )
-  stop(msg)
-}
-
 df$mode = NA
 df$error = NA
 for (i in 1:nrow(df)) {
