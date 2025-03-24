@@ -23,7 +23,7 @@ date_middle <- function(dates, out_format = "date"){
     if (is.na(year)) {
       return(NA)
     }
-    date_elements <- strsplit(x, split = "-")[[1]]
+    date_elements <- strsplit(as.character(x), split = "-")[[1]]
     year <- date_elements[1]
     if (length(date_elements) == 1){
       date <- paste(year, "06","15", sep = "-")
