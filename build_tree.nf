@@ -26,14 +26,16 @@ params.resdir = "results"
 
 process add_duplicates {
     container "$r_container"
-    storeDir "$launchDir/$params.resdir/add_duplicates"
+    storeDir "$launchDir/$params.resdir"
 
     input:
     path tree
     path duplicates
 
     output:
-    path "dated_tree.rds"
+    path "final_tree.rds"
+    path "final_tree.nwk"
+    path "final_tree.tsv"
 
     script:
     """
