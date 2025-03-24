@@ -43,6 +43,9 @@ longest_assemblies <- df$assembly[index_max_length]
 
 df_filtered <- df[which(df$assembly %in% longest_assemblies),]
 
+# collection_day
+df_filtered$collection_day <- unname(date_middle(df_filtered$collection_date))
+
 if (nrow(df_filtered) > 1) {
   df_nona <- df_filtered[which(!is.na(df_filtered$collection_day)),]
   if (nrow(df_nona) == 0) {
