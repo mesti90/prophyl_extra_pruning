@@ -16,6 +16,8 @@
 date_upper <- function(dates, out_format = "decimal") {
   
   out_format <- match.arg(out_format, choices = c("decimal", "date"))
+
+  dates <- as.character(dates)
   
   foo <- function(x) {
     if(is.na(x)) return(NA)

@@ -19,6 +19,8 @@
 date_runif <- function(dates, out_format = "decimal") {
   
   out_format <- match.arg(out_format, choices = c("decimal", "date"))
+
+  dates <- as.character(dates)
   
   dates <- as.character(dates)
   foo <- function(x) {
