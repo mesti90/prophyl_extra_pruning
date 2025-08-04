@@ -146,3 +146,6 @@ RUN R -e 'options(warn = 2); install.packages("naniar", dependencies = TRUE)'
 
 # Set R library path to avoid binding from host system
 ENV R_LIBS_USER /usr/local/lib/R/site-library
+
+# Disable cache for numba to eliminate occasional Gubbins errors
+ENV NUMBA_DISABLE_CACHE=1
