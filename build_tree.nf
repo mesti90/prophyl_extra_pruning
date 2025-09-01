@@ -36,6 +36,8 @@ process add_duplicates {
     path "final_tree.rds"
     path "final_tree.nwk"
     path "final_tree.tsv"
+    path "rtt_plot.png"
+    path "metrics.tsv"
 
     script:
     """

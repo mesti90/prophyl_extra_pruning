@@ -1,4 +1,5 @@
 library(dplyr)
+library(ggplot2)
 library(optparse)
 library(TreeTools)
 rm(list = ls())
@@ -102,7 +103,48 @@ tree$node.label <- paste0("Node_", 1:tree$Nnode)
 
 tree_tbl <- treeio::as_tibble(tree)
 
+# CALCULATE TREE METRICS
+
+dT <- ape::node.depth.edgelength(tree)
+sts <- (tree$timeOfMRCA + dT[1:ape::Ntip(tree)])
+
+dG <- ape::node.depth.edgelength(tree$intree)
+snps <- dG[1:ape::Ntip(tree)]
+
+rtt_df <- data.frame(snp = snps, date = sts)
+
+g <- ggplot(rtt_df, aes(date, snp)) + 
+  geom_point() +
+  geom_smooth(
+    method = "lm", 
+    formula = y ~ I(x - tree$timeOfMRCA) - 1
+  ) +
+  xlab("Date") +
+  ylab("Number of substitutions")
+
+gfit <- lm(snp ~ I(date - tree$timeOfMRCA) - 1, data = rtt_df)
+
+# calculate metrics
+results <- data.frame(
+  root_method = tree$root_method,
+  r.squared = round(summary(fit)$r.squared, 3),
+  adj.r.squared = round(summary(fit)$adj.r.squared, 3),
+  rse = round(summary(fit)$sigma, 0),
+  ssr = round(sum((summary(fit)$residuals)^2), 0),
+  first = min(sts, na.rm = TRUE)[1],
+  mrca = lubridate::date_decimal(tree$timeOfMRCA),
+  rate = round(unname(fit$coefficients), 1)
+)
+results$first <- as.Date(results$first, origin = "1970-01-01")
+results$mrca <- as.Date(results$mrca, origin = "1970-01-01")
+
 # export tree
 saveRDS(tree, file = "final_tree.rds")
 ape::write.tree(tree, file = "final_tree.nwk")
 write_tsv(tree_tbl, "final_tree.tsv")
+
+# export rtt plot
+ggsave(g, file = "rtt_plot.png")
+
+# export tree metrics
+write_tsv(results, file = "metrics.tsv")
