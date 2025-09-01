@@ -131,7 +131,7 @@ results <- data.frame(
   adj.r.squared = round(summary(fit)$adj.r.squared, 3),
   rse = round(summary(fit)$sigma, 0),
   ssr = round(sum((summary(fit)$residuals)^2), 0),
-  first = min(sts, na.rm = TRUE)[1],
+  first = lubridate::date_decimal(min(sts, na.rm = TRUE)[1]),
   mrca = lubridate::date_decimal(tree$timeOfMRCA),
   rate = round(unname(fit$coefficients), 1)
 )
