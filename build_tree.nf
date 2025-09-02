@@ -10,20 +10,6 @@ fasttree_container = "staphb/fasttree:latest"
 r_container = "stitam/prophyl:0.13"
 snippy_container = "staphb/snippy"
 
-// Input parameters
-
-params.assemblies = "$launchDir/assemblies.tsv"
-params.clock = "strict"
-params.reference_genome = null
-params.gubbins_iterations = 10
-params.bootstrap_replicates = 1000
-params.root_method = "all"
-params.root_topn = 1
-
-// Output parameters
-
-params.resdir = "results"
-
 process add_duplicates {
     container "$r_container"
     storeDir "$launchDir/$params.resdir"
