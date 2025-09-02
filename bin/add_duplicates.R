@@ -134,7 +134,7 @@ results <- data.frame(
   ssr = round(sum((summary(fit)$residuals)^2), 0),
   first = lubridate::date_decimal(min(sts, na.rm = TRUE)[1]),
   mrca = lubridate::date_decimal(tree$timeOfMRCA),
-  rate = round(unname(fit$coefficients), 1)
+  rate = round(unname(fit$coefficients[2]), 1)
 )
 results$first <- as.Date(results$first, origin = "1970-01-01")
 results$mrca <- as.Date(results$mrca, origin = "1970-01-01")
