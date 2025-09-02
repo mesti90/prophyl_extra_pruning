@@ -122,7 +122,7 @@ g <- ggplot(rtt_df, aes(date, snp)) +
   xlab("Date") +
   ylab("Number of substitutions")
 
-fit <- lm(snp ~ I(date - tree$timeOfMRCA) - 1, data = rtt_df)
+fit <- lm(snp ~ date, data = rtt_df)
 
 # calculate metrics
 results <- data.frame(
