@@ -126,6 +126,7 @@ fit <- lm(snp ~ I(date - tree$timeOfMRCA) - 1, data = rtt_df)
 
 # calculate metrics
 results <- data.frame(
+  ntips = ape::Ntip(tree),
   root_method = tree$root_method,
   r.squared = round(summary(fit)$r.squared, 3),
   adj.r.squared = round(summary(fit)$adj.r.squared, 3),
