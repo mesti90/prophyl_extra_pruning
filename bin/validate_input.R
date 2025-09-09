@@ -32,6 +32,7 @@ varnames <- c(
   "R2_path",
   "assembly_path",
   "collection_date",
+  "genome_size",
   "longest_contig"
 )
 
