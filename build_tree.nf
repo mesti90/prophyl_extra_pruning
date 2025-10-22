@@ -9,6 +9,7 @@ iqtree_container = "staphb/iqtree"
 fasttree_container = "staphb/fasttree:latest"
 r_container = "stitam/prophyl:0.13"
 snippy_container = "staphb/snippy"
+treepruner_container = "mesti90/treepruner:1.1"
 
 process add_duplicates {
     container "$r_container"
@@ -91,7 +92,7 @@ process choose_dated_tree {
     storeDir "$launchDir/$params.resdir/choose_dated_tree"
 
     input:
-    path dated_trees
+    tuple path(dated_tree_shrink), path(dated_tree_prune)
 
     output:
     path "final_dated_tree.rds", emit: dated_big_tree
@@ -99,7 +100,7 @@ process choose_dated_tree {
 
     script:
     """
-    Rscript $projectDir/bin/choose_dated_tree.R --trees $dated_trees
+    Rscript $projectDir/bin/choose_dated_tree.R --trees_shrink $dated_trees --trees_prune $dated_tree_prune
     """
 }
 
@@ -143,16 +144,16 @@ process prep_snippy_input {
 
 process date_tree {
     container "$r_container"
-    storeDir "$launchDir/$params.resdir/date_tree"
+    storeDir "$launchDir/$params.resdir/date_tree_${label}"
 
     input:
-    tuple path(snps), path(rooted_trees)
+    tuple val(label), path(snps), path(rooted_trees)
 
     output:
-    path "dated_trees.rds", emit: dated_trees
-    path "rtt_plots/*.pdf"
-    path "dated_trees/*.tre"
-    path "log.txt"
+    path "dated_trees.${label}.rds", emit: dated_trees
+    path "rtt_plots_${label}/*.pdf"
+    path "dated_trees_${label}/*.tre"
+    path "log.${label}.txt"
 
     script:
     """
@@ -165,6 +166,11 @@ process date_tree {
     --branch_dimension snp_per_genome \
     --clock $params.clock \
     --reroot false
+    
+    mv dated_trees.rds dated_trees.${label}.rds
+    mkdir -p dated_trees_${label} && mv dated_trees/* dated_trees_${label}/
+    mkdir -p rtt_plots_${label} && mv rtt_plots/* rtt_plots_${label}/
+    mv log.txt log.${label}.txt
     """
 }
 
@@ -204,29 +210,33 @@ process remove_duplicates {
 }
 
 process root_tree {
-    container "$r_container"
-    storeDir "$launchDir/$params.resdir/root_tree"
+	container "$r_container"
+	storeDir "$launchDir/$params.resdir/root_tree_${label}"
 
-    input:
-    tuple path(snps), path(shrinked_tree)
+	input:
+	tuple val(label), path(snps), path(tree)
 
-    output:
-    tuple path(snps), path("rooted_trees.rds"), emit: rooted_trees
-    // path "rooted_trees/*.tre"
-    path "rtt_metrics.rds"
-    path "rtt_plots.pdf"
-    path "log.txt"
+	output:
+	tuple val(label), path(snps), path("rooted_trees.rds"), emit: rooted_trees
+	path "rtt_metrics.${label}.rds"
+	path "rtt_plots.${label}.pdf"
+	path "log.${label}.txt"
 
-    script:
-    """
-    Rscript $projectDir/bin/root_tree.R \
-    --project_dir $projectDir \
-    --tree $shrinked_tree \
-    --assemblies $params.assemblies \
-    --root_method $params.root_method \
-    --root_topn $params.root_topn \
-    --threads ${task.cpus}
-    """
+	script:
+	"""
+	Rscript $projectDir/bin/root_tree.R \
+		--project_dir $projectDir \
+		--tree $tree \
+		--assemblies $params.assemblies \
+		--root_method $params.root_method \
+		--root_topn $params.root_topn \
+		--threads ${task.cpus}
+	
+	mv rooted_trees.rds rooted_trees.${label}.rds
+	mv rtt_metrics.rds rtt_metrics.${label}.rds
+	mv rtt_plots.pdf rtt_plots.${label}.pdf
+	mv log.txt log.${label}.txt
+	"""
 }
 
 process shrink_tree {
@@ -253,6 +263,32 @@ process shrink_tree {
     script:
     """
     run_treeshrink.py --tree $tree --outprefix treeshrink --force --outdir .
+    """
+}
+
+
+process prune_tree {
+    container "$treepruner_container"
+    storeDir "$launchDir/$params.resdir/treepruner_tree"
+
+    input:
+    tuple path(A),
+          path(B),
+          path(snps),
+          path(D),
+          path(tree),
+          path(F),
+          path(G),
+          path(H),
+          path(I)
+
+    output:
+    tuple path(snps), path("treepruner.tree"), emit: pruned_tree
+    path "treepruner.tree"
+
+    script:
+    """
+    treepruner.py -i $tree -o treepruner.tree
     """
 }
 
@@ -354,15 +390,41 @@ workflow {
     // Remove duplicates, mask recombination, build tree, shrink, bootstrap
 
     chromosomes | remove_duplicates
-    remove_duplicates.out.chromosomes_nodup | build_tree | shrink_tree //| bootstrap_tree | tidy_bootstrap_tree
+    build_tree_ch = remove_duplicates.out.chromosomes_nodup | build_tree
+    
+    // Split the channel so both processes get the same input
+    
+    // Pruning
+    shrink_tree_out = build_tree_ch | shrink_tree
+    prune_tree_out  = build_tree_ch  | prune_tree
 
     // Root shrinked tree using mad, midpoint, rtt
-    shrink_tree.out.shrinked_tree | root_tree
+    
+    root_input = shrink_tree_out.shrinked_tree
+    .combine(prune_tree_out.pruned_tree) { a, b ->
+        tuple(a[0], a[1], b[1])
+    }
+    
+    // Root both trees separately
+    shrink_root_out = shrink_tree_out.shrinked_tree | root_tree
+    prune_root_out  = prune_tree_out.pruned_tree   | root_tree
 
-    // Date all rooted trees
-    date_tree(root_tree.out.rooted_trees)
 
-    date_tree.out.dated_trees | choose_dated_tree
+	// Root both trees separately
+	shrink_root_out = shrink_tree_out.shrinked_tree.map { snps, tree -> tuple("shrink", snps, tree) } | root_tree
+	prune_root_out  = prune_tree_out.pruned_tree.map { snps, tree -> tuple("prune", snps, tree) } | root_tree
+
+	// Date both rooted trees separately
+	shrink_date_out = shrink_root_out.rooted_trees | date_tree
+	prune_date_out  = prune_root_out.rooted_trees | date_tree
+	
+	merged_dated_trees = date_tree_shrink.out.dated_trees.combine(
+		date_tree_prune.out.dated_trees
+	) { shrink_path, prune_path ->
+		tuple(shrink_path, prune_path)
+	}
+
+    choose_dated_tree(merged_dated_trees)
 
     // Add tips that were removed as duplicates to final dated tree
     add_duplicates(

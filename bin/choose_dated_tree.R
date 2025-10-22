@@ -3,9 +3,14 @@ rm(list = ls())
 
 args_list <- list(
   make_option(
-    c("-t", "--trees"),
+    c("-ts", "--trees_shrink"),
     type = "character",
-    help = "A list of dated trees in rds format."
+    help = "A list of dated trees in rds format (from treeshrink)."
+  )
+  make_option(
+    c("-tp", "--trees_prune"),
+    type = "character",
+    help = "A list of dated trees in rds format (from treepruner)."
   )
 )
 
@@ -15,7 +20,8 @@ if (!interactive()) {
   args  <- parse_args(args_parser)
 } else {
   args <- list(
-    trees = "dated_trees.rds"
+    trees_shrink = "dated_trees.rds"
+    trees_prune = "dated_trees.rds"
   )
 }
 
@@ -25,12 +31,20 @@ if (!interactive()) {
   sink(con, split = TRUE)
 }
 
-trees <- readRDS(args$trees)
+trees_shrink <- readRDS(args$trees_shrink)
+trees_prune <- readRDS(args$trees_prune)
+trees <- c(trees_shrink, trees_prune)
 
 # choose tree with highest log likelihood
 ll <- sapply(trees, function(x) x$loglik)
 index <- which(ll == max(ll))[1]
 tree <- trees[[index]]
+
+if(index <= length(trees_shrink)) {
+    method_used <- "treeshrink"
+} else {
+    method_used <- "treepruner"
+}
 
 # choose first tree where rooting approach was RTT RMS
 #root_method <- sapply(trees, function(x) x$root_method)
@@ -43,6 +57,7 @@ if (grepl("_[0-9]$", tree$root_method)) {
 
 saveRDS(tree, "final_dated_tree.rds")
 
+writeLines(method_used, "selected_pruning_method.txt")
 # end logging
 if (!interactive()) {
   sink(con)
